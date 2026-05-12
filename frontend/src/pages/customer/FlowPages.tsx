@@ -322,10 +322,22 @@ function orderStepIndex(status?: string) {
 }
 
 function socketUrl(orderId?: string) {
-  const base = import.meta.env.VITE_API_BASE_URL || '/api';
-  const wsBase = base.startsWith('http') ? base.replace(/^http/, 'ws') : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${base}`;
-  const query = orderId ? `?orderId=${encodeURIComponent(orderId)}` : '';
-  return `${wsBase.replace(/\/api$/, '')}/ws/orders${query}`;
+  const configured = import.meta.env.VITE_WS_BASE_URL;
+  const base = configured || `${import.meta.env.VITE_API_BASE_URL || '/api'}/ws/orders`;
+  const wsBase = base.startsWith('ws')
+    ? base
+    : base.startsWith('http')
+      ? base.replace(/^http/, 'ws')
+      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${base}`;
+  const token = localStorage.getItem('chengyi_token') || '';
+  const query = new URLSearchParams();
+  if (orderId) {
+    query.set('orderId', orderId);
+  }
+  if (token) {
+    query.set('token', token);
+  }
+  return `${wsBase}?${query.toString()}`;
 }
 
 export function TrackingPage({ order, setOrder, go }: { order: Order | null; setOrder: (order: Order) => void; go: Navigate }) {

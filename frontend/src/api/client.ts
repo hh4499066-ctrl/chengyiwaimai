@@ -28,6 +28,7 @@ export type Dish = {
   description?: string;
   price: number;
   sales?: number;
+  status?: string;
   image?: string;
   category?: string;
   categoryName?: string;

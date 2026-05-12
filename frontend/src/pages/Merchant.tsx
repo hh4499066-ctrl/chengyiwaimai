@@ -135,60 +135,6 @@ function MerchantWorkbench() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
          {pendingOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无待处理订单</p>}
          {pendingOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
-         {/* Pending Orders */}
-         {false && <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-error">
-             <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
-                 <div className="flex items-center gap-sm"><span className="bg-error text-on-error font-bold font-label-md text-label-md px-2 py-0.5 rounded">新订单 #42</span></div>
-                 <span className="font-label-md text-label-md text-error flex items-center"><span className="material-symbols-outlined text-[16px] mr-0.5">timer</span>等待接单 04:59</span>
-             </div>
-             <div className="space-y-xs mb-md">
-                 <div className="flex justify-between font-body-md text-body-md font-medium"><span className="text-on-surface">招牌酸菜鱼（含米饭+饮品）</span><span>x1</span></div>
-                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant"><span>蒜泥白肉(小份)</span><span>x1</span></div>
-             </div>
-             <div className="flex justify-between items-center p-sm bg-surface-variant/30 rounded-lg mb-md">
-                 <span className="font-label-md text-label-md text-on-surface-variant">本单预计收入</span>
-                 <span className="font-headline-sm text-headline-sm font-bold text-error">¥68.00</span>
-             </div>
-             <div className="flex gap-sm">
-                 <button className="flex-1 py-2 rounded-xl text-on-surface-variant border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors">拒单</button>
-                 <button className="flex-[2] py-2 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity">立即接单 (打印)</button>
-             </div>
-         </div>}
-         {/* Cooking Orders */}
-         {false && <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-secondary-container">
-             <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
-                 <div className="flex items-center gap-sm"><span className="bg-secondary-container text-on-secondary-container font-bold font-label-md text-label-md px-2 py-0.5 rounded">出餐中 #40</span></div>
-                 <span className="font-label-md text-label-md text-on-surface-variant flex items-center"><span className="material-symbols-outlined text-[16px] mr-0.5">schedule</span>已接单 8分钟</span>
-             </div>
-             <div className="space-y-xs mb-md">
-                 <div className="flex justify-between font-body-md text-body-md font-medium"><span className="text-on-surface">水煮肉片(大份)</span><span>x1</span></div>
-                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant"><span>米饭</span><span>x2</span></div>
-             </div>
-             <div className="flex justify-between items-center p-sm bg-surface-variant/30 rounded-lg mb-md">
-                 <span className="font-label-md text-label-md text-on-surface-variant">骑手距店</span>
-                 <span className="font-body-md text-body-md font-bold text-tertiary">1.2 km (约5分钟)</span>
-             </div>
-             <div className="flex gap-sm">
-                 <button className="flex-1 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity">标记出餐</button>
-             </div>
-         </div>}
-         {/* Waiting Pickup */}
-         {false && <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-tertiary">
-             <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
-                 <div className="flex items-center gap-sm"><span className="bg-tertiary/20 text-tertiary font-bold font-label-md text-label-md px-2 py-0.5 rounded">待取餐 #38</span></div>
-                 <span className="font-label-md text-label-md text-on-surface-variant flex items-center"><span className="material-symbols-outlined text-[16px] mr-1">moped</span>骑手已到店</span>
-             </div>
-             <div className="space-y-xs mb-md">
-                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant line-clamp-1"><span>宫保鸡丁... 等共 3 件商品</span></div>
-             </div>
-             <div className="flex justify-between items-center p-sm bg-surface-variant/30 rounded-lg mb-md">
-                 <span className="font-label-md text-label-md text-on-surface-variant">取餐号</span>
-                 <span className="font-display-sm text-[24px] font-bold text-on-surface tracking-widest">38</span>
-             </div>
-             <div className="flex gap-sm">
-                 <button className="flex-1 py-2 rounded-xl text-tertiary border border-tertiary/50 hover:bg-tertiary/10 font-body-md font-medium transition-colors flex justify-center items-center gap-xs"><span className="material-symbols-outlined text-[18px]">phone</span>呼叫骑手</button>
-             </div>
-         </div>}
       </div>
       <div className="h-xl md:hidden"></div>
     </div>
@@ -238,58 +184,6 @@ function MerchantOrders() {
     </div>
   );
 
-  return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
-      <header className="px-lg py-md border-b border-outline-variant/30 bg-surface z-10 shrink-0">
-         <h2 className="font-headline-md text-headline-md font-bold text-on-surface mb-md">订单管理</h2>
-         <div className="flex gap-md overflow-x-auto no-scrollbar">
-             {['新订单 (3)', '待出餐 (5)', '待骑手取 (2)', '配送中 (12)', '已完成', '取消/售后 (1)'].map((t, i) => (
-                 <button key={i} className={`whitespace-nowrap font-body-md text-body-md font-medium pb-sm border-b-2 transition-colors ${i===0 ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'}`}>{t}</button>
-             ))}
-         </div>
-      </header>
-      <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md bg-surface-container-low">
-          {/* Order Item */}
-          <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-md flex flex-col md:flex-row gap-lg">
-              <div className="flex-1">
-                  <div className="flex justify-between items-start mb-md">
-                      <div>
-                          <span className="bg-error font-label-md text-on-error px-2 py-0.5 rounded mr-2">新订单</span>
-                          <span className="font-headline-sm text-headline-sm font-bold text-on-surface">#43</span>
-                          <p className="font-label-md text-label-md text-on-surface-variant mt-1">下单时间: 18:32:45 | 预计送达: 19:15</p>
-                      </div>
-                      <div className="text-right">
-                          <p className="font-label-md text-label-md text-on-surface-variant">本单预计收入</p>
-                          <p className="font-headline-sm text-headline-sm font-bold text-error mt-0.5">¥125.50</p>
-                      </div>
-                  </div>
-                  <div className="bg-surface-variant/20 rounded-lg p-sm mb-md">
-                      <div className="font-body-md text-body-md font-bold text-on-surface mb-xs flex items-center"><span className="material-symbols-outlined text-[18px] mr-1 text-on-surface-variant">person</span>张女士 (尾号1234) <span className="ml-md text-primary bg-primary/10 px-2 py-0.5 rounded text-[12px]">门店新客</span></div>
-                      <p className="font-body-md text-body-md text-on-surface-variant line-clamp-1">广州市天河区花城大道 某某小区 3栋 405</p>
-                  </div>
-                  <div className="rounded-lg border border-outline-variant/30 overflow-hidden text-sm">
-                      <table className="w-full text-left">
-                          <tbody className="divide-y divide-outline-variant/30">
-                              <tr className="bg-surface-container-low"><td className="p-2 font-medium">招牌烤鱼（蒜香版）</td><td className="p-2 text-center text-on-surface-variant">x1</td><td className="p-2 text-right">¥88.0</td></tr>
-                              <tr className="bg-surface-container-low"><td className="p-2 font-medium">凉拌海带丝</td><td className="p-2 text-center text-on-surface-variant">x1</td><td className="p-2 text-right">¥12.0</td></tr>
-                              <tr className="bg-surface-container-low"><td className="p-2 font-medium">米饭</td><td className="p-2 text-center text-on-surface-variant">x3</td><td className="p-2 text-right">¥9.0</td></tr>
-                          </tbody>
-                      </table>
-                  </div>
-                  <div className="mt-sm p-sm bg-error-container/20 border border-error/20 rounded-lg flex items-start gap-sm">
-                      <span className="material-symbols-outlined text-error text-[18px] mt-0.5">edit_note</span>
-                      <p className="font-body-md text-body-md text-error font-medium">备注: 多加点辣，不要香菜。其中一份米饭请用大盒子装。</p>
-                  </div>
-              </div>
-              <div className="w-full md:w-[200px] flex flex-col justify-end gap-sm border-t md:border-t-0 md:border-l border-outline-variant/30 pt-md md:pt-0 md:pl-md">
-                 <button className="w-full py-3 rounded-lg bg-primary text-on-primary font-body-md font-bold shadow-sm hover:opacity-90 transition-opacity">接单并打印</button>
-                 <button className="w-full py-3 rounded-lg text-on-surface border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors">联系顾客</button>
-                 <button className="w-full py-3 rounded-lg text-on-surface-variant hover:bg-surface-variant font-body-md transition-colors mt-auto">拒单</button>
-              </div>
-          </div>
-      </div>
-    </div>
-  );
 }
 
 function MerchantMenu() {

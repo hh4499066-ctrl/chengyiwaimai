@@ -9,13 +9,17 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
     private final OrderSocketHandler orderSocketHandler;
+    private final OrderSocketAuthInterceptor orderSocketAuthInterceptor;
 
-    public WebSocketConfig(OrderSocketHandler orderSocketHandler) {
+    public WebSocketConfig(OrderSocketHandler orderSocketHandler, OrderSocketAuthInterceptor orderSocketAuthInterceptor) {
         this.orderSocketHandler = orderSocketHandler;
+        this.orderSocketAuthInterceptor = orderSocketAuthInterceptor;
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(orderSocketHandler, "/ws/orders").setAllowedOriginPatterns("*");
+        registry.addHandler(orderSocketHandler, "/ws/orders")
+                .addInterceptors(orderSocketAuthInterceptor)
+                .setAllowedOriginPatterns("*");
     }
 }

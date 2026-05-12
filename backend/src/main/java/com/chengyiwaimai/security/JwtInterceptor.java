@@ -30,7 +30,7 @@ public class JwtInterceptor implements HandlerInterceptor {
                 ? uri.substring(contextPath.length())
                 : uri;
 
-        if (path.equals("/auth/login") || path.startsWith("/merchants") || path.startsWith("/ws/orders")) {
+        if (path.equals("/auth/login") || path.startsWith("/merchants")) {
             return true;
         }
 
@@ -50,10 +50,14 @@ public class JwtInterceptor implements HandlerInterceptor {
 
     private CurrentUser parseCurrentUser(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+        if (authorization != null && authorization.startsWith("Bearer ")) {
+            return jwtUtil.parseToken(authorization.substring("Bearer ".length()).trim());
+        }
+        String token = request.getParameter("token");
+        if (token == null || token.isBlank()) {
             throw new BizException(401, "未登录或登录已过期");
         }
-        return jwtUtil.parseToken(authorization.substring("Bearer ".length()).trim());
+        return jwtUtil.parseToken(token.trim());
     }
 
     private void checkPathRole(String path, CurrentUser user) {

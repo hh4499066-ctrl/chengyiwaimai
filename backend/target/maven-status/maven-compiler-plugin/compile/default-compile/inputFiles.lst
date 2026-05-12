@@ -37,5 +37,6 @@ E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\web\Mer
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\web\MerchantController.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\web\OrderController.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\web\RiderController.java
+E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\websocket\OrderSocketAuthInterceptor.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\websocket\OrderSocketHandler.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\websocket\WebSocketConfig.java

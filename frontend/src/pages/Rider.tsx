@@ -75,71 +75,6 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
     </div>
   );
 
-  return (
-    <div className="bg-surface h-screen text-on-surface overflow-y-auto no-scrollbar pb-[100px] bg-[radial-gradient(ellipse_at_top_right,_var(--color-surface-container-high),_transparent_50%)]">
-      <div className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-md py-sm flex justify-between items-center pt-safe border-b border-surface-variant">
-        <h1 className="text-headline-sm font-headline-sm text-primary">接单大厅</h1>
-        <div className="flex bg-surface-variant rounded-full p-1 relative">
-          <input type="checkbox" id="workStatus" className="peer sr-only"/>
-          <label htmlFor="workStatus" className="cursor-pointer px-4 py-1.5 rounded-full text-label-md font-label-md text-on-surface-variant transition-colors peer-checked:bg-primary-container peer-checked:text-on-primary-container z-10 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary-container peer-checked:bg-on-primary-container transition-colors"></span>上线中</label>
-        </div>
-      </div>
-      <div className="px-md py-md pt-lg pb-xl">
-        <div className="flex gap-sm overflow-x-auto no-scrollbar mb-md">
-          <button className="px-md py-xs rounded-full bg-primary text-on-primary text-label-md font-label-md whitespace-nowrap shadow-[0_2px_8px_rgba(171,53,0,0.25)] flex items-center gap-xs">全部订单 <span className="opacity-80">12</span></button>
-          <button className="px-md py-xs rounded-full bg-surface-container-high text-on-surface-variant text-label-md font-label-md whitespace-nowrap hover:bg-surface-variant transition-colors flex items-center gap-xs focus:ring-2 focus:ring-primary/20">距离最近</button>
-          <button className="px-md py-xs rounded-full bg-surface-container-high text-on-surface-variant text-label-md font-label-md whitespace-nowrap hover:bg-surface-variant transition-colors flex items-center gap-xs focus:ring-2 focus:ring-primary/20">顺路最高</button>
-        </div>
-        <div className="space-y-4">
-          <div className="bg-surface-container-lowest rounded-2xl p-md shadow-[0_4px_16px_rgba(38,24,20,0.04)] border border-outline-variant/30 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 bg-error/10 text-error px-xs py-0.5 rounded-bl-lg text-[10px] font-label-md flex items-center gap-0.5"><span className="material-symbols-outlined text-[12px] fill">timer</span> 剩余 12:45</div>
-            <div className="flex justify-between items-start mb-md">
-              <div><h2 className="text-headline-sm font-headline-sm text-on-surface">¥4.50</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">预计收入</p></div>
-              <div className="text-right"><p className="text-body-md font-body-md text-primary font-medium">1.2 km</p><p className="text-label-md font-label-md text-on-surface-variant mt-xs">总路程</p></div>
-            </div>
-            <div className="relative pl-6 mb-md space-y-md">
-              <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-outline-variant"></div>
-              <div className="relative">
-                <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-tertiary ring-4 ring-tertiary/20"></span>
-                <p className="text-body-md font-body-md text-on-surface line-clamp-1">老王家手工水饺 (天汇广场店)</p>
-                <div className="flex items-center gap-xs mt-xs"><span className="material-symbols-outlined text-[14px] text-tertiary">near_me</span><p className="text-label-md font-label-md text-tertiary">距你 240m</p></div>
-              </div>
-              <div className="relative">
-                <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20"></span>
-                <p className="text-body-md font-body-md text-on-surface line-clamp-1">星河湾小区 2期 4栋 1802室</p>
-                <p className="text-label-md font-label-md text-on-surface-variant mt-xs">送达时间: 18:30 前</p>
-              </div>
-            </div>
-            <button className="w-full py-sm rounded-xl bg-primary text-on-primary text-body-lg font-body-lg font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] hover:bg-[#832600] active:scale-[0.98] transition-all flex items-center justify-center gap-xs relative overflow-hidden">
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)] -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>抢单
-            </button>
-          </div>
-          
-          <div className="bg-surface-container-lowest rounded-2xl p-md shadow-[0_4px_16px_rgba(38,24,20,0.04)] border border-outline-variant/30 relative overflow-hidden group opacity-80 backdrop-blur-sm grayscale-[20%]">
-            <div className="absolute top-0 right-0 bg-tertiary/10 text-tertiary px-xs py-0.5 rounded-bl-lg text-[10px] font-label-md flex items-center gap-0.5"><span className="material-symbols-outlined text-[12px] fill">route</span> 顺路单 85%</div>
-            <div className="flex justify-between items-start mb-md">
-              <div><h2 className="text-headline-sm font-headline-sm text-on-surface">¥3.20</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">预计收入</p></div>
-              <div className="text-right"><p className="text-body-md font-body-md text-tertiary font-medium">3.5 km</p><p className="text-label-md font-label-md text-on-surface-variant mt-xs">总路程</p></div>
-            </div>
-            <div className="relative pl-6 mb-md space-y-md">
-              <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-outline-variant"></div>
-              <div className="relative">
-                <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-tertiary ring-4 ring-tertiary/20"></span>
-                <p className="text-body-md font-body-md text-on-surface line-clamp-1">喜茶 (万菱汇店)</p>
-                <div className="flex items-center gap-xs mt-xs"><span className="material-symbols-outlined text-[14px] text-tertiary">near_me</span><p className="text-label-md font-label-md text-tertiary">距你 1.2km</p></div>
-              </div>
-              <div className="relative">
-                <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20"></span>
-                <p className="text-body-md font-body-md text-on-surface line-clamp-1">珠江新城CBD 珠江国际中心 34楼</p>
-                <p className="text-label-md font-label-md text-on-surface-variant mt-xs">送达时间: 18:45 前</p>
-              </div>
-            </div>
-            <button className="w-full py-sm rounded-xl bg-surface-container-high text-on-surface-variant text-body-lg font-body-lg font-medium hover:bg-surface-variant active:scale-[0.98] transition-all flex items-center justify-center gap-xs">顺路抢单</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function RiderTask() {
@@ -237,58 +172,6 @@ function RiderTask() {
     </div>
   );
 
-  return (
-    <div className="bg-surface h-screen text-on-surface overflow-hidden flex flex-col relative">
-      <div className="absolute inset-0 z-0 bg-[#e3f2fd]">
-        <div className="w-full h-[60%] bg-[url('https://maps.googleapis.com/maps/api/staticmap?center=23.1291,113.2644&zoom=15&size=600x600&maptype=roadmap&style=feature:all|element:labels|visibility:off&style=feature:road|element:geometry|color:0xffffff&style=feature:landscape|element:geometry|color:0xf5f5f5')] bg-cover bg-center mix-blend-overlay opacity-60"></div>
-        <div className="absolute top-1/4 left-1/3 flex items-center justify-center">
-            <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute"></div>
-            <span className="material-symbols-outlined text-primary text-[32px] drop-shadow-md fill relative">location_on</span>
-        </div>
-        <svg className="absolute top-1/4 left-1/3 w-1/2 h-1/4 stroke-primary/80 stroke-[4px]" fill="none" viewBox="0 0 200 100" preserveAspectRatio="none"><path strokeDasharray="8,8" d="M0,0 Q50,80 150,50 T200,100"/></svg>
-        <div className="absolute top-1/2 right-1/4">
-            <span className="material-symbols-outlined text-tertiary text-[28px] drop-shadow-md fill">storefront</span>
-        </div>
-      </div>
-
-      <div className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-md py-sm flex justify-between items-center pt-safe shadow-sm">
-        <h1 className="text-headline-sm font-headline-sm text-primary font-bold">配送任务</h1>
-        <button className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"><span className="material-symbols-outlined text-[20px]">sort</span></button>
-      </div>
-
-      <div className="z-10 mt-auto bg-surface rounded-t-3xl shadow-[0_-4px_24px_rgba(31,41,55,0.08)] pb-[100px] flex flex-col max-h-[80vh]">
-        <div className="w-full flex justify-center py-2 shrink-0 cursor-grab active:cursor-grabbing"><div className="w-12 h-1.5 bg-outline-variant/50 rounded-full"></div></div>
-        <div className="px-md pb-md flex-1 overflow-y-auto no-scrollbar">
-          <div className="flex items-center justify-between mb-md">
-            <div><h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">待取货任务</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">共 2 单进行中</p></div>
-            <button className="p-2 rounded-full bg-primary/10 text-primary active:bg-primary/20"><span className="material-symbols-outlined text-[20px]">my_location</span></button>
-          </div>
-          <div className="space-y-md">
-            {/* Task 1 */}
-            <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-8 h-8 bg-error rounded-bl-2xl flex items-center justify-center text-on-error font-body-md font-bold">1</div>
-                <div className="flex justify-between items-start mb-sm pr-6">
-                    <div className="flex gap-sm items-center"><div className="w-10 h-10 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary"><span className="material-symbols-outlined fill">storefront</span></div><div><h3 className="text-body-lg font-body-lg text-on-surface font-semibold line-clamp-1">老王家手工水饺 (天汇广场店)</h3><p className="text-label-md font-label-md text-tertiary font-medium">取餐号：#4521</p></div></div>
-                </div>
-                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md flex justify-between items-center"><div className="flex gap-2 items-center"><span className="material-symbols-outlined text-outline text-[18px]">payments</span><span className="text-label-md font-label-md text-on-surface-variant">预计收入 <strong className="text-body-md font-body-md text-on-surface mx-1">¥4.50</strong></span></div><span className="text-label-md font-label-md text-error flex items-center"><span className="material-symbols-outlined text-[14px] mr-1">schedule</span>剩 12:45</span></div>
-                <div className="flex gap-sm">
-                    <button className="flex-1 py-2.5 rounded-xl border border-primary text-primary font-body-md font-medium flex items-center justify-center gap-xs hover:bg-primary/5"><span className="material-symbols-outlined text-[18px]">phone_enabled</span>联系商家</button>
-                    <button className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] flex items-center justify-center gap-xs hover:bg-[#832600]">已到店取货</button>
-                </div>
-            </div>
-            {/* Task 2 */}
-            <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative overflow-hidden opacity-90">
-                <div className="flex justify-between items-start mb-sm pr-6">
-                    <div className="flex gap-sm items-center"><div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><span className="material-symbols-outlined fill">home</span></div><div><h3 className="text-body-lg font-body-lg text-on-surface font-semibold line-clamp-1">星河湾小区 2期 4栋 1802室</h3><p className="text-label-md font-label-md text-primary font-medium">张先生 尾号: 3942</p></div></div>
-                </div>
-                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">请放到门口外卖柜第三层，到了打电话，我马上出来拿。</p></div></div>
-                <div className="flex gap-sm"><button className="flex-1 py-2.5 rounded-xl border border-outline-variant text-on-surface-variant font-body-md font-medium flex items-center justify-center gap-xs hover:bg-surface-variant"><span className="material-symbols-outlined text-[18px]">chat</span>发消息</button><button className="flex-[2] py-2.5 rounded-xl bg-surface-container-high text-on-surface-variant font-body-md font-medium flex items-center justify-center opacity-70 cursor-not-allowed">确认送达</button></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function RiderEarnings() {

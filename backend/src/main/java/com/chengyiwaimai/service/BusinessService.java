@@ -33,6 +33,7 @@ import com.chengyiwaimai.model.Models.Merchant;
 import com.chengyiwaimai.model.Models.Order;
 import com.chengyiwaimai.model.Models.Review;
 import com.chengyiwaimai.security.CurrentUser;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -126,25 +127,40 @@ public class BusinessService {
 
     public Dish saveDish(CurrentUser user, Dish dish) {
         MerchantEntity merchant = requireMerchant(user);
+        if (dish.name() == null || dish.name().isBlank()) {
+            throw new BizException("菜品名称不能为空");
+        }
+        if (dish.price() == null || dish.price().compareTo(BigDecimal.ZERO) < 0) {
+            throw new BizException("菜品价格不能为空且不能为负数");
+        }
+        if (dish.sales() != null && dish.sales() < 0) {
+            throw new BizException("菜品库存不能为负数");
+        }
         DishEntity entity = new DishEntity();
         entity.setId(dish.id());
         entity.setMerchantId(merchant.getId());
         entity.setName(dish.name());
         entity.setDescription(dish.description());
         entity.setPrice(dish.price());
-        entity.setStock(999);
-        entity.setStatus("on_sale");
         entity.setCategoryName("默认分类");
         if (entity.getId() == null) {
+            entity.setStock(dish.sales() == null ? 999 : dish.sales());
+            entity.setStatus(dish.status() == null || dish.status().isBlank() ? "on_sale" : dish.status());
+            if (dish.categoryName() != null && !dish.categoryName().isBlank()) {
+                entity.setCategoryName(dish.categoryName());
+            }
             dishMapper.insert(entity);
         } else {
             DishEntity old = dishMapper.selectById(entity.getId());
             if (old == null || !merchant.getId().equals(old.getMerchantId())) {
                 throw new BizException("无权修改该菜品");
             }
+            entity.setStock(dish.sales() == null ? old.getStock() : dish.sales());
+            entity.setStatus(dish.status() == null || dish.status().isBlank() ? old.getStatus() : dish.status());
+            entity.setCategoryName(dish.categoryName() == null || dish.categoryName().isBlank() ? old.getCategoryName() : dish.categoryName());
             dishMapper.updateById(entity);
         }
-        return toDish(entity);
+        return toDish(dishMapper.selectById(entity.getId()));
     }
 
     public List<CartItem> cartItems(Long userId) {
@@ -156,6 +172,7 @@ public class BusinessService {
                 .toList();
     }
 
+    @Transactional
     public CartItem addCartItem(Long userId, CartItem item) {
         if (item.dishId() == null) {
             throw new BizException("菜品不能为空");
@@ -173,12 +190,15 @@ public class BusinessService {
             existing.setDishName(dish.getName());
             existing.setQuantity(quantity);
             existing.setPrice(dish.getPrice());
-            cartItemMapper.insert(existing);
+            try {
+                cartItemMapper.insert(existing);
+            } catch (DuplicateKeyException ex) {
+                incrementCartItem(userId, dish, quantity);
+                existing = requireCartItem(userId, dish.getId());
+            }
         } else {
-            existing.setQuantity(existing.getQuantity() + quantity);
-            existing.setDishName(dish.getName());
-            existing.setPrice(dish.getPrice());
-            cartItemMapper.updateById(existing);
+            incrementCartItem(userId, dish, quantity);
+            existing = requireCartItem(userId, dish.getId());
         }
         return toCartItem(existing);
     }
@@ -317,6 +337,26 @@ public class BusinessService {
         if (!user.userId().equals(order.getRiderId())) {
             throw new BizException(403, "无权操作该订单");
         }
+    }
+
+    public void requireOrderSubscription(CurrentUser user, String orderId) {
+        DeliveryOrderEntity order = requireOrder(orderId);
+        if (user.hasRole("admin")) {
+            return;
+        }
+        if (user.hasRole("customer") && user.userId().equals(order.getUserId())) {
+            return;
+        }
+        if (user.hasRole("merchant")) {
+            MerchantEntity merchant = requireMerchant(user);
+            if (merchant.getId().equals(order.getMerchantId())) {
+                return;
+            }
+        }
+        if (user.hasRole("rider") && user.userId().equals(order.getRiderId())) {
+            return;
+        }
+        throw new BizException(403, "无权订阅该订单");
     }
 
     public List<Order> customerOrders(CurrentUser user) {
@@ -507,8 +547,8 @@ public class BusinessService {
         return next;
     }
 
-    public Map<String, Object> merchantStats() {
-        List<Order> orders = adminOrders();
+    public Map<String, Object> merchantStats(CurrentUser user) {
+        List<Order> orders = merchantOrders(user);
         return Map.of(
                 "todayIncome", orders.stream().map(Order::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
                 "todayOrders", orders.size(),
@@ -517,9 +557,9 @@ public class BusinessService {
         );
     }
 
-    public Map<String, Object> riderStats() {
+    public Map<String, Object> riderStats(CurrentUser user) {
         List<DeliveryOrderEntity> completed = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
-                .isNotNull(DeliveryOrderEntity::getRiderId)
+                .eq(DeliveryOrderEntity::getRiderId, user.userId())
                 .eq(DeliveryOrderEntity::getStatus, COMPLETED));
         return Map.of(
                 "todayIncome", BigDecimal.valueOf(completed.size()).multiply(new BigDecimal("4.50")),
@@ -679,6 +719,15 @@ public class BusinessService {
         return item;
     }
 
+    private void incrementCartItem(Long userId, DishEntity dish, int quantity) {
+        cartItemMapper.update(null, Wrappers.<CartItemEntity>lambdaUpdate()
+                .setSql("quantity = quantity + " + quantity)
+                .set(CartItemEntity::getDishName, dish.getName())
+                .set(CartItemEntity::getPrice, dish.getPrice())
+                .eq(CartItemEntity::getUserId, userId)
+                .eq(CartItemEntity::getDishId, dish.getId()));
+    }
+
     private int validateQuantity(Integer quantity) {
         if (quantity == null || quantity <= 0) {
             throw new BizException("商品数量不合法");
@@ -726,7 +775,7 @@ public class BusinessService {
     }
 
     private Dish toDish(DishEntity entity) {
-        return new Dish(entity.getId(), entity.getMerchantId(), entity.getName(), entity.getDescription(), entity.getPrice(), entity.getStock());
+        return new Dish(entity.getId(), entity.getMerchantId(), entity.getName(), entity.getDescription(), entity.getPrice(), entity.getStock(), entity.getCategoryName(), entity.getStatus());
     }
 
     private CartItem toCartItem(CartItemEntity entity) {

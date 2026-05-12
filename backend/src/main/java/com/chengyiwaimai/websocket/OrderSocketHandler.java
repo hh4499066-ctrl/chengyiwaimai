@@ -7,8 +7,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,14 +14,15 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 @Component
 public class OrderSocketHandler extends TextWebSocketHandler {
-    private static final String GLOBAL_CHANNEL = "__global__";
-
     private final Map<String, Set<WebSocketSession>> sessionsByOrderId = new ConcurrentHashMap<>();
     private final Map<String, String> orderIdBySessionId = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        String orderId = orderIdFromQuery(session);
+        String orderId = (String) session.getAttributes().get(OrderSocketAuthInterceptor.ATTR_ORDER_ID);
+        if (orderId == null || orderId.isBlank()) {
+            return;
+        }
         sessionsByOrderId.computeIfAbsent(orderId, key -> new CopyOnWriteArraySet<>()).add(session);
         orderIdBySessionId.put(session.getId(), orderId);
     }
@@ -35,7 +34,6 @@ public class OrderSocketHandler extends TextWebSocketHandler {
 
     public void broadcast(String orderId, String message) {
         sendTo(sessionsByOrderId.get(orderId), message);
-        sendTo(sessionsByOrderId.get(GLOBAL_CHANNEL), message);
     }
 
     private void sendTo(Set<WebSocketSession> sessions, String message) {
@@ -69,23 +67,4 @@ public class OrderSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private String orderIdFromQuery(WebSocketSession session) {
-        String query = session.getUri() == null ? null : session.getUri().getRawQuery();
-        if (query == null || query.isBlank()) {
-            return GLOBAL_CHANNEL;
-        }
-        for (String part : query.split("&")) {
-            int index = part.indexOf('=');
-            if (index <= 0) {
-                continue;
-            }
-            String key = URLDecoder.decode(part.substring(0, index), StandardCharsets.UTF_8);
-            if (!"orderId".equals(key)) {
-                continue;
-            }
-            String value = URLDecoder.decode(part.substring(index + 1), StandardCharsets.UTF_8);
-            return value.isBlank() ? GLOBAL_CHANNEL : value;
-        }
-        return GLOBAL_CHANNEL;
-    }
 }

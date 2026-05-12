@@ -51,8 +51,9 @@ public class RiderController {
     }
 
     @GetMapping("/income")
-    public ApiResponse<Map<String, Object>> income() {
-        return ApiResponse.ok(store.riderStats());
+    public ApiResponse<Map<String, Object>> income(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.riderStats(user));
     }
 
     @PostMapping("/withdraw")

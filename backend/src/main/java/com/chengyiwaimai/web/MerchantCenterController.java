@@ -36,8 +36,9 @@ public class MerchantCenterController {
     }
 
     @GetMapping("/workbench")
-    public ApiResponse<Map<String, Object>> workbench() {
-        return ApiResponse.ok(store.merchantStats());
+    public ApiResponse<Map<String, Object>> workbench(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantStats(user));
     }
 
     @GetMapping("/orders")
@@ -81,8 +82,9 @@ public class MerchantCenterController {
     }
 
     @GetMapping("/stats")
-    public ApiResponse<Map<String, Object>> stats() {
-        return ApiResponse.ok(store.merchantStats());
+    public ApiResponse<Map<String, Object>> stats(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantStats(user));
     }
 
     @GetMapping("/reviews")

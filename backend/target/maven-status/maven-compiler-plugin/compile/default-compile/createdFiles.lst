@@ -8,6 +8,7 @@ com\chengyiwaimai\model\Models$LoginResult.class
 com\chengyiwaimai\entity\CouponEntity.class
 com\chengyiwaimai\common\GlobalExceptionHandler.class
 com\chengyiwaimai\web\CustomerController.class
+com\chengyiwaimai\websocket\OrderSocketAuthInterceptor.class
 com\chengyiwaimai\security\JwtUtil.class
 com\chengyiwaimai\security\AuthContext.class
 com\chengyiwaimai\model\Models$RiderLocation.class

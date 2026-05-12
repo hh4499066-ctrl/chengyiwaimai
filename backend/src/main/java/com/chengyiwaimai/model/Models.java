@@ -17,7 +17,7 @@ public final class Models {
     public record Merchant(Long id, String name, String category, BigDecimal rating, String distance, String deliveryTime) {
     }
 
-    public record Dish(Long id, Long merchantId, String name, String description, BigDecimal price, Integer sales) {
+    public record Dish(Long id, Long merchantId, String name, String description, BigDecimal price, Integer sales, String categoryName, String status) {
     }
 
     public record CartItem(Long dishId, String name, Integer quantity, BigDecimal price) {
