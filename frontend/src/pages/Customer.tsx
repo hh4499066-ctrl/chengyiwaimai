@@ -8,6 +8,8 @@ import { CheckoutPage, MerchantDetailPage, OrdersPage, PayPage, PayResultPage, R
 export default function Customer({ setRole }: { setRole: () => void }) {
   const [activeTab, setActiveTab] = useState('home');
   const [screen, setScreen] = useState('home');
+  const [selectedMerchantId, setSelectedMerchantId] = useState(1);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
 
   const go = (next: string) => {
     setScreen(next);
@@ -16,46 +18,51 @@ export default function Customer({ setRole }: { setRole: () => void }) {
     }
   };
 
+  const openMerchant = (merchantId: number) => {
+    setSelectedMerchantId(merchantId);
+    go('merchant');
+  };
+
   return (
     <div className="max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden bg-surface flex flex-col">
       <div className="flex-1 overflow-y-auto w-full relative pb-safe">
-        {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMerchantClick={() => go('merchant')} />}
+        {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMerchantClick={openMerchant} />}
         {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} />}
         {screen === 'message' && activeTab === 'message' && <Message />}
         {screen === 'profile' && activeTab === 'profile' && <Profile />}
-        {screen === 'search' && <SearchPage onBack={() => go('home')} onMerchant={() => go('merchant')} />}
-        {screen === 'merchant' && <MerchantDetailPage go={go} />}
-        {screen === 'checkout' && <CheckoutPage go={go} />}
-        {screen === 'pay' && <PayPage go={go} />}
+        {screen === 'search' && <SearchPage onBack={() => go('home')} onMerchant={openMerchant} />}
+        {screen === 'merchant' && <MerchantDetailPage merchantId={selectedMerchantId} go={go} />}
+        {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrderId={setCurrentOrderId} go={go} />}
+        {screen === 'pay' && <PayPage orderId={currentOrderId} go={go} />}
         {screen === 'pay-result' && <PayResultPage go={go} />}
         {screen === 'tracking' && <TrackingPage go={go} />}
-        {screen === 'review' && <ReviewPage go={go} />}
+        {screen === 'review' && <ReviewPage orderId={currentOrderId} go={go} />}
         {screen === 'orders' && <OrdersPage go={go} />}
       </div>
 
       <nav className="shrink-0 w-full bg-surface border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">
-        <button 
+        <button
           onClick={() => go('home')}
           className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'home' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'home' ? { fontVariationSettings: "'FILL' 1" } : {}}>home</span>
           <span className="text-[10px] font-label-md font-medium">首页</span>
         </button>
-        <button 
+        <button
           onClick={() => go('cart')}
           className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'cart' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'cart' ? { fontVariationSettings: "'FILL' 1" } : {}}>shopping_cart</span>
           <span className="text-[10px] font-label-md font-medium">购物车</span>
         </button>
-        <button 
+        <button
           onClick={() => go('message')}
           className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'message' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'message' ? { fontVariationSettings: "'FILL' 1" } : {}}>chat</span>
           <span className="text-[10px] font-label-md font-medium">消息中心</span>
         </button>
-        <button 
+        <button
           onClick={() => go('profile')}
           className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'profile' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
         >
@@ -64,8 +71,7 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         </button>
       </nav>
 
-      {/* Dev Switcher tool */}
-      <button onClick={setRole} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur">← Role</button>
+      <button onClick={setRole} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur">→ Role</button>
     </div>
   );
 }

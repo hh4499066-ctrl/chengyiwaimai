@@ -1,6 +1,7 @@
 package com.chengyiwaimai.websocket;
 
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -18,6 +19,11 @@ public class OrderSocketHandler extends TextWebSocketHandler {
         sessions.add(session);
     }
 
+    @Override
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        sessions.remove(session);
+    }
+
     public void broadcast(String message) {
         for (WebSocketSession session : sessions) {
             if (session.isOpen()) {
@@ -26,6 +32,8 @@ public class OrderSocketHandler extends TextWebSocketHandler {
                 } catch (IOException ignored) {
                     sessions.remove(session);
                 }
+            } else {
+                sessions.remove(session);
             }
         }
     }

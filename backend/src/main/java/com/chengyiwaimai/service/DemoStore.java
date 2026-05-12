@@ -1,5 +1,15 @@
 package com.chengyiwaimai.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.chengyiwaimai.common.BizException;
+import com.chengyiwaimai.entity.DeliveryOrderEntity;
+import com.chengyiwaimai.entity.DishEntity;
+import com.chengyiwaimai.entity.MerchantEntity;
+import com.chengyiwaimai.entity.OrderItemEntity;
+import com.chengyiwaimai.mapper.DeliveryOrderMapper;
+import com.chengyiwaimai.mapper.DishMapper;
+import com.chengyiwaimai.mapper.MerchantMapper;
+import com.chengyiwaimai.mapper.OrderItemMapper;
 import com.chengyiwaimai.model.Models.Address;
 import com.chengyiwaimai.model.Models.CartItem;
 import com.chengyiwaimai.model.Models.Category;
@@ -10,63 +20,99 @@ import com.chengyiwaimai.model.Models.Merchant;
 import com.chengyiwaimai.model.Models.Order;
 import com.chengyiwaimai.model.Models.Review;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 public class DemoStore {
-    private final List<Merchant> merchants = new ArrayList<>(List.of(
-            new Merchant(1L, "老刘家招牌牛肉面", "面食简餐", new BigDecimal("4.8"), "800m", "25分钟"),
-            new Merchant(2L, "橙意轻食研究所", "轻食沙拉", new BigDecimal("4.9"), "1.2km", "32分钟")
-    ));
-    private final List<Dish> dishes = new ArrayList<>(List.of(
-            new Dish(101L, 1L, "招牌红烧牛肉面", "慢炖牛腱肉，搭配手工拉面和秘制红油。", new BigDecimal("28.5"), 642),
-            new Dish(102L, 1L, "番茄肥牛拌面", "酸甜番茄汤底，肥牛鲜嫩，适合晚餐。", new BigDecimal("26.0"), 418),
-            new Dish(103L, 1L, "冰柠檬茶", "清爽解腻，少冰少糖可选。", new BigDecimal("9.0"), 899)
-    ));
-    private final Map<String, Order> orders = new LinkedHashMap<>();
-    private final List<CartItem> cartItems = new ArrayList<>(List.of(
-            new CartItem(101L, "招牌红烧牛肉面", 1, new BigDecimal("28.5")),
-            new CartItem(103L, "冰柠檬茶", 1, new BigDecimal("9.0"))
-    ));
-    private final List<Address> addresses = new ArrayList<>(List.of(
-            new Address(1L, "张同学", "13800000001", "学校东门 3 号宿舍楼 502", true),
-            new Address(2L, "李同学", "13900000002", "实验楼 A 座大厅", false)
-    ));
-    private final List<Coupon> coupons = new ArrayList<>(List.of(
-            new Coupon(1L, "新人首单立减券", new BigDecimal("20.00"), new BigDecimal("8.00"), "可使用"),
-            new Coupon(2L, "校园夜宵满减券", new BigDecimal("35.00"), new BigDecimal("6.00"), "可使用")
-    ));
-    private final List<Review> reviews = new ArrayList<>(List.of(
-            new Review(1L, "CY202605120001", 5, "味道不错，配送很快。", "感谢支持，欢迎再次下单。")
-    ));
-    private final List<Category> categories = new ArrayList<>(List.of(
-            new Category(1L, 1L, "招牌推荐", 1),
-            new Category(2L, 1L, "热销单品", 2),
-            new Category(3L, 1L, "饮品", 3)
-    ));
+    public static final String WAIT_PAY = "待支付";
+    public static final String WAIT_MERCHANT_ACCEPT = "待商家接单";
+    public static final String MERCHANT_ACCEPTED = "商家已接单";
+    public static final String CANCELED = "已取消";
+    public static final String MERCHANT_READY = "商家已出餐";
+    public static final String RIDER_ACCEPTED = "骑手已接单";
+    public static final String RIDER_PICKED = "骑手已取餐";
+    public static final String COMPLETED = "已完成";
+
+    private final MerchantMapper merchantMapper;
+    private final DishMapper dishMapper;
+    private final DeliveryOrderMapper deliveryOrderMapper;
+    private final OrderItemMapper orderItemMapper;
+    private final List<CartItem> cartItems = new CopyOnWriteArrayList<>();
+    private final List<Address> addresses = new CopyOnWriteArrayList<>();
+    private final List<Coupon> coupons = new CopyOnWriteArrayList<>();
+    private final List<Review> reviews = new CopyOnWriteArrayList<>();
+    private final List<Category> categories = new CopyOnWriteArrayList<>();
+
+    public DemoStore(
+            MerchantMapper merchantMapper,
+            DishMapper dishMapper,
+            DeliveryOrderMapper deliveryOrderMapper,
+            OrderItemMapper orderItemMapper
+    ) {
+        this.merchantMapper = merchantMapper;
+        this.dishMapper = dishMapper;
+        this.deliveryOrderMapper = deliveryOrderMapper;
+        this.orderItemMapper = orderItemMapper;
+        cartItems.add(new CartItem(101L, "招牌红烧牛肉面", 1, new BigDecimal("28.50")));
+        cartItems.add(new CartItem(103L, "冰柠檬茶", 1, new BigDecimal("9.00")));
+        addresses.add(new Address(1L, "张同学", "13800000001", "学校东门 3 号宿舍楼 502", true));
+        addresses.add(new Address(2L, "李同学", "13900000002", "实验楼 A 座大厅", false));
+        coupons.add(new Coupon(1L, "新人首单立减券", new BigDecimal("20.00"), new BigDecimal("8.00"), "可使用"));
+        coupons.add(new Coupon(2L, "校园夜宵满减券", new BigDecimal("35.00"), new BigDecimal("6.00"), "可使用"));
+        reviews.add(new Review(1L, "CY202605120001", 5, "味道不错，配送很快。", "感谢支持，欢迎再次下单。"));
+        categories.add(new Category(1L, 1L, "招牌推荐", 1));
+        categories.add(new Category(2L, 1L, "热销单品", 2));
+        categories.add(new Category(3L, 1L, "饮品", 3));
+    }
 
     public List<Merchant> merchants() {
-        return merchants;
+        return merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery()
+                        .eq(MerchantEntity::getAuditStatus, "approved")
+                        .eq(MerchantEntity::getBusinessStatus, "open")
+                        .orderByDesc(MerchantEntity::getRating))
+                .stream()
+                .map(this::toMerchant)
+                .toList();
     }
 
     public List<Dish> dishes(Long merchantId) {
-        return dishes.stream().filter(dish -> dish.merchantId().equals(merchantId)).toList();
+        return dishMapper.selectList(Wrappers.<DishEntity>lambdaQuery()
+                        .eq(DishEntity::getMerchantId, merchantId)
+                        .eq(DishEntity::getStatus, "on_sale")
+                        .orderByAsc(DishEntity::getId))
+                .stream()
+                .map(this::toDish)
+                .toList();
     }
 
     public Dish saveDish(Dish dish) {
-        Dish next = new Dish(dish.id() == null ? System.currentTimeMillis() : dish.id(), dish.merchantId(), dish.name(), dish.description(), dish.price(), dish.sales() == null ? 0 : dish.sales());
-        dishes.add(next);
-        return next;
+        DishEntity entity = new DishEntity();
+        entity.setId(dish.id());
+        entity.setMerchantId(dish.merchantId());
+        entity.setName(dish.name());
+        entity.setDescription(dish.description());
+        entity.setPrice(dish.price());
+        entity.setStock(999);
+        entity.setStatus("on_sale");
+        entity.setCategoryName("默认分类");
+        if (entity.getId() == null) {
+            dishMapper.insert(entity);
+        } else {
+            dishMapper.updateById(entity);
+        }
+        return toDish(entity);
     }
 
     public List<CartItem> cartItems() {
-        return cartItems;
+        return new ArrayList<>(cartItems);
     }
 
     public CartItem addCartItem(CartItem item) {
@@ -78,34 +124,102 @@ public class DemoStore {
         cartItems.clear();
     }
 
+    @Transactional
     public Order createOrder(CreateOrderRequest request) {
-        String id = "CY" + System.currentTimeMillis();
-        List<CartItem> items = request.items() == null || request.items().isEmpty() ? cartItems : request.items();
-        BigDecimal total = items.stream()
-                .map(item -> item.price().multiply(BigDecimal.valueOf(item.quantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .add(new BigDecimal("1.5"));
-        Merchant merchant = merchants.stream().filter(m -> m.id().equals(request.merchantId())).findFirst().orElse(merchants.get(0));
-        Order order = new Order(id, merchant.id(), merchant.name(), "待支付", total, request.address(), LocalDateTime.now());
-        orders.put(id, order);
-        return order;
+        if (request.merchantId() == null) {
+            throw new BizException("商家不能为空");
+        }
+        MerchantEntity merchant = merchantMapper.selectById(request.merchantId());
+        if (merchant == null) {
+            throw new BizException("商家不存在");
+        }
+        List<CartItem> items = request.items() == null || request.items().isEmpty() ? cartItems() : request.items();
+        if (items.isEmpty()) {
+            throw new BizException("购物车为空");
+        }
+
+        String orderId = nextOrderId();
+        BigDecimal total = BigDecimal.ZERO;
+        for (CartItem item : items) {
+            if (item.quantity() == null || item.quantity() <= 0) {
+                throw new BizException("商品数量不合法");
+            }
+            DishEntity dish = dishMapper.selectById(item.dishId());
+            if (dish == null || !"on_sale".equals(dish.getStatus())) {
+                throw new BizException("商品不存在或已下架");
+            }
+            if (!request.merchantId().equals(dish.getMerchantId())) {
+                throw new BizException("订单商品不属于当前商家");
+            }
+            OrderItemEntity orderItem = new OrderItemEntity();
+            orderItem.setOrderId(orderId);
+            orderItem.setDishId(dish.getId());
+            orderItem.setDishName(dish.getName());
+            orderItem.setQuantity(item.quantity());
+            orderItem.setPrice(dish.getPrice());
+            orderItemMapper.insert(orderItem);
+            total = total.add(dish.getPrice().multiply(BigDecimal.valueOf(item.quantity())));
+        }
+        total = total.add(new BigDecimal("1.50"));
+
+        DeliveryOrderEntity order = new DeliveryOrderEntity();
+        order.setId(orderId);
+        order.setUserId(1L);
+        order.setMerchantId(merchant.getId());
+        order.setTotalAmount(total);
+        order.setAddress(request.address());
+        order.setStatus(WAIT_PAY);
+        deliveryOrderMapper.insert(order);
+        clearCart();
+        return toOrder(order, merchant.getName());
     }
 
-    public Order updateStatus(String orderId, String status) {
-        Order old = orders.get(orderId);
-        if (old == null) {
-            old = new Order(orderId, 1L, "老刘家招牌牛肉面", "待支付", new BigDecimal("43.0"), "学校东门 3 号宿舍楼 502", LocalDateTime.now());
-        }
-        Order next = new Order(old.id(), old.merchantId(), old.merchantName(), status, old.totalAmount(), old.address(), old.createTime());
-        orders.put(orderId, next);
-        return next;
+    public Order payOrder(String orderId) {
+        return updateStatus(orderId, WAIT_PAY, WAIT_MERCHANT_ACCEPT);
+    }
+
+    public Order merchantAccept(String orderId) {
+        return updateStatus(orderId, WAIT_MERCHANT_ACCEPT, MERCHANT_ACCEPTED);
+    }
+
+    public Order merchantCancel(String orderId) {
+        return updateStatus(orderId, WAIT_MERCHANT_ACCEPT, CANCELED);
+    }
+
+    public Order merchantReady(String orderId) {
+        return updateStatus(orderId, MERCHANT_ACCEPTED, MERCHANT_READY);
+    }
+
+    public Order riderAccept(String orderId) {
+        return updateStatus(orderId, MERCHANT_READY, RIDER_ACCEPTED);
+    }
+
+    public Order riderPickup(String orderId) {
+        return updateStatus(orderId, RIDER_ACCEPTED, RIDER_PICKED);
+    }
+
+    public Order riderDelivered(String orderId) {
+        return updateStatus(orderId, RIDER_PICKED, COMPLETED);
     }
 
     public List<Order> orders() {
-        if (orders.isEmpty()) {
-            updateStatus("CY202605120001", "骑手配送中");
+        return deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                        .orderByDesc(DeliveryOrderEntity::getCreateTime))
+                .stream()
+                .map(this::toOrder)
+                .toList();
+    }
+
+    public int cancelTimeoutUnpaidOrders() {
+        LocalDateTime deadline = LocalDateTime.now().minusMinutes(15);
+        List<DeliveryOrderEntity> timeoutOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .eq(DeliveryOrderEntity::getStatus, WAIT_PAY)
+                .le(DeliveryOrderEntity::getCreateTime, deadline));
+        for (DeliveryOrderEntity order : timeoutOrders) {
+            order.setStatus(CANCELED);
+            deliveryOrderMapper.updateById(order);
         }
-        return new ArrayList<>(orders.values());
+        return timeoutOrders.size();
     }
 
     public List<Address> addresses() {
@@ -158,5 +272,39 @@ public class DemoStore {
                 "level", "黄金骑手",
                 "score", "4.8"
         );
+    }
+
+    private Order updateStatus(String orderId, String expected, String nextStatus) {
+        DeliveryOrderEntity order = deliveryOrderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+        if (!expected.equals(order.getStatus())) {
+            throw new BizException("当前订单状态不允许此操作");
+        }
+        order.setStatus(nextStatus);
+        deliveryOrderMapper.updateById(order);
+        return toOrder(order);
+    }
+
+    private Order toOrder(DeliveryOrderEntity entity) {
+        MerchantEntity merchant = entity.getMerchantId() == null ? null : merchantMapper.selectById(entity.getMerchantId());
+        return toOrder(entity, merchant == null ? "未知商家" : merchant.getName());
+    }
+
+    private Order toOrder(DeliveryOrderEntity entity, String merchantName) {
+        return new Order(entity.getId(), entity.getMerchantId(), merchantName, entity.getStatus(), entity.getTotalAmount(), entity.getAddress(), entity.getCreateTime());
+    }
+
+    private Merchant toMerchant(MerchantEntity entity) {
+        return new Merchant(entity.getId(), entity.getName(), entity.getCategory(), entity.getRating(), "800m", "25分钟");
+    }
+
+    private Dish toDish(DishEntity entity) {
+        return new Dish(entity.getId(), entity.getMerchantId(), entity.getName(), entity.getDescription(), entity.getPrice(), 0);
+    }
+
+    private String nextOrderId() {
+        return "CY" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"));
     }
 }

@@ -1,12 +1,19 @@
 package com.chengyiwaimai.task;
 
+import com.chengyiwaimai.service.DemoStore;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
 public class OrderTimeoutTask {
+    private final DemoStore store;
+
+    public OrderTimeoutTask(DemoStore store) {
+        this.store = store;
+    }
+
     @Scheduled(fixedDelay = 60000)
     public void scanTimeoutOrders() {
-        // 演示项目中保留定时任务入口，后续可扫描超时未接单、超时配送订单。
+        store.cancelTimeoutUnpaidOrders();
     }
 }

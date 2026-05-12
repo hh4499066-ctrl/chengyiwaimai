@@ -1,12 +1,18 @@
 package com.chengyiwaimai.web;
 
 import com.chengyiwaimai.common.ApiResponse;
+import com.chengyiwaimai.common.BizException;
 import com.chengyiwaimai.model.Models.CreateOrderRequest;
 import com.chengyiwaimai.model.Models.Order;
 import com.chengyiwaimai.model.Models.RiderLocation;
 import com.chengyiwaimai.service.DemoStore;
 import com.chengyiwaimai.websocket.OrderSocketHandler;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -33,34 +39,32 @@ public class OrderController {
 
     @PostMapping("/{orderId}/pay")
     public ApiResponse<Order> pay(@PathVariable String orderId) {
-        Order order = store.updateStatus(orderId, "商家待接单");
+        Order order = store.payOrder(orderId);
         socketHandler.broadcast("订单已支付：" + order.id());
         return ApiResponse.ok(order);
     }
 
     @PostMapping("/{orderId}/merchant/{action}")
     public ApiResponse<Order> merchantAction(@PathVariable String orderId, @PathVariable String action) {
-        String status = switch (action) {
-            case "accept" -> "商家已接单";
-            case "reject" -> "商家已拒单";
-            case "ready" -> "商家已出餐";
-            default -> "商家处理中";
+        Order order = switch (action) {
+            case "accept" -> store.merchantAccept(orderId);
+            case "reject", "cancel" -> store.merchantCancel(orderId);
+            case "ready" -> store.merchantReady(orderId);
+            default -> throw new BizException("不支持的商家操作");
         };
-        Order order = store.updateStatus(orderId, status);
-        socketHandler.broadcast(status + "：" + order.id());
+        socketHandler.broadcast(order.status() + "：" + order.id());
         return ApiResponse.ok(order);
     }
 
     @PostMapping("/{orderId}/rider/{action}")
     public ApiResponse<Order> riderAction(@PathVariable String orderId, @PathVariable String action) {
-        String status = switch (action) {
-            case "accept" -> "骑手已接单";
-            case "pickup" -> "骑手已取餐";
-            case "delivered" -> "已完成";
-            default -> "配送中";
+        Order order = switch (action) {
+            case "accept" -> store.riderAccept(orderId);
+            case "pickup" -> store.riderPickup(orderId);
+            case "delivered" -> store.riderDelivered(orderId);
+            default -> throw new BizException("不支持的骑手操作");
         };
-        Order order = store.updateStatus(orderId, status);
-        socketHandler.broadcast(status + "：" + order.id());
+        socketHandler.broadcast(order.status() + "：" + order.id());
         return ApiResponse.ok(order);
     }
 

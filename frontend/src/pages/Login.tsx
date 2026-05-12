@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../api/client';
 
 type Role = 'customer' | 'rider' | 'merchant' | 'admin';
@@ -8,6 +8,13 @@ const roleText: Record<Role, string> = {
   rider: '骑手',
   merchant: '商家',
   admin: '管理员',
+};
+
+const defaultPhoneByRole: Record<Role, string> = {
+  customer: '13800000001',
+  rider: '13800000002',
+  merchant: '13800000003',
+  admin: '13800000004',
 };
 
 function Portal({ open }: { open: (mode: 'mobile' | 'pc') => void }) {
@@ -49,9 +56,14 @@ function Portal({ open }: { open: (mode: 'mobile' | 'pc') => void }) {
 }
 
 function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string) => void; back: () => void }) {
-  const [phone, setPhone] = useState(role === 'admin' ? '13800000004' : role === 'merchant' ? '13800000003' : role === 'rider' ? '13800000002' : '13800000001');
+  const [phone, setPhone] = useState(defaultPhoneByRole[role]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    setPhone(defaultPhoneByRole[role]);
+    setError('');
+  }, [role]);
 
   async function submit() {
     setLoading(true);

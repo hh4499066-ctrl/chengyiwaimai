@@ -1,7 +1,10 @@
-import React from 'react';
-import { demoOrder, dishes, merchants } from '../../mock/data';
+import React, { useEffect, useMemo, useState } from 'react';
+import { api, type CartItem, type Dish, type Merchant, type Order } from '../../api/client';
+import { demoOrder, dishes as mockDishes, merchants as mockMerchants } from '../../mock/data';
 
 type Navigate = (screen: string) => void;
+
+const address = '学校东门 3 号宿舍楼 502';
 
 function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
@@ -16,7 +19,62 @@ function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) 
   );
 }
 
-export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerchant: () => void }) {
+function merchantImage(index: number) {
+  return mockMerchants[index % mockMerchants.length].image;
+}
+
+function enrichMerchant(merchant: Merchant, index: number): Required<Merchant> {
+  const fallback = mockMerchants[index % mockMerchants.length];
+  return {
+    id: merchant.id,
+    name: merchant.name,
+    category: merchant.category || fallback.category,
+    rating: Number(merchant.rating ?? fallback.rating),
+    monthlySales: merchant.monthlySales ?? fallback.monthlySales,
+    distance: merchant.distance || fallback.distance,
+    deliveryTime: merchant.deliveryTime || fallback.deliveryTime,
+    minOrder: merchant.minOrder ?? fallback.minOrder,
+    deliveryFee: merchant.deliveryFee ?? fallback.deliveryFee,
+    image: merchant.image || merchantImage(index),
+    tags: merchant.tags?.length ? merchant.tags : fallback.tags,
+  };
+}
+
+function enrichDish(dish: Dish, index: number): Required<Dish> {
+  const fallback = mockDishes[index % mockDishes.length];
+  return {
+    id: dish.id,
+    merchantId: dish.merchantId,
+    name: dish.name,
+    desc: dish.desc || dish.description || fallback.desc,
+    description: dish.description || dish.desc || fallback.desc,
+    price: Number(dish.price),
+    sales: dish.sales ?? fallback.sales,
+    image: dish.image || fallback.image,
+    category: dish.category || dish.categoryName || fallback.category,
+    categoryName: dish.categoryName || dish.category || fallback.category,
+  };
+}
+
+function fallbackCart(): CartItem[] {
+  return mockDishes.slice(0, 2).map((dish) => ({
+    dishId: dish.id,
+    name: dish.name,
+    quantity: 1,
+    price: dish.price,
+  }));
+}
+
+export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerchant: (merchantId: number) => void }) {
+  const [merchantList, setMerchantList] = useState<Required<Merchant>[]>(() => mockMerchants.map(enrichMerchant));
+
+  useEffect(() => {
+    api
+      .getMerchants()
+      .then((items) => setMerchantList(items.map(enrichMerchant)))
+      .catch(() => setMerchantList(mockMerchants.map(enrichMerchant)));
+  }, []);
+
   return (
     <div className="bg-surface min-h-full pb-[100px]">
       <PhoneHeader title="搜索与筛选" onBack={onBack} />
@@ -32,11 +90,11 @@ export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerch
           ))}
         </div>
         <div className="space-y-md">
-          {merchants.map((merchant) => (
-            <button key={merchant.id} onClick={onMerchant} className="w-full text-left bg-surface-container-lowest rounded-xl p-sm border border-outline-variant/30 shadow-sm flex gap-sm active:scale-[0.98] transition-transform">
+          {merchantList.map((merchant) => (
+            <button key={merchant.id} onClick={() => onMerchant(merchant.id)} className="w-full text-left bg-surface-container-lowest rounded-xl p-sm border border-outline-variant/30 shadow-sm flex gap-sm active:scale-[0.98] transition-transform">
               <img src={merchant.image} alt={merchant.name} className="w-24 h-24 object-cover rounded-lg" />
-              <div className="flex-1">
-                <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">{merchant.name}</h2>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface truncate">{merchant.name}</h2>
                 <p className="text-label-md text-on-surface-variant mt-xs">{merchant.category} · 月售 {merchant.monthlySales}</p>
                 <p className="text-label-md text-on-surface-variant mt-xs">{merchant.distance} · {merchant.deliveryTime} · 起送 ¥{merchant.minOrder}</p>
                 <div className="flex gap-xs mt-sm">{merchant.tags.map((tag) => <span key={tag} className="bg-primary/10 text-primary text-[10px] px-xs py-[2px] rounded">{tag}</span>)}</div>
@@ -49,8 +107,38 @@ export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerch
   );
 }
 
-export function MerchantDetailPage({ go }: { go: Navigate }) {
-  const merchant = merchants[0];
+export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go: Navigate }) {
+  const [merchant, setMerchant] = useState<Required<Merchant>>(() => enrichMerchant(mockMerchants.find((item) => item.id === merchantId) || mockMerchants[0], 0));
+  const [dishList, setDishList] = useState<Required<Dish>[]>(() => mockDishes.filter((dish) => dish.merchantId === merchantId).map(enrichDish));
+
+  useEffect(() => {
+    api
+      .getMerchants()
+      .then((items) => {
+        const foundIndex = items.findIndex((item) => item.id === merchantId);
+        const found = foundIndex >= 0 ? items[foundIndex] : items[0];
+        setMerchant(enrichMerchant(found, Math.max(foundIndex, 0)));
+      })
+      .catch(() => {
+        const found = mockMerchants.find((item) => item.id === merchantId) || mockMerchants[0];
+        setMerchant(enrichMerchant(found, 0));
+      });
+
+    api
+      .getDishes(merchantId)
+      .then((items) => setDishList((items.length ? items : mockDishes.filter((dish) => dish.merchantId === merchantId)).map(enrichDish)))
+      .catch(() => setDishList(mockDishes.filter((dish) => dish.merchantId === merchantId).map(enrichDish)));
+  }, [merchantId]);
+
+  const addToCart = (dish: Required<Dish>) => {
+    api
+      .addCart({ dishId: dish.id, name: dish.name, quantity: 1, price: dish.price })
+      .catch(() => undefined)
+      .finally(() => go('cart'));
+  };
+
+  const total = dishList.slice(0, 2).reduce((sum, dish) => sum + dish.price, 0);
+
   return (
     <div className="bg-surface min-h-full pb-[112px]">
       <div className="relative h-[220px]">
@@ -68,12 +156,12 @@ export function MerchantDetailPage({ go }: { go: Navigate }) {
         </section>
         <section className="grid grid-cols-[92px_1fr] gap-md">
           <aside className="space-y-xs">
-            {['招牌推荐', '热销单品', '饮品'].map((item, index) => (
+            {Array.from(new Set(dishList.map((dish) => dish.category))).map((item, index) => (
               <button key={item} className={`w-full text-left px-sm py-sm rounded-lg text-body-md ${index === 0 ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high text-on-surface-variant'}`}>{item}</button>
             ))}
           </aside>
           <div className="space-y-md">
-            {dishes.map((dish) => (
+            {dishList.map((dish) => (
               <article key={dish.id} className="bg-surface-container-lowest rounded-xl p-sm border border-outline-variant/30 shadow-sm flex gap-sm">
                 <img src={dish.image} alt={dish.name} className="w-24 h-24 object-cover rounded-lg" />
                 <div className="flex-1 min-w-0">
@@ -82,7 +170,7 @@ export function MerchantDetailPage({ go }: { go: Navigate }) {
                   <p className="text-label-md text-on-surface-variant mt-xs">月售 {dish.sales}</p>
                   <div className="flex items-center justify-between mt-sm">
                     <span className="text-headline-sm font-bold text-primary">¥{dish.price}</span>
-                    <button onClick={() => go('cart')} className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95"><span className="material-symbols-outlined text-[20px]">add</span></button>
+                    <button onClick={() => addToCart(dish)} className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95"><span className="material-symbols-outlined text-[20px]">add</span></button>
                   </div>
                 </div>
               </article>
@@ -91,43 +179,69 @@ export function MerchantDetailPage({ go }: { go: Navigate }) {
         </section>
       </main>
       <div className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between shadow-[0_-8px_24px_rgba(38,24,20,0.08)]">
-        <div><p className="text-label-md text-on-surface-variant">已选 2 件</p><p className="font-headline-md text-headline-md text-primary">¥43.0</p></div>
+        <div><p className="text-label-md text-on-surface-variant">已选 {Math.min(2, dishList.length)} 件</p><p className="font-headline-md text-headline-md text-primary">¥{total.toFixed(1)}</p></div>
         <button onClick={() => go('checkout')} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md active:scale-[0.98]">去结算</button>
       </div>
     </div>
   );
 }
 
-export function CheckoutPage({ go }: { go: Navigate }) {
+export function CheckoutPage({ merchantId, setOrderId, go }: { merchantId: number; setOrderId: (orderId: string) => void; go: Navigate }) {
+  const [items, setItems] = useState<CartItem[]>(fallbackCart);
+  const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0) + 1.5, [items]);
+
+  useEffect(() => {
+    api
+      .getCart()
+      .then((cartItems) => setItems(cartItems.length ? cartItems : fallbackCart()))
+      .catch(() => setItems(fallbackCart()));
+  }, []);
+
+  const submit = () => {
+    api
+      .createOrder({ merchantId, address, items })
+      .then((order) => setOrderId(order.id))
+      .catch(() => setOrderId(`CY${Date.now()}`))
+      .finally(() => go('pay'));
+  };
+
   return (
     <div className="bg-background min-h-full pb-[104px]">
       <PhoneHeader title="确认订单" onBack={() => go('merchant')} />
       <main className="p-md space-y-md">
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
           <p className="text-label-md text-primary font-bold">送达地址</p>
-          <h2 className="font-headline-sm text-headline-sm mt-xs">学校东门 3 号宿舍楼 502</h2>
+          <h2 className="font-headline-sm text-headline-sm mt-xs">{address}</h2>
           <p className="text-body-md text-on-surface-variant mt-xs">张同学 138****5678</p>
         </section>
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
-          <h2 className="font-headline-sm text-headline-sm font-bold mb-sm">老刘家招牌牛肉面</h2>
-          {dishes.slice(0, 2).map((dish) => (
-            <div key={dish.id} className="flex justify-between py-sm border-b border-outline-variant/20 last:border-0">
-              <span className="text-body-md">{dish.name}</span>
-              <span className="font-bold">¥{dish.price}</span>
+          <h2 className="font-headline-sm text-headline-sm font-bold mb-sm">订单商品</h2>
+          {items.map((item) => (
+            <div key={item.dishId} className="flex justify-between py-sm border-b border-outline-variant/20 last:border-0">
+              <span className="text-body-md">{item.name} × {item.quantity}</span>
+              <span className="font-bold">¥{(item.price * item.quantity).toFixed(1)}</span>
             </div>
           ))}
           <div className="flex justify-between pt-sm text-body-md text-on-surface-variant"><span>配送费</span><span>¥1.5</span></div>
         </section>
       </main>
       <div className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between">
-        <div><span className="text-label-md text-on-surface-variant">合计</span><span className="ml-xs text-display-lg font-bold text-primary">¥43.0</span></div>
-        <button onClick={() => go('pay')} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md">提交订单</button>
+        <div><span className="text-label-md text-on-surface-variant">合计</span><span className="ml-xs text-display-lg font-bold text-primary">¥{total.toFixed(1)}</span></div>
+        <button onClick={submit} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md">提交订单</button>
       </div>
     </div>
   );
 }
 
-export function PayPage({ go }: { go: Navigate }) {
+export function PayPage({ orderId, go }: { orderId: string | null; go: Navigate }) {
+  const pay = () => {
+    if (!orderId) {
+      go('pay-result');
+      return;
+    }
+    api.payOrder(orderId).catch(() => undefined).finally(() => go('pay-result'));
+  };
+
   return (
     <div className="bg-surface min-h-full">
       <PhoneHeader title="模拟支付" onBack={() => go('checkout')} />
@@ -142,7 +256,7 @@ export function PayPage({ go }: { go: Navigate }) {
             <span className="material-symbols-outlined">{index === 0 ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
           </button>
         ))}
-        <button onClick={() => go('pay-result')} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98]">确认支付</button>
+        <button onClick={pay} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98]">确认支付</button>
       </main>
     </div>
   );
@@ -178,9 +292,9 @@ export function TrackingPage({ go }: { go: Navigate }) {
           <p className="text-body-md text-on-surface-variant mt-xs">{demoOrder.riderName} 正在送往 {demoOrder.address}</p>
         </section>
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30 space-y-md">
-          {steps.map((step, index) => (
+          {steps.map((step) => (
             <div key={step} className="flex gap-sm">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${index < steps.length ? 'bg-primary text-on-primary' : 'bg-surface-container-high'}`}><span className="material-symbols-outlined text-[16px]">check</span></div>
+              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary text-on-primary"><span className="material-symbols-outlined text-[16px]">check</span></div>
               <span className="font-body-md text-on-surface">{step}</span>
             </div>
           ))}
@@ -191,7 +305,14 @@ export function TrackingPage({ go }: { go: Navigate }) {
   );
 }
 
-export function ReviewPage({ go }: { go: Navigate }) {
+export function ReviewPage({ orderId, go }: { orderId: string | null; go: Navigate }) {
+  const submit = () => {
+    api
+      .submitReview({ orderId: orderId || demoOrder.id, rating: 5, content: '味道不错，配送很快，包装也很完整。' })
+      .catch(() => undefined)
+      .finally(() => go('orders'));
+  };
+
   return (
     <div className="bg-surface min-h-full">
       <PhoneHeader title="评价订单" onBack={() => go('tracking')} />
@@ -203,22 +324,39 @@ export function ReviewPage({ go }: { go: Navigate }) {
           </div>
           <textarea className="w-full min-h-32 rounded-xl border border-outline-variant bg-surface p-md outline-none focus:border-primary" placeholder="味道不错，配送很快..." defaultValue="味道不错，配送很快，包装也很完整。" />
         </section>
-        <button onClick={() => go('orders')} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">提交评价</button>
+        <button onClick={submit} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">提交评价</button>
       </main>
     </div>
   );
 }
 
 export function OrdersPage({ go }: { go: Navigate }) {
+  const [orders, setOrders] = useState<Order[]>([
+    {
+      id: demoOrder.id,
+      merchantId: 1,
+      merchantName: demoOrder.merchantName,
+      status: demoOrder.status,
+      totalAmount: demoOrder.totalAmount,
+      address: demoOrder.address,
+    },
+  ]);
+
+  useEffect(() => {
+    api.getOrders().then((items) => setOrders(items.length ? items : orders)).catch(() => undefined);
+  }, []);
+
   return (
     <div className="bg-surface min-h-full pb-[100px]">
       <PhoneHeader title="历史订单" />
       <main className="p-md space-y-md">
-        <button onClick={() => go('tracking')} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
-          <div className="flex justify-between"><h2 className="font-headline-sm text-headline-sm font-bold">{demoOrder.merchantName}</h2><span className="text-primary text-label-md">{demoOrder.status}</span></div>
-          <p className="text-body-md text-on-surface-variant mt-xs">订单号：{demoOrder.id}</p>
-          <p className="font-headline-sm text-headline-sm text-primary mt-sm">¥{demoOrder.totalAmount}</p>
-        </button>
+        {orders.map((order) => (
+          <button key={order.id} onClick={() => go('tracking')} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+            <div className="flex justify-between"><h2 className="font-headline-sm text-headline-sm font-bold">{order.merchantName}</h2><span className="text-primary text-label-md">{order.status}</span></div>
+            <p className="text-body-md text-on-surface-variant mt-xs">订单号：{order.id}</p>
+            <p className="font-headline-sm text-headline-sm text-primary mt-sm">¥{Number(order.totalAmount).toFixed(1)}</p>
+          </button>
+        ))}
       </main>
     </div>
   );
