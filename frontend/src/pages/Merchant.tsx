@@ -1,0 +1,314 @@
+import React, { useState } from 'react';
+import { MerchantModule } from './management/ManagementPanels';
+
+function MerchantWorkbench() {
+  return (
+    <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface">
+      <div className="flex justify-between items-center mb-xl bg-surface-container-lowest p-md rounded-2xl shadow-sm border border-outline-variant/30">
+        <div className="flex items-center gap-md">
+          <div className="w-16 h-16 rounded-xl bg-surface-variant flex-shrink-0 overflow-hidden border border-outline-variant/50">
+             <img src="https://images.unsplash.com/photo-1555126634-323283e090f1?auto=format&fit=crop&w=150&h=150" alt="logo" className="w-full h-full object-cover"/>
+          </div>
+          <div>
+            <h2 className="font-headline-md text-headline-md text-on-surface font-bold">川香小厨 (天河总店)</h2>
+            <p className="font-body-md text-body-md text-on-surface-variant mt-xs">ID: 80921102 · 普通外卖商家</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-sm bg-primary/10 px-md py-sm rounded-full border border-primary/20">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+            </span>
+            <span className="font-label-md text-label-md font-bold text-primary">营业中</span>
+            <div className="ml-md w-[40px] h-[24px] bg-primary rounded-full relative cursor-pointer shadow-inner">
+                <div className="absolute right-1 top-1 bottom-1 w-4 bg-white rounded-full shadow-sm"></div>
+            </div>
+        </div>
+      </div>
+
+      <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold">今日营业数据</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-xl">
+        {[
+          { title: "今日预计收入", value: "¥ 2,840.50", m: "较昨日 +5%", c: "primary", icon: "account_balance_wallet" },
+          { title: "今日有效订单", value: "105", m: "较昨日 +12", c: "secondary", icon: "receipt_long" },
+          { title: "进店转化率", value: "18.5%", m: "较昨日 -1.2%", c: "tertiary", icon: "storefront" },
+          { title: "待处理退单", value: "2", m: "需尽快处理", c: "error", icon: "warning" },
+        ].map((item, idx) => (
+          <div key={idx} className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border border-outline-variant/30 flex flex-col relative overflow-hidden group ${item.c === 'error' ? 'border-error/30 bg-error-container/10' : ''}`}>
+            <div className="flex justify-between items-start z-10 mb-sm">
+                <p className="font-body-md text-body-md text-on-surface-variant">{item.title}</p>
+                <div className={`bg-${item.c}/10 p-1.5 rounded-lg text-${item.c}`}>
+                  <span className="material-symbols-outlined text-[20px] fill">{item.icon}</span>
+                </div>
+            </div>
+            <h3 className={`font-headline-md text-headline-md font-bold ${item.c === 'error' ? 'text-error' : 'text-on-surface'}`}>{item.value}</h3>
+            <p className={`font-label-md text-label-md mt-sm ${item.c === 'error' ? 'text-error' : 'text-on-surface-variant'}`}>{item.m}</p>
+          </div>
+        ))}
+      </div>
+
+      <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold flex items-center justify-between">实时单况 <button className="text-primary font-body-md text-body-md font-medium hover:underline flex items-center">查看全部 <span className="material-symbols-outlined text-[18px]">chevron_right</span></button></h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+         {/* Pending Orders */}
+         <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-error">
+             <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
+                 <div className="flex items-center gap-sm"><span className="bg-error text-on-error font-bold font-label-md text-label-md px-2 py-0.5 rounded">新订单 #42</span></div>
+                 <span className="font-label-md text-label-md text-error flex items-center"><span className="material-symbols-outlined text-[16px] mr-0.5">timer</span>等待接单 04:59</span>
+             </div>
+             <div className="space-y-xs mb-md">
+                 <div className="flex justify-between font-body-md text-body-md font-medium"><span className="text-on-surface">招牌酸菜鱼（含米饭+饮品）</span><span>x1</span></div>
+                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant"><span>蒜泥白肉(小份)</span><span>x1</span></div>
+             </div>
+             <div className="flex justify-between items-center p-sm bg-surface-variant/30 rounded-lg mb-md">
+                 <span className="font-label-md text-label-md text-on-surface-variant">本单预计收入</span>
+                 <span className="font-headline-sm text-headline-sm font-bold text-error">¥68.00</span>
+             </div>
+             <div className="flex gap-sm">
+                 <button className="flex-1 py-2 rounded-xl text-on-surface-variant border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors">拒单</button>
+                 <button className="flex-[2] py-2 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity">立即接单 (打印)</button>
+             </div>
+         </div>
+         {/* Cooking Orders */}
+         <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-secondary-container">
+             <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
+                 <div className="flex items-center gap-sm"><span className="bg-secondary-container text-on-secondary-container font-bold font-label-md text-label-md px-2 py-0.5 rounded">出餐中 #40</span></div>
+                 <span className="font-label-md text-label-md text-on-surface-variant flex items-center"><span className="material-symbols-outlined text-[16px] mr-0.5">schedule</span>已接单 8分钟</span>
+             </div>
+             <div className="space-y-xs mb-md">
+                 <div className="flex justify-between font-body-md text-body-md font-medium"><span className="text-on-surface">水煮肉片(大份)</span><span>x1</span></div>
+                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant"><span>米饭</span><span>x2</span></div>
+             </div>
+             <div className="flex justify-between items-center p-sm bg-surface-variant/30 rounded-lg mb-md">
+                 <span className="font-label-md text-label-md text-on-surface-variant">骑手距店</span>
+                 <span className="font-body-md text-body-md font-bold text-tertiary">1.2 km (约5分钟)</span>
+             </div>
+             <div className="flex gap-sm">
+                 <button className="flex-1 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity">标记出餐</button>
+             </div>
+         </div>
+         {/* Waiting Pickup */}
+         <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-tertiary">
+             <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
+                 <div className="flex items-center gap-sm"><span className="bg-tertiary/20 text-tertiary font-bold font-label-md text-label-md px-2 py-0.5 rounded">待取餐 #38</span></div>
+                 <span className="font-label-md text-label-md text-on-surface-variant flex items-center"><span className="material-symbols-outlined text-[16px] mr-1">moped</span>骑手已到店</span>
+             </div>
+             <div className="space-y-xs mb-md">
+                 <div className="flex justify-between font-body-md text-body-md text-on-surface-variant line-clamp-1"><span>宫保鸡丁... 等共 3 件商品</span></div>
+             </div>
+             <div className="flex justify-between items-center p-sm bg-surface-variant/30 rounded-lg mb-md">
+                 <span className="font-label-md text-label-md text-on-surface-variant">取餐号</span>
+                 <span className="font-display-sm text-[24px] font-bold text-on-surface tracking-widest">38</span>
+             </div>
+             <div className="flex gap-sm">
+                 <button className="flex-1 py-2 rounded-xl text-tertiary border border-tertiary/50 hover:bg-tertiary/10 font-body-md font-medium transition-colors flex justify-center items-center gap-xs"><span className="material-symbols-outlined text-[18px]">phone</span>呼叫骑手</button>
+             </div>
+         </div>
+      </div>
+      <div className="h-xl md:hidden"></div>
+    </div>
+  );
+}
+
+function MerchantOrders() {
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
+      <header className="px-lg py-md border-b border-outline-variant/30 bg-surface z-10 shrink-0">
+         <h2 className="font-headline-md text-headline-md font-bold text-on-surface mb-md">订单管理</h2>
+         <div className="flex gap-md overflow-x-auto no-scrollbar">
+             {['新订单 (3)', '待出餐 (5)', '待骑手取 (2)', '配送中 (12)', '已完成', '取消/售后 (1)'].map((t, i) => (
+                 <button key={i} className={`whitespace-nowrap font-body-md text-body-md font-medium pb-sm border-b-2 transition-colors ${i===0 ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'}`}>{t}</button>
+             ))}
+         </div>
+      </header>
+      <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md bg-surface-container-low">
+          {/* Order Item */}
+          <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 p-md flex flex-col md:flex-row gap-lg">
+              <div className="flex-1">
+                  <div className="flex justify-between items-start mb-md">
+                      <div>
+                          <span className="bg-error font-label-md text-on-error px-2 py-0.5 rounded mr-2">新订单</span>
+                          <span className="font-headline-sm text-headline-sm font-bold text-on-surface">#43</span>
+                          <p className="font-label-md text-label-md text-on-surface-variant mt-1">下单时间: 18:32:45 | 预计送达: 19:15</p>
+                      </div>
+                      <div className="text-right">
+                          <p className="font-label-md text-label-md text-on-surface-variant">本单预计收入</p>
+                          <p className="font-headline-sm text-headline-sm font-bold text-error mt-0.5">¥125.50</p>
+                      </div>
+                  </div>
+                  <div className="bg-surface-variant/20 rounded-lg p-sm mb-md">
+                      <div className="font-body-md text-body-md font-bold text-on-surface mb-xs flex items-center"><span className="material-symbols-outlined text-[18px] mr-1 text-on-surface-variant">person</span>张女士 (尾号1234) <span className="ml-md text-primary bg-primary/10 px-2 py-0.5 rounded text-[12px]">门店新客</span></div>
+                      <p className="font-body-md text-body-md text-on-surface-variant line-clamp-1">广州市天河区花城大道 某某小区 3栋 405</p>
+                  </div>
+                  <div className="rounded-lg border border-outline-variant/30 overflow-hidden text-sm">
+                      <table className="w-full text-left">
+                          <tbody className="divide-y divide-outline-variant/30">
+                              <tr className="bg-surface-container-low"><td className="p-2 font-medium">招牌烤鱼（蒜香版）</td><td className="p-2 text-center text-on-surface-variant">x1</td><td className="p-2 text-right">¥88.0</td></tr>
+                              <tr className="bg-surface-container-low"><td className="p-2 font-medium">凉拌海带丝</td><td className="p-2 text-center text-on-surface-variant">x1</td><td className="p-2 text-right">¥12.0</td></tr>
+                              <tr className="bg-surface-container-low"><td className="p-2 font-medium">米饭</td><td className="p-2 text-center text-on-surface-variant">x3</td><td className="p-2 text-right">¥9.0</td></tr>
+                          </tbody>
+                      </table>
+                  </div>
+                  <div className="mt-sm p-sm bg-error-container/20 border border-error/20 rounded-lg flex items-start gap-sm">
+                      <span className="material-symbols-outlined text-error text-[18px] mt-0.5">edit_note</span>
+                      <p className="font-body-md text-body-md text-error font-medium">备注: 多加点辣，不要香菜。其中一份米饭请用大盒子装。</p>
+                  </div>
+              </div>
+              <div className="w-full md:w-[200px] flex flex-col justify-end gap-sm border-t md:border-t-0 md:border-l border-outline-variant/30 pt-md md:pt-0 md:pl-md">
+                 <button className="w-full py-3 rounded-lg bg-primary text-on-primary font-body-md font-bold shadow-sm hover:opacity-90 transition-opacity">接单并打印</button>
+                 <button className="w-full py-3 rounded-lg text-on-surface border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors">联系顾客</button>
+                 <button className="w-full py-3 rounded-lg text-on-surface-variant hover:bg-surface-variant font-body-md transition-colors mt-auto">拒单</button>
+              </div>
+          </div>
+      </div>
+    </div>
+  );
+}
+
+function MerchantMenu() {
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
+      <header className="px-lg py-md border-b border-outline-variant/30 flex justify-between items-center bg-surface z-10 shrink-0">
+          <div>
+              <h2 className="font-headline-md text-headline-md font-bold text-on-surface">商品管理</h2>
+              <p className="font-label-md text-label-md text-on-surface-variant">管理菜单、价格及库存状态</p>
+          </div>
+          <button className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold flex items-center gap-xs shadow-sm hover:opacity-90 transition-opacity"><span className="material-symbols-outlined text-[20px]">add</span>新建商品</button>
+      </header>
+      <div className="flex-1 flex overflow-hidden">
+          <div className="w-[120px] md:w-[200px] border-r border-outline-variant/30 bg-surface-container-low overflow-y-auto">
+              {['招牌推荐', '热销套餐', '经典炒菜', '凉菜系列', '酒水饮料', '主食'].map((c, i) => (
+                  <button key={i} className={`w-full text-left px-md py-md font-body-md font-medium transition-colors relative ${i===0 ? 'bg-surface text-primary border-r-2 border-primary' : 'text-on-surface hover:bg-surface-variant'}`}>{c}</button>
+              ))}
+              <button className="w-full text-left px-md py-md font-body-md text-on-surface-variant hover:bg-surface-variant flex items-center gap-xs"><span className="material-symbols-outlined text-[18px]">add</span>新建分类</button>
+          </div>
+          <div className="flex-1 bg-surface overflow-y-auto p-md md:p-lg space-y-md">
+              <div className="flex justify-between items-center bg-surface-container-lowest p-sm border border-outline-variant/30 rounded-lg">
+                  <div className="flex items-center gap-sm px-sm"><span className="material-symbols-outlined text-on-surface-variant">search</span><input type="text" placeholder="搜索商品名称..." className="bg-transparent border-none outline-none font-body-md text-on-surface w-[200px] md:w-[300px]"/></div>
+                  <div className="flex gap-sm">
+                      <select className="bg-surface border border-outline-variant rounded p-1 text-sm outline-none"><option>全部状态</option><option>售卖中</option><option>已售罄</option></select>
+                  </div>
+              </div>
+              <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                      <thead>
+                          <tr className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md">
+                              <th className="p-md font-medium">商品信息</th><th className="p-md font-medium hidden md:table-cell">价格</th><th className="p-md font-medium">库存</th><th className="p-md font-medium text-right">操作</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-outline-variant/20 font-body-md">
+                          <tr className="hover:bg-surface-variant/20 transition-colors">
+                              <td className="p-md flex items-center gap-md">
+                                  <div className="w-16 h-16 rounded bg-surface-variant overflow-hidden flex-shrink-0"><img src="https://images.unsplash.com/photo-1541614101331-1a5a3a194e92?fit=crop&w=150&h=150" className="w-full h-full object-cover" alt="food"/></div>
+                                  <div>
+                                      <p className="font-bold text-on-surface line-clamp-1">招牌麻婆豆腐</p>
+                                      <p className="font-label-md text-on-surface-variant mt-1">销量: 1240 | 赞: 98%</p>
+                                  </div>
+                              </td>
+                              <td className="p-md font-bold text-on-surface hidden md:table-cell">¥18.00</td>
+                              <td className="p-md">
+                                  <div className="flex items-center gap-xs text-secondary-fixed-dim font-medium"><span className="w-2 h-2 rounded-full bg-secondary-fixed-dim"></span>售卖中</div>
+                              </td>
+                              <td className="p-md text-right whitespace-nowrap">
+                                  <button className="text-primary font-medium hover:underline mr-md">编辑</button>
+                                  <button className="text-on-surface-variant font-medium hover:underline">下架</button>
+                              </td>
+                          </tr>
+                          <tr className="hover:bg-surface-variant/20 transition-colors opacity-60">
+                              <td className="p-md flex items-center gap-md">
+                                  <div className="w-16 h-16 rounded bg-surface-variant overflow-hidden flex-shrink-0 grayscale"><img src="https://images.unsplash.com/photo-1512058564366-18510be2db19?fit=crop&w=150&h=150" className="w-full h-full object-cover" alt="food"/></div>
+                                  <div>
+                                      <p className="font-bold text-on-surface line-clamp-1">秘制烤鱼 (大份)</p>
+                                      <p className="font-label-md text-on-surface-variant mt-1">销量: 890 | 赞: 95%</p>
+                                  </div>
+                              </td>
+                              <td className="p-md font-bold text-on-surface hidden md:table-cell">¥98.00</td>
+                              <td className="p-md">
+                                  <div className="flex items-center gap-xs text-error font-medium"><span className="w-2 h-2 rounded-full bg-error"></span>已售罄</div>
+                              </td>
+                              <td className="p-md text-right whitespace-nowrap">
+                                  <button className="text-primary font-medium hover:underline mr-md">编辑</button>
+                                  <button className="text-primary font-medium hover:underline">补库存</button>
+                              </td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      </div>
+    </div>
+  );
+}
+
+export default function Merchant({ setRole }: { setRole: () => void }) {
+  const [activeTab, setActiveTab] = useState('workbench');
+
+  return (
+    <div className="bg-surface text-on-surface h-screen flex overflow-hidden w-full">
+      {/* Desktop Sidebar */}
+      <nav className="hidden md:flex flex-col h-screen sticky top-0 p-md bg-surface-container-low w-[240px] flex-shrink-0 border-r border-outline-variant">
+        <div className="mb-lg px-sm">
+          <h1 className="font-headline-sm text-headline-sm text-primary font-bold">商家中心</h1>
+          <p className="font-body-md text-body-md text-on-surface-variant mt-sm">川香小厨</p>
+        </div>
+        <div className="flex flex-col gap-sm flex-1 overflow-y-auto">
+          {[
+            { id: 'workbench', icon: 'dashboard', label: '工作台' },
+            { id: 'orders', icon: 'receipt_long', label: '订单管理' },
+            { id: 'menu', icon: 'restaurant_menu', label: '商品管理' },
+            { id: 'reviews', icon: 'star', label: '评价管理' },
+            { id: 'finance', icon: 'account_balance_wallet', label: '财务结算' },
+            { id: 'marketing', icon: 'campaign', label: '营销中心' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-md px-md py-sm rounded-lg font-body-md text-body-md transition-all ${
+                activeTab === t.id ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className={`material-symbols-outlined ${activeTab === t.id ? 'fill' : ''}`}>{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-auto pt-md border-t border-outline-variant">
+          <button onClick={setRole} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all rounded-lg font-body-md text-body-md">
+            <span className="material-symbols-outlined">logout</span>
+            退出登录
+          </button>
+        </div>
+      </nav>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+        <header className="md:hidden sticky top-0 w-full z-50 flex justify-between items-center px-md py-sm bg-surface shadow-sm pt-safe">
+          <span className="text-headline-md font-headline-md font-bold text-primary">商家中心</span>
+          <button onClick={setRole} className="material-symbols-outlined text-primary">logout</button>
+        </header>
+
+        {activeTab === 'workbench' && <MerchantWorkbench />}
+        {activeTab === 'orders' && <MerchantOrders />}
+        {activeTab === 'menu' && <MerchantMenu />}
+        {['reviews', 'finance', 'marketing'].includes(activeTab) && <MerchantModule type={activeTab} />}
+
+        {/* Mobile Bottom Navigation */}
+        <nav className="md:hidden absolute bottom-0 w-full bg-surface/90 backdrop-blur-xl border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">
+          {[
+            { id: 'workbench', icon: 'dashboard', label: '首页' },
+            { id: 'orders', icon: 'receipt_long', label: '订单' },
+            { id: 'menu', icon: 'restaurant_menu', label: '菜单' },
+            { id: 'finance', icon: 'account_balance_wallet', label: '财务' }
+          ].map(t => (
+            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === t.id ? 'text-primary' : 'text-on-surface-variant'}`}>
+              <span className={`material-symbols-outlined ${activeTab === t.id ? 'fill' : ''}`}>{t.icon}</span>
+              <span className="text-[10px] font-label-md font-medium">{t.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+      
+      {/* Dev Switcher tool (Desktop) */}
+      <button onClick={setRole} className="hidden md:block absolute top-4 right-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur font-mono border border-white/20 hover:bg-black/70 transition-colors">← Switch Role</button>
+    </div>
+  );
+}

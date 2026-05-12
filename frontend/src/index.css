@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+@theme {
+  --color-surface-variant: #f7ddd5;
+  --color-secondary-fixed-dim: #edc157;
+  --color-surface-dim: #eed5cd;
+  --color-surface: #fff8f6;
+  --color-outline-variant: #e1bfb5;
+  --color-surface-tint: #ab3500;
+  --color-surface-container-lowest: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-outline: #8d7168;
+  --color-primary-fixed-dim: #ffb59d;
+  --color-on-tertiary-fixed: #001f28;
+  --color-primary-fixed: #ffdbd0;
+  --color-surface-container-highest: #f7ddd5;
+  --color-primary-container: #ff6b35;
+  --color-secondary-fixed: #ffdf9b;
+  --color-tertiary: #00677e;
+  --color-on-surface: #261814;
+  --color-on-background: #261814;
+  --color-on-error-container: #93000a;
+  --color-tertiary-container: #00a7cb;
+  --color-inverse-on-surface: #ffede8;
+  --color-on-secondary-container: #765900;
+  --color-on-secondary-fixed: #251a00;
+  --color-on-primary-container: #5f1900;
+  --color-secondary-container: #ffd167;
+  --color-tertiary-fixed: #b5ebff;
+  --color-on-secondary-fixed-variant: #5b4300;
+  --color-secondary: #785a00;
+  --color-on-primary-fixed: #390c00;
+  --color-background: #fff8f6;
+  --color-on-tertiary: #ffffff;
+  --color-surface-bright: #fff8f6;
+  --color-surface-container-high: #fde3db;
+  --color-error: #ba1a1a;
+  --color-on-surface-variant: #594139;
+  --color-on-error: #ffffff;
+  --color-on-primary-fixed-variant: #832600;
+  --color-on-secondary: #ffffff;
+  --color-on-primary: #ffffff;
+  --color-primary: #ab3500;
+  --color-surface-container: #ffe9e3;
+  --color-surface-container-low: #fff1ed;
+  --color-tertiary-fixed-dim: #59d5fb;
+  --color-inverse-primary: #ffb59d;
+  --color-on-tertiary-container: #003744;
+  --color-inverse-surface: #3c2d28;
+  --color-on-tertiary-fixed-variant: #004e60;
+
+  --spacing-sm: 8px;
+  --spacing-container-max-pc: 1200px;
+  --spacing-lg: 24px;
+  --spacing-gutter-mobile: 12px;
+  --spacing-md: 16px;
+  --spacing-xl: 32px;
+  --spacing-unit: 4px;
+  --spacing-xs: 4px;
+
+  --font-body-md: "Be Vietnam Pro", sans-serif;
+  --font-body-lg: "Be Vietnam Pro", sans-serif;
+  --font-headline-md: "Plus Jakarta Sans", sans-serif;
+  --font-headline-sm: "Plus Jakarta Sans", sans-serif;
+  --font-mobile-headline: "Plus Jakarta Sans", sans-serif;
+  --font-display-lg: "Plus Jakarta Sans", sans-serif;
+  --font-label-md: "Be Vietnam Pro", sans-serif;
+}
+
+@utility text-body-md { font-size: 14px; line-height: 20px; font-weight: 400; }
+@utility text-body-lg { font-size: 16px; line-height: 24px; font-weight: 400; }
+@utility text-headline-md { font-size: 24px; line-height: 32px; font-weight: 600; }
+@utility text-headline-sm { font-size: 20px; line-height: 28px; font-weight: 600; }
+@utility text-mobile-headline { font-size: 22px; line-height: 30px; font-weight: 700; }
+@utility text-display-lg { font-size: 32px; line-height: 44px; font-weight: 700; }
+@utility text-display-xl { font-size: 48px; line-height: 56px; font-weight: 700; }
+@utility text-label-md { font-size: 12px; line-height: 16px; font-weight: 500; }
+
+@utility pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+@utility pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.fill, .icon-fill {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom styling for the status toggle switch */
+.toggle-checkbox:checked {
+  right: 0;
+  border-color: #ff6b35; /* primary-container */
+}
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #ff6b35; /* primary-container */
+}
