@@ -73,11 +73,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     },
   });
 
-  if (!response.ok) {
-    throw new Error(`接口请求失败：${response.status}`);
+  let body: ApiResponse<T> | null = null;
+  try {
+    body = (await response.json()) as ApiResponse<T>;
+  } catch {
+    body = null;
   }
 
-  const body = (await response.json()) as ApiResponse<T>;
+  if (!response.ok) {
+    throw new Error(body?.message || `接口请求失败：${response.status}`);
+  }
+  if (!body) {
+    throw new Error('接口响应格式错误');
+  }
   if (body.code !== 0) {
     throw new Error(body.message || '业务处理失败');
   }
@@ -85,10 +93,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  login: (phone: string, role: string) =>
+  login: (phone: string, role: string, code = '123456') =>
     request<{ token: string; role: string; nickname?: string }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ phone, role, code: '123456' }),
+      body: JSON.stringify({ phone, role, code }),
     }),
   getMerchants: () => request<Merchant[]>('/merchants'),
   getDishes: (merchantId: number) => request<Dish[]>(`/merchants/${merchantId}/dishes`),
@@ -98,6 +106,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  updateCart: (dishId: number, quantity: number) =>
+    request<CartItem>(`/customer/cart/${dishId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ dishId, quantity }),
+    }),
+  deleteCartItem: (dishId: number) => request<{ deleted: boolean }>(`/customer/cart/${dishId}`, { method: 'DELETE' }),
   clearCart: () => request<{ cleared: boolean }>('/customer/cart', { method: 'DELETE' }),
   createOrder: (payload: CreateOrderPayload) =>
     request<Order>('/orders', {

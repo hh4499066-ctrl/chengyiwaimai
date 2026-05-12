@@ -3,8 +3,16 @@ package com.chengyiwaimai.web;
 import com.chengyiwaimai.common.ApiResponse;
 import com.chengyiwaimai.model.Models.Category;
 import com.chengyiwaimai.model.Models.Dish;
+import com.chengyiwaimai.security.AuthContext;
+import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.DemoStore;
-import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -33,28 +41,33 @@ public class MerchantCenterController {
     }
 
     @GetMapping("/orders")
-    public ApiResponse<?> orders() {
-        return ApiResponse.ok(store.orders());
+    public ApiResponse<?> orders(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantOrders(user));
     }
 
     @GetMapping("/dishes")
-    public ApiResponse<?> dishes() {
-        return ApiResponse.ok(store.dishes(1L));
+    public ApiResponse<?> dishes(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantDishes(user));
     }
 
     @PostMapping("/dishes")
-    public ApiResponse<?> saveDish(@RequestBody Dish dish) {
-        return ApiResponse.ok(store.saveDish(dish));
+    public ApiResponse<?> saveDish(HttpServletRequest request, @RequestBody Dish dish) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.saveDish(user, dish));
     }
 
     @GetMapping("/categories")
-    public ApiResponse<?> categories() {
-        return ApiResponse.ok(store.categories(1L));
+    public ApiResponse<?> categories(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.categories(user));
     }
 
     @PostMapping("/categories")
-    public ApiResponse<?> saveCategory(@RequestBody Category category) {
-        return ApiResponse.ok(store.saveCategory(category));
+    public ApiResponse<?> saveCategory(HttpServletRequest request, @RequestBody Category category) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.saveCategory(user, category));
     }
 
     @GetMapping("/business-settings")

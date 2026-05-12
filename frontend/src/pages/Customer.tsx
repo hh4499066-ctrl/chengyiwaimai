@@ -4,12 +4,13 @@ import Cart from './Cart';
 import Message from './Message';
 import Profile from './Profile';
 import { CheckoutPage, MerchantDetailPage, OrdersPage, PayPage, PayResultPage, ReviewPage, SearchPage, TrackingPage } from './customer/FlowPages';
+import type { Order } from '../api/client';
 
 export default function Customer({ setRole }: { setRole: () => void }) {
   const [activeTab, setActiveTab] = useState('home');
   const [screen, setScreen] = useState('home');
   const [selectedMerchantId, setSelectedMerchantId] = useState(1);
-  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
 
   const go = (next: string) => {
     setScreen(next);
@@ -32,11 +33,11 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         {screen === 'profile' && activeTab === 'profile' && <Profile />}
         {screen === 'search' && <SearchPage onBack={() => go('home')} onMerchant={openMerchant} />}
         {screen === 'merchant' && <MerchantDetailPage merchantId={selectedMerchantId} go={go} />}
-        {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrderId={setCurrentOrderId} go={go} />}
-        {screen === 'pay' && <PayPage orderId={currentOrderId} go={go} />}
+        {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrder={setCurrentOrder} go={go} />}
+        {screen === 'pay' && <PayPage order={currentOrder} setOrder={setCurrentOrder} go={go} />}
         {screen === 'pay-result' && <PayResultPage go={go} />}
         {screen === 'tracking' && <TrackingPage go={go} />}
-        {screen === 'review' && <ReviewPage orderId={currentOrderId} go={go} />}
+        {screen === 'review' && <ReviewPage orderId={currentOrder?.id ?? null} go={go} />}
         {screen === 'orders' && <OrdersPage go={go} />}
       </div>
 

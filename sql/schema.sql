@@ -10,11 +10,13 @@ CREATE TABLE IF NOT EXISTS sys_user (
   status TINYINT DEFAULT 1,
   deleted TINYINT DEFAULT 0,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_sys_user_phone (phone)
 );
 
 CREATE TABLE IF NOT EXISTS merchant (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT,
   name VARCHAR(80) NOT NULL,
   category VARCHAR(50),
   phone VARCHAR(20),
@@ -24,7 +26,8 @@ CREATE TABLE IF NOT EXISTS merchant (
   rating DECIMAL(3,1) DEFAULT 5.0,
   deleted TINYINT DEFAULT 0,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_merchant_user_id (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS dish (
@@ -38,11 +41,12 @@ CREATE TABLE IF NOT EXISTS dish (
   status VARCHAR(20) DEFAULT 'on_sale',
   deleted TINYINT DEFAULT 0,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_dish_merchant_id (merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS delivery_order (
-  id VARCHAR(32) PRIMARY KEY,
+  id VARCHAR(36) PRIMARY KEY,
   user_id BIGINT,
   merchant_id BIGINT,
   rider_id BIGINT,
@@ -52,16 +56,35 @@ CREATE TABLE IF NOT EXISTS delivery_order (
   remark VARCHAR(255),
   deleted TINYINT DEFAULT 0,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_delivery_order_user_id (user_id),
+  KEY idx_delivery_order_merchant_id (merchant_id),
+  KEY idx_delivery_order_rider_id (rider_id),
+  KEY idx_delivery_order_status (status),
+  KEY idx_delivery_order_create_time (create_time)
 );
 
 CREATE TABLE IF NOT EXISTS order_item (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  order_id VARCHAR(32) NOT NULL,
+  order_id VARCHAR(36) NOT NULL,
   dish_id BIGINT NOT NULL,
   dish_name VARCHAR(80) NOT NULL,
   quantity INT NOT NULL,
-  price DECIMAL(10,2) NOT NULL
+  price DECIMAL(10,2) NOT NULL,
+  KEY idx_order_item_order_id (order_id)
+);
+
+CREATE TABLE IF NOT EXISTS cart_item (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  dish_id BIGINT NOT NULL,
+  dish_name VARCHAR(80) NOT NULL,
+  quantity INT NOT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_cart_user_dish (user_id, dish_id),
+  KEY idx_cart_item_user_id (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS coupon (

@@ -19,7 +19,7 @@ function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) 
   );
 }
 
-function merchantImage(index: number) {
+function imageFor(index: number) {
   return mockMerchants[index % mockMerchants.length].image;
 }
 
@@ -35,7 +35,7 @@ function enrichMerchant(merchant: Merchant, index: number): Required<Merchant> {
     deliveryTime: merchant.deliveryTime || fallback.deliveryTime,
     minOrder: merchant.minOrder ?? fallback.minOrder,
     deliveryFee: merchant.deliveryFee ?? fallback.deliveryFee,
-    image: merchant.image || merchantImage(index),
+    image: merchant.image || imageFor(index),
     tags: merchant.tags?.length ? merchant.tags : fallback.tags,
   };
 }
@@ -56,29 +56,29 @@ function enrichDish(dish: Dish, index: number): Required<Dish> {
   };
 }
 
-function fallbackCart(): CartItem[] {
-  return mockDishes.slice(0, 2).map((dish) => ({
-    dishId: dish.id,
-    name: dish.name,
-    quantity: 1,
-    price: dish.price,
-  }));
+function ErrorBanner({ message }: { message: string }) {
+  if (!message) {
+    return null;
+  }
+  return <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{message}</div>;
 }
 
 export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerchant: (merchantId: number) => void }) {
-  const [merchantList, setMerchantList] = useState<Required<Merchant>[]>(() => mockMerchants.map(enrichMerchant));
+  const [merchantList, setMerchantList] = useState<Required<Merchant>[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     api
       .getMerchants()
       .then((items) => setMerchantList(items.map(enrichMerchant)))
-      .catch(() => setMerchantList(mockMerchants.map(enrichMerchant)));
+      .catch((err) => setError(err instanceof Error ? err.message : '商家列表加载失败'));
   }, []);
 
   return (
     <div className="bg-surface min-h-full pb-[100px]">
       <PhoneHeader title="搜索与筛选" onBack={onBack} />
       <main className="p-md space-y-md">
+        <ErrorBanner message={error} />
         <div className="bg-surface-container-lowest rounded-full px-md py-sm border border-outline-variant/40 flex items-center gap-sm shadow-sm">
           <span className="material-symbols-outlined text-on-surface-variant">search</span>
           <input className="bg-transparent outline-none flex-1 text-body-md" defaultValue="牛肉面" />
@@ -108,51 +108,54 @@ export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerch
 }
 
 export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go: Navigate }) {
-  const [merchant, setMerchant] = useState<Required<Merchant>>(() => enrichMerchant(mockMerchants.find((item) => item.id === merchantId) || mockMerchants[0], 0));
-  const [dishList, setDishList] = useState<Required<Dish>[]>(() => mockDishes.filter((dish) => dish.merchantId === merchantId).map(enrichDish));
+  const [merchant, setMerchant] = useState<Required<Merchant> | null>(null);
+  const [dishList, setDishList] = useState<Required<Dish>[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
+    setError('');
     api
       .getMerchants()
       .then((items) => {
         const foundIndex = items.findIndex((item) => item.id === merchantId);
-        const found = foundIndex >= 0 ? items[foundIndex] : items[0];
-        setMerchant(enrichMerchant(found, Math.max(foundIndex, 0)));
+        if (foundIndex >= 0) {
+          setMerchant(enrichMerchant(items[foundIndex], foundIndex));
+        }
       })
-      .catch(() => {
-        const found = mockMerchants.find((item) => item.id === merchantId) || mockMerchants[0];
-        setMerchant(enrichMerchant(found, 0));
-      });
+      .catch((err) => setError(err instanceof Error ? err.message : '商家信息加载失败'));
 
     api
       .getDishes(merchantId)
-      .then((items) => setDishList((items.length ? items : mockDishes.filter((dish) => dish.merchantId === merchantId)).map(enrichDish)))
-      .catch(() => setDishList(mockDishes.filter((dish) => dish.merchantId === merchantId).map(enrichDish)));
+      .then((items) => setDishList(items.map(enrichDish)))
+      .catch((err) => setError(err instanceof Error ? err.message : '菜品加载失败'));
   }, [merchantId]);
 
   const addToCart = (dish: Required<Dish>) => {
+    setError('');
     api
       .addCart({ dishId: dish.id, name: dish.name, quantity: 1, price: dish.price })
-      .catch(() => undefined)
-      .finally(() => go('cart'));
+      .then(() => go('cart'))
+      .catch((err) => setError(err instanceof Error ? err.message : '加入购物车失败'));
   };
 
   const total = dishList.slice(0, 2).reduce((sum, dish) => sum + dish.price, 0);
+  const heroImage = merchant?.image || mockMerchants[0].image;
 
   return (
     <div className="bg-surface min-h-full pb-[112px]">
       <div className="relative h-[220px]">
-        <img src={merchant.image} alt={merchant.name} className="w-full h-full object-cover" />
+        <img src={heroImage} alt={merchant?.name || '商家'} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-surface"></div>
         <button onClick={() => go('home')} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/40 text-white backdrop-blur flex items-center justify-center">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
       </div>
       <main className="px-md -mt-xl relative z-10 space-y-md">
+        <ErrorBanner message={error} />
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-[0_8px_28px_rgba(38,24,20,0.08)] border border-outline-variant/30">
-          <h1 className="font-display-lg text-display-lg text-on-surface">{merchant.name}</h1>
-          <p className="text-body-md text-on-surface-variant mt-xs">{merchant.rating} 分 · 月售 {merchant.monthlySales} · {merchant.deliveryTime}</p>
-          <div className="flex gap-xs mt-sm">{merchant.tags.map((tag) => <span key={tag} className="bg-error-container/50 text-on-error-container text-label-md px-xs py-[2px] rounded">{tag}</span>)}</div>
+          <h1 className="font-display-lg text-display-lg text-on-surface">{merchant?.name || '商家详情'}</h1>
+          <p className="text-body-md text-on-surface-variant mt-xs">{merchant ? `${merchant.rating} 分 · 月售 ${merchant.monthlySales} · ${merchant.deliveryTime}` : '加载中'}</p>
+          <div className="flex gap-xs mt-sm">{merchant?.tags.map((tag) => <span key={tag} className="bg-error-container/50 text-on-error-container text-label-md px-xs py-[2px] rounded">{tag}</span>)}</div>
         </section>
         <section className="grid grid-cols-[92px_1fr] gap-md">
           <aside className="space-y-xs">
@@ -167,7 +170,7 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
                 <div className="flex-1 min-w-0">
                   <h3 className="font-headline-sm text-headline-sm font-bold truncate">{dish.name}</h3>
                   <p className="text-label-md text-on-surface-variant mt-xs line-clamp-2">{dish.desc}</p>
-                  <p className="text-label-md text-on-surface-variant mt-xs">月售 {dish.sales}</p>
+                  <p className="text-label-md text-on-surface-variant mt-xs">库存 {dish.sales}</p>
                   <div className="flex items-center justify-between mt-sm">
                     <span className="text-headline-sm font-bold text-primary">¥{dish.price}</span>
                     <button onClick={() => addToCart(dish)} className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95"><span className="material-symbols-outlined text-[20px]">add</span></button>
@@ -186,29 +189,37 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
   );
 }
 
-export function CheckoutPage({ merchantId, setOrderId, go }: { merchantId: number; setOrderId: (orderId: string) => void; go: Navigate }) {
-  const [items, setItems] = useState<CartItem[]>(fallbackCart);
-  const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0) + 1.5, [items]);
+export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number; setOrder: (order: Order) => void; go: Navigate }) {
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0) + (items.length > 0 ? 1.5 : 0), [items]);
 
   useEffect(() => {
     api
       .getCart()
-      .then((cartItems) => setItems(cartItems.length ? cartItems : fallbackCart()))
-      .catch(() => setItems(fallbackCart()));
+      .then(setItems)
+      .catch((err) => setError(err instanceof Error ? err.message : '购物车加载失败'));
   }, []);
 
   const submit = () => {
+    setLoading(true);
+    setError('');
     api
       .createOrder({ merchantId, address, items })
-      .then((order) => setOrderId(order.id))
-      .catch(() => setOrderId(`CY${Date.now()}`))
-      .finally(() => go('pay'));
+      .then((order) => {
+        setOrder(order);
+        go('pay');
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : '创建订单失败'))
+      .finally(() => setLoading(false));
   };
 
   return (
     <div className="bg-background min-h-full pb-[104px]">
       <PhoneHeader title="确认订单" onBack={() => go('merchant')} />
       <main className="p-md space-y-md">
+        <ErrorBanner message={error} />
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
           <p className="text-label-md text-primary font-bold">送达地址</p>
           <h2 className="font-headline-sm text-headline-sm mt-xs">{address}</h2>
@@ -216,39 +227,53 @@ export function CheckoutPage({ merchantId, setOrderId, go }: { merchantId: numbe
         </section>
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
           <h2 className="font-headline-sm text-headline-sm font-bold mb-sm">订单商品</h2>
+          {items.length === 0 && <p className="text-body-md text-on-surface-variant py-sm">购物车为空</p>}
           {items.map((item) => (
             <div key={item.dishId} className="flex justify-between py-sm border-b border-outline-variant/20 last:border-0">
               <span className="text-body-md">{item.name} × {item.quantity}</span>
               <span className="font-bold">¥{(item.price * item.quantity).toFixed(1)}</span>
             </div>
           ))}
-          <div className="flex justify-between pt-sm text-body-md text-on-surface-variant"><span>配送费</span><span>¥1.5</span></div>
+          <div className="flex justify-between pt-sm text-body-md text-on-surface-variant"><span>配送费</span><span>¥{items.length > 0 ? '1.5' : '0.0'}</span></div>
         </section>
       </main>
       <div className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between">
         <div><span className="text-label-md text-on-surface-variant">合计</span><span className="ml-xs text-display-lg font-bold text-primary">¥{total.toFixed(1)}</span></div>
-        <button onClick={submit} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md">提交订单</button>
+        <button disabled={loading || items.length === 0} onClick={submit} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md disabled:opacity-50">{loading ? '提交中...' : '提交订单'}</button>
       </div>
     </div>
   );
 }
 
-export function PayPage({ orderId, go }: { orderId: string | null; go: Navigate }) {
+export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder: (order: Order) => void; go: Navigate }) {
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
   const pay = () => {
-    if (!orderId) {
-      go('pay-result');
+    if (!order) {
+      setError('请先创建订单');
       return;
     }
-    api.payOrder(orderId).catch(() => undefined).finally(() => go('pay-result'));
+    setLoading(true);
+    setError('');
+    api
+      .payOrder(order.id)
+      .then((paidOrder) => {
+        setOrder(paidOrder);
+        go('pay-result');
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : '支付失败'))
+      .finally(() => setLoading(false));
   };
 
   return (
     <div className="bg-surface min-h-full">
       <PhoneHeader title="模拟支付" onBack={() => go('checkout')} />
       <main className="p-md space-y-lg text-center">
+        <ErrorBanner message={error} />
         <section className="bg-gradient-to-br from-primary-container to-primary-fixed rounded-3xl p-xl shadow-sm">
           <p className="text-on-primary-container text-body-md">订单金额</p>
-          <div className="text-[56px] leading-none font-bold text-on-primary-container mt-sm">¥43.00</div>
+          <div className="text-[56px] leading-none font-bold text-on-primary-container mt-sm">¥{Number(order?.totalAmount ?? 0).toFixed(2)}</div>
         </section>
         {['微信支付（模拟）', '支付宝（模拟）', '校园一卡通（模拟）'].map((item, index) => (
           <button key={item} className={`w-full p-md rounded-2xl border flex items-center justify-between ${index === 0 ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface-container-lowest'}`}>
@@ -256,7 +281,7 @@ export function PayPage({ orderId, go }: { orderId: string | null; go: Navigate 
             <span className="material-symbols-outlined">{index === 0 ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
           </button>
         ))}
-        <button onClick={pay} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98]">确认支付</button>
+        <button disabled={loading || !order} onClick={pay} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">{loading ? '支付中...' : '确认支付'}</button>
       </main>
     </div>
   );
@@ -306,17 +331,23 @@ export function TrackingPage({ go }: { go: Navigate }) {
 }
 
 export function ReviewPage({ orderId, go }: { orderId: string | null; go: Navigate }) {
+  const [error, setError] = useState('');
   const submit = () => {
+    if (!orderId) {
+      setError('请先完成订单');
+      return;
+    }
     api
-      .submitReview({ orderId: orderId || demoOrder.id, rating: 5, content: '味道不错，配送很快，包装也很完整。' })
-      .catch(() => undefined)
-      .finally(() => go('orders'));
+      .submitReview({ orderId, rating: 5, content: '味道不错，配送很快，包装也很完整。' })
+      .then(() => go('orders'))
+      .catch((err) => setError(err instanceof Error ? err.message : '提交评价失败'));
   };
 
   return (
     <div className="bg-surface min-h-full">
       <PhoneHeader title="评价订单" onBack={() => go('tracking')} />
       <main className="p-md space-y-md">
+        <ErrorBanner message={error} />
         <section className="bg-surface-container-lowest rounded-2xl p-lg shadow-sm border border-outline-variant/30 text-center">
           <h2 className="font-headline-sm text-headline-sm font-bold">这次用餐体验如何？</h2>
           <div className="flex justify-center gap-xs my-lg text-secondary-container">
@@ -331,25 +362,19 @@ export function ReviewPage({ orderId, go }: { orderId: string | null; go: Naviga
 }
 
 export function OrdersPage({ go }: { go: Navigate }) {
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: demoOrder.id,
-      merchantId: 1,
-      merchantName: demoOrder.merchantName,
-      status: demoOrder.status,
-      totalAmount: demoOrder.totalAmount,
-      address: demoOrder.address,
-    },
-  ]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    api.getOrders().then((items) => setOrders(items.length ? items : orders)).catch(() => undefined);
+    api.getOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '历史订单加载失败'));
   }, []);
 
   return (
     <div className="bg-surface min-h-full pb-[100px]">
       <PhoneHeader title="历史订单" />
       <main className="p-md space-y-md">
+        <ErrorBanner message={error} />
+        {orders.length === 0 && !error && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
         {orders.map((order) => (
           <button key={order.id} onClick={() => go('tracking')} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
             <div className="flex justify-between"><h2 className="font-headline-sm text-headline-sm font-bold">{order.merchantName}</h2><span className="text-primary text-label-md">{order.status}</span></div>

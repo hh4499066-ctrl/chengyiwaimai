@@ -57,11 +57,13 @@ function Portal({ open }: { open: (mode: 'mobile' | 'pc') => void }) {
 
 function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string) => void; back: () => void }) {
   const [phone, setPhone] = useState(defaultPhoneByRole[role]);
+  const [code, setCode] = useState('123456');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setPhone(defaultPhoneByRole[role]);
+    setCode('123456');
     setError('');
   }, [role]);
 
@@ -69,7 +71,7 @@ function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string
     setLoading(true);
     setError('');
     try {
-      const result = await api.login(phone, role);
+      const result = await api.login(phone, role, code);
       localStorage.setItem('chengyi_token', result.token);
       localStorage.setItem('chengyi_role', result.role);
       setRole(result.role);
@@ -99,7 +101,7 @@ function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string
           </div>
           <div className="relative flex items-center h-14 bg-surface-container-lowest rounded-full px-md border border-outline-variant shadow-sm">
             <span className="material-symbols-outlined text-on-surface-variant mr-sm">lock</span>
-            <input className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full" placeholder="验证码：123456" defaultValue="123456" />
+            <input value={code} onChange={(event) => setCode(event.target.value)} className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full" placeholder="验证码：123456" />
           </div>
           {error && <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{error}</div>}
           <button onClick={submit} disabled={loading} className="w-full h-14 bg-primary text-on-primary rounded-full font-headline-sm text-headline-sm shadow-md active:scale-[0.98] transition-transform disabled:opacity-60">

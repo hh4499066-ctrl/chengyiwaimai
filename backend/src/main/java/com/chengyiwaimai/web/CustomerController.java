@@ -4,8 +4,18 @@ import com.chengyiwaimai.common.ApiResponse;
 import com.chengyiwaimai.model.Models.Address;
 import com.chengyiwaimai.model.Models.CartItem;
 import com.chengyiwaimai.model.Models.Review;
+import com.chengyiwaimai.security.AuthContext;
+import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.DemoStore;
-import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -19,8 +29,9 @@ public class CustomerController {
     }
 
     @GetMapping("/profile")
-    public ApiResponse<Map<String, Object>> profile() {
-        return ApiResponse.ok(Map.of("nickname", "张同学", "phone", "13800000001", "balance", 128.5, "points", 3450));
+    public ApiResponse<Map<String, Object>> profile(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(Map.of("nickname", "橙意用户", "phone", user.phone(), "balance", 128.5, "points", 3450));
     }
 
     @GetMapping("/addresses")
@@ -39,18 +50,34 @@ public class CustomerController {
     }
 
     @GetMapping("/cart")
-    public ApiResponse<?> cart() {
-        return ApiResponse.ok(store.cartItems());
+    public ApiResponse<?> cart(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.cartItems(user.userId()));
     }
 
     @PostMapping("/cart")
-    public ApiResponse<?> addCart(@RequestBody CartItem item) {
-        return ApiResponse.ok(store.addCartItem(item));
+    public ApiResponse<?> addCart(HttpServletRequest request, @RequestBody CartItem item) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.addCartItem(user.userId(), item));
+    }
+
+    @PutMapping("/cart/{dishId}")
+    public ApiResponse<?> updateCart(HttpServletRequest request, @PathVariable Long dishId, @RequestBody CartItem item) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.updateCartItem(user.userId(), dishId, item.quantity()));
+    }
+
+    @DeleteMapping("/cart/{dishId}")
+    public ApiResponse<Map<String, Object>> deleteCartItem(HttpServletRequest request, @PathVariable Long dishId) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        store.deleteCartItem(user.userId(), dishId);
+        return ApiResponse.ok(Map.of("deleted", true));
     }
 
     @DeleteMapping("/cart")
-    public ApiResponse<Map<String, Object>> clearCart() {
-        store.clearCart();
+    public ApiResponse<Map<String, Object>> clearCart(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        store.clearCart(user.userId());
         return ApiResponse.ok(Map.of("cleared", true));
     }
 
@@ -60,7 +87,8 @@ public class CustomerController {
     }
 
     @PostMapping("/reviews")
-    public ApiResponse<?> saveReview(@RequestBody Review review) {
-        return ApiResponse.ok(store.saveReview(review));
+    public ApiResponse<?> saveReview(HttpServletRequest request, @RequestBody Review review) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.saveReview(user, review));
     }
 }

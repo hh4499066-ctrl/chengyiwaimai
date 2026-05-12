@@ -11,7 +11,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BizException.class)
     public ApiResponse<Void> handleBiz(BizException ex) {
-        return ApiResponse.fail(ex.getMessage());
+        return ApiResponse.fail(ex.getCode(), ex.getMessage());
     }
 
     @ExceptionHandler(Exception.class)

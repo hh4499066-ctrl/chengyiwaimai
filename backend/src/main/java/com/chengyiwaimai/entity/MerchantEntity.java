@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class MerchantEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
+    private Long userId;
     private String name;
     private String category;
     private String phone;
@@ -30,6 +31,14 @@ public class MerchantEntity {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
     }
 
     public String getName() {

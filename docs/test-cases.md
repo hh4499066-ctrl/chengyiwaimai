@@ -1,8 +1,8 @@
 # 演示接口测试流程
 
-以下示例默认后端运行在 `http://localhost:8080/api`，并已导入 `sql/schema.sql` 和 `sql/init.sql`。
+以下示例默认后端运行在 `http://localhost:8080/api`。
 
-## 1. 登录
+## 1. 登录和角色可信性
 
 ```bash
 curl -X POST http://localhost:8080/api/auth/login \
@@ -10,72 +10,106 @@ curl -X POST http://localhost:8080/api/auth/login \
   -d "{\"phone\":\"13800000001\",\"code\":\"123456\",\"role\":\"admin\"}"
 ```
 
-预期：返回 `role=customer`，证明角色来自数据库而不是前端传参。
+预期：返回 `role=customer`，角色来自数据库。
 
-## 2. 查询商家和菜品
+错误验证码：
+
+```bash
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"phone\":\"13800000001\",\"code\":\"000000\",\"role\":\"customer\"}"
+```
+
+预期：返回 `验证码错误`。
+
+## 2. 获取 Token
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"phone\":\"13800000001\",\"code\":\"123456\",\"role\":\"customer\"}" | jq -r ".data.token")
+```
+
+Windows PowerShell 可手动复制 `data.token`。
+
+## 3. 权限校验
+
+无 token：
+
+```bash
+curl http://localhost:8080/api/orders
+```
+
+预期：未登录。
+
+用户 token 调后台：
+
+```bash
+curl http://localhost:8080/api/admin/orders -H "Authorization: Bearer $TOKEN"
+```
+
+预期：无权访问。
+
+## 4. 商家和菜品公开访问
 
 ```bash
 curl http://localhost:8080/api/merchants
 curl http://localhost:8080/api/merchants/1/dishes
 ```
 
-预期：商家来自 `merchant` 表，菜品来自 `dish` 表。
+预期：无需 token 即可访问。
 
-## 3. 加入购物车
+## 5. 购物车
 
 ```bash
 curl -X POST http://localhost:8080/api/customer/cart \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"dishId\":101,\"name\":\"招牌红烧牛肉面\",\"quantity\":1,\"price\":28.5}"
 ```
 
-## 4. 创建订单
+```bash
+curl -X PUT http://localhost:8080/api/customer/cart/101 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"dishId\":101,\"quantity\":2}"
+```
+
+## 6. 创建订单
 
 ```bash
 curl -X POST http://localhost:8080/api/orders \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"merchantId\":1,\"address\":\"学校东门 3 号宿舍楼 502\",\"items\":[{\"dishId\":101,\"name\":\"招牌红烧牛肉面\",\"quantity\":1,\"price\":28.5}]}"
 ```
 
-预期：返回 `Order` 对象，订单 ID 字段为 `id`，状态为 `待支付`。
+预期：订单 `userId` 为当前登录用户，库存减少，返回字段包含 `id`。
 
-## 5. 支付与状态流转
-
-将上一步返回的 `id` 替换到下面命令中：
+## 7. 支付与状态流转
 
 ```bash
-curl -X POST http://localhost:8080/api/orders/{id}/pay
-curl -X POST http://localhost:8080/api/orders/{id}/merchant/accept
-curl -X POST http://localhost:8080/api/orders/{id}/merchant/ready
-curl -X POST http://localhost:8080/api/orders/{id}/rider/accept
-curl -X POST http://localhost:8080/api/orders/{id}/rider/pickup
-curl -X POST http://localhost:8080/api/orders/{id}/rider/delivered
+curl -X POST http://localhost:8080/api/orders/{id}/pay -H "Authorization: Bearer $TOKEN"
 ```
 
-预期状态依次为：`待商家接单`、`商家已接单`、`商家已出餐`、`骑手已接单`、`骑手已取餐`、`已完成`。
-
-## 6. 非法状态校验
-
-对已完成订单再次调用：
+商家账号登录后：
 
 ```bash
-curl -X POST http://localhost:8080/api/orders/{id}/pay
+curl -X POST http://localhost:8080/api/orders/{id}/merchant/accept -H "Authorization: Bearer $MERCHANT_TOKEN"
+curl -X POST http://localhost:8080/api/orders/{id}/merchant/ready -H "Authorization: Bearer $MERCHANT_TOKEN"
 ```
 
-预期：返回错误，不允许重复支付或跳过状态。
-
-## 7. 不存在订单校验
+骑手账号登录后：
 
 ```bash
-curl -X POST http://localhost:8080/api/orders/NO_SUCH_ORDER/pay
+curl -X POST http://localhost:8080/api/orders/{id}/rider/accept -H "Authorization: Bearer $RIDER_TOKEN"
+curl -X POST http://localhost:8080/api/orders/{id}/rider/pickup -H "Authorization: Bearer $RIDER_TOKEN"
+curl -X POST http://localhost:8080/api/orders/{id}/rider/delivered -H "Authorization: Bearer $RIDER_TOKEN"
 ```
 
-预期：返回 `订单不存在`，不会自动创建假订单。
+## 8. 异常场景
 
-## 8. 查看订单列表
-
-```bash
-curl http://localhost:8080/api/orders
-```
-
-预期：返回数据库中的真实订单列表。
+- 重复支付同一订单：预期返回 `订单状态已变化，请刷新`。
+- 跳过状态直接骑手接单：预期失败。
+- 不存在订单支付：预期返回 `订单不存在`。
+- 库存不足下单：预期失败且不写入订单。

@@ -3,7 +3,10 @@ package com.chengyiwaimai.web;
 import com.chengyiwaimai.common.ApiResponse;
 import com.chengyiwaimai.model.Models.RiderLocation;
 import com.chengyiwaimai.model.Models.WithdrawRequest;
+import com.chengyiwaimai.security.AuthContext;
+import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.DemoStore;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,8 +40,9 @@ public class RiderController {
     }
 
     @GetMapping("/tasks")
-    public ApiResponse<?> tasks() {
-        return ApiResponse.ok(store.orders());
+    public ApiResponse<?> tasks(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.riderOrders(user));
     }
 
     @PostMapping("/location")

@@ -49,7 +49,7 @@ public class AdminController {
 
     @GetMapping("/orders")
     public ApiResponse<?> orders() {
-        return ApiResponse.ok(store.orders());
+        return ApiResponse.ok(store.adminOrders());
     }
 
     @GetMapping("/{module}")

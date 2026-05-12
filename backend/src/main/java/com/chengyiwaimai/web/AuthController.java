@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+    private static final String DEMO_CODE = "123456";
+
     private final JwtUtil jwtUtil;
     private final SysUserMapper sysUserMapper;
 
@@ -29,19 +31,17 @@ public class AuthController {
         if (request.phone() == null || request.phone().isBlank()) {
             throw new BizException("手机号不能为空");
         }
+        if (!DEMO_CODE.equals(request.code())) {
+            throw new BizException("验证码错误");
+        }
         SysUserEntity user = sysUserMapper.selectOne(Wrappers.<SysUserEntity>lambdaQuery()
                 .eq(SysUserEntity::getPhone, request.phone())
                 .eq(SysUserEntity::getStatus, 1)
                 .last("limit 1"));
         if (user == null) {
-            throw new BizException("用户不存在或已停用");
+            throw new BizException("手机号不存在或账号已停用");
         }
-        if (user.getPassword() != null && !user.getPassword().isBlank()) {
-            String password = request.password() == null ? "" : request.password();
-            if (!user.getPassword().equals(password)) {
-                throw new BizException("密码错误");
-            }
-        }
-        return ApiResponse.ok(new LoginResult(jwtUtil.createToken(user.getPhone(), user.getRole()), user.getRole(), user.getNickname()));
+        String token = jwtUtil.createToken(user.getId(), user.getPhone(), user.getRole());
+        return ApiResponse.ok(new LoginResult(token, user.getRole(), user.getNickname()));
     }
 }
