@@ -6,13 +6,23 @@ import com.chengyiwaimai.common.BizException;
 import com.chengyiwaimai.entity.CartItemEntity;
 import com.chengyiwaimai.entity.DeliveryOrderEntity;
 import com.chengyiwaimai.entity.DishEntity;
+import com.chengyiwaimai.entity.CouponEntity;
+import com.chengyiwaimai.entity.MarketingActivityEntity;
 import com.chengyiwaimai.entity.MerchantEntity;
 import com.chengyiwaimai.entity.OrderItemEntity;
+import com.chengyiwaimai.entity.ReviewEntity;
+import com.chengyiwaimai.entity.SysUserEntity;
+import com.chengyiwaimai.entity.UserAddressEntity;
 import com.chengyiwaimai.mapper.CartItemMapper;
+import com.chengyiwaimai.mapper.CouponMapper;
 import com.chengyiwaimai.mapper.DeliveryOrderMapper;
 import com.chengyiwaimai.mapper.DishMapper;
+import com.chengyiwaimai.mapper.MarketingActivityMapper;
 import com.chengyiwaimai.mapper.MerchantMapper;
 import com.chengyiwaimai.mapper.OrderItemMapper;
+import com.chengyiwaimai.mapper.ReviewMapper;
+import com.chengyiwaimai.mapper.SysUserMapper;
+import com.chengyiwaimai.mapper.UserAddressMapper;
 import com.chengyiwaimai.model.Models.Address;
 import com.chengyiwaimai.model.Models.CartItem;
 import com.chengyiwaimai.model.Models.Category;
@@ -30,18 +40,16 @@ import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-public class DemoStore {
+public class BusinessService {
     public static final String WAIT_PAY = "待支付";
     public static final String WAIT_MERCHANT_ACCEPT = "待商家接单";
     public static final String MERCHANT_ACCEPTED = "商家已接单";
@@ -58,28 +66,35 @@ public class DemoStore {
     private final DeliveryOrderMapper deliveryOrderMapper;
     private final OrderItemMapper orderItemMapper;
     private final CartItemMapper cartItemMapper;
-    private final List<Address> addresses = new CopyOnWriteArrayList<>();
-    private final List<Coupon> coupons = new CopyOnWriteArrayList<>();
-    private final List<Review> reviews = new CopyOnWriteArrayList<>();
+    private final UserAddressMapper userAddressMapper;
+    private final CouponMapper couponMapper;
+    private final ReviewMapper reviewMapper;
+    private final SysUserMapper sysUserMapper;
+    private final MarketingActivityMapper marketingActivityMapper;
     private final List<Category> categories = new CopyOnWriteArrayList<>();
 
-    public DemoStore(
+    public BusinessService(
             MerchantMapper merchantMapper,
             DishMapper dishMapper,
             DeliveryOrderMapper deliveryOrderMapper,
             OrderItemMapper orderItemMapper,
-            CartItemMapper cartItemMapper
+            CartItemMapper cartItemMapper,
+            UserAddressMapper userAddressMapper,
+            CouponMapper couponMapper,
+            ReviewMapper reviewMapper,
+            SysUserMapper sysUserMapper,
+            MarketingActivityMapper marketingActivityMapper
     ) {
         this.merchantMapper = merchantMapper;
         this.dishMapper = dishMapper;
         this.deliveryOrderMapper = deliveryOrderMapper;
         this.orderItemMapper = orderItemMapper;
         this.cartItemMapper = cartItemMapper;
-        addresses.add(new Address(1L, "张同学", "13800000001", "学校东门 3 号宿舍楼 502", true));
-        addresses.add(new Address(2L, "李同学", "13900000002", "实验楼 A 座大厅", false));
-        coupons.add(new Coupon(1L, "新人首单立减券", new BigDecimal("20.00"), new BigDecimal("8.00"), "可使用"));
-        coupons.add(new Coupon(2L, "校园夜宵满减券", new BigDecimal("35.00"), new BigDecimal("6.00"), "可使用"));
-        reviews.add(new Review(1L, "CY202605120001", 5, "味道不错，配送很快。", "感谢支持，欢迎再次下单。"));
+        this.userAddressMapper = userAddressMapper;
+        this.couponMapper = couponMapper;
+        this.reviewMapper = reviewMapper;
+        this.sysUserMapper = sysUserMapper;
+        this.marketingActivityMapper = marketingActivityMapper;
         categories.add(new Category(1L, 1L, "招牌推荐", 1));
         categories.add(new Category(2L, 1L, "热销单品", 2));
         categories.add(new Category(3L, 1L, "饮品", 3));
@@ -259,8 +274,15 @@ public class DemoStore {
         return updateMerchantStatus(user, orderId, WAIT_MERCHANT_ACCEPT, MERCHANT_ACCEPTED);
     }
 
+    @Transactional
     public Order merchantCancel(CurrentUser user, String orderId) {
-        return updateMerchantStatus(user, orderId, WAIT_MERCHANT_ACCEPT, CANCELED);
+        MerchantEntity merchant = requireMerchant(user);
+        requireOrder(orderId);
+        Order order = updateStatus(orderId, WAIT_MERCHANT_ACCEPT, CANCELED, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
+                .eq(DeliveryOrderEntity::getId, orderId)
+                .eq(DeliveryOrderEntity::getMerchantId, merchant.getId()));
+        restoreStock(orderId);
+        return order;
     }
 
     public Order merchantReady(CurrentUser user, String orderId) {
@@ -320,6 +342,7 @@ public class DemoStore {
         return orders(Wrappers.<DeliveryOrderEntity>lambdaQuery().orderByDesc(DeliveryOrderEntity::getCreateTime));
     }
 
+    @Transactional
     public int cancelTimeoutUnpaidOrders() {
         LocalDateTime deadline = LocalDateTime.now().minusMinutes(15);
         List<DeliveryOrderEntity> timeoutOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
@@ -329,39 +352,144 @@ public class DemoStore {
         for (DeliveryOrderEntity order : timeoutOrders) {
             DeliveryOrderEntity update = new DeliveryOrderEntity();
             update.setStatus(CANCELED);
-            count += deliveryOrderMapper.update(update, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
+            int rows = deliveryOrderMapper.update(update, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
                     .eq(DeliveryOrderEntity::getId, order.getId())
                     .eq(DeliveryOrderEntity::getStatus, WAIT_PAY));
+            if (rows == 1) {
+                restoreStock(order.getId());
+                count++;
+            }
         }
         return count;
     }
 
-    public List<Address> addresses() {
-        return addresses;
+    public List<Map<String, Object>> riderLobbyOrders() {
+        List<DeliveryOrderEntity> orders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .eq(DeliveryOrderEntity::getStatus, MERCHANT_READY)
+                .isNull(DeliveryOrderEntity::getRiderId)
+                .orderByAsc(DeliveryOrderEntity::getCreateTime));
+        if (orders.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, MerchantEntity> merchantsById = merchantsById(orders.stream()
+                .map(DeliveryOrderEntity::getMerchantId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet()));
+        return orders.stream()
+                .map(order -> {
+                    MerchantEntity merchant = merchantsById.get(order.getMerchantId());
+                    return Map.<String, Object>of(
+                            "orderId", order.getId(),
+                            "income", new BigDecimal("4.50"),
+                            "distance", "1.2km",
+                            "merchant", merchant == null ? "未知商家" : merchant.getName(),
+                            "address", order.getAddress() == null ? "" : order.getAddress()
+                    );
+                })
+                .toList();
     }
 
-    public Address saveAddress(Address address) {
-        Address next = new Address(address.id() == null ? System.currentTimeMillis() : address.id(), address.receiver(), address.phone(), address.detail(), Boolean.TRUE.equals(address.isDefault()));
-        addresses.add(next);
-        return next;
+    public List<Address> addresses(CurrentUser user) {
+        return userAddressMapper.selectList(Wrappers.<UserAddressEntity>lambdaQuery()
+                        .eq(UserAddressEntity::getUserId, user.userId())
+                        .orderByDesc(UserAddressEntity::getIsDefault)
+                        .orderByDesc(UserAddressEntity::getUpdateTime))
+                .stream()
+                .map(this::toAddress)
+                .toList();
+    }
+
+    @Transactional
+    public Address saveAddress(CurrentUser user, Address address) {
+        if (Boolean.TRUE.equals(address.isDefault())) {
+            userAddressMapper.update(null, Wrappers.<UserAddressEntity>lambdaUpdate()
+                    .set(UserAddressEntity::getIsDefault, false)
+                    .eq(UserAddressEntity::getUserId, user.userId()));
+        }
+        UserAddressEntity entity = new UserAddressEntity();
+        entity.setId(address.id());
+        entity.setUserId(user.userId());
+        entity.setReceiver(address.receiver());
+        entity.setPhone(address.phone());
+        entity.setDetail(address.detail());
+        entity.setIsDefault(Boolean.TRUE.equals(address.isDefault()));
+        if (entity.getId() == null) {
+            userAddressMapper.insert(entity);
+        } else {
+            int rows = userAddressMapper.update(entity, Wrappers.<UserAddressEntity>lambdaUpdate()
+                    .eq(UserAddressEntity::getId, entity.getId())
+                    .eq(UserAddressEntity::getUserId, user.userId()));
+            if (rows != 1) {
+                throw new BizException("地址不存在或无权修改");
+            }
+        }
+        return toAddress(userAddressMapper.selectById(entity.getId()));
     }
 
     public List<Coupon> coupons() {
-        return coupons;
+        return couponMapper.selectList(Wrappers.<CouponEntity>lambdaQuery()
+                        .eq(CouponEntity::getStatus, "enabled")
+                        .orderByAsc(CouponEntity::getId))
+                .stream()
+                .map(this::toCoupon)
+                .toList();
     }
 
-    public List<Review> reviews() {
-        return reviews;
+    public List<Review> reviews(CurrentUser user) {
+        return reviewMapper.selectList(Wrappers.<ReviewEntity>lambdaQuery()
+                        .eq(ReviewEntity::getUserId, user.userId())
+                        .orderByDesc(ReviewEntity::getCreateTime))
+                .stream()
+                .map(this::toReview)
+                .toList();
     }
 
+    public List<Review> merchantReviews(CurrentUser user) {
+        MerchantEntity merchant = requireMerchant(user);
+        return reviewMapper.selectList(Wrappers.<ReviewEntity>lambdaQuery()
+                        .eq(ReviewEntity::getMerchantId, merchant.getId())
+                        .orderByDesc(ReviewEntity::getCreateTime))
+                .stream()
+                .map(this::toReview)
+                .toList();
+    }
+
+    public Review replyReview(CurrentUser user, Long reviewId, String reply) {
+        MerchantEntity merchant = requireMerchant(user);
+        ReviewEntity update = new ReviewEntity();
+        update.setReply(reply);
+        int rows = reviewMapper.update(update, Wrappers.<ReviewEntity>lambdaUpdate()
+                .eq(ReviewEntity::getId, reviewId)
+                .eq(ReviewEntity::getMerchantId, merchant.getId()));
+        if (rows != 1) {
+            throw new BizException("评价不存在或无权回复");
+        }
+        return toReview(reviewMapper.selectById(reviewId));
+    }
+
+    @Transactional
     public Review saveReview(CurrentUser user, Review review) {
         DeliveryOrderEntity order = requireOrder(review.orderId());
         if (!user.userId().equals(order.getUserId())) {
             throw new BizException(403, "无权评价该订单");
         }
-        Review next = new Review(System.currentTimeMillis(), review.orderId(), review.rating(), review.content(), null);
-        reviews.add(next);
-        return next;
+        if (!COMPLETED.equals(order.getStatus())) {
+            throw new BizException("只有已完成订单可以评价");
+        }
+        ReviewEntity existing = reviewMapper.selectOne(Wrappers.<ReviewEntity>lambdaQuery()
+                .eq(ReviewEntity::getOrderId, review.orderId())
+                .last("limit 1"));
+        if (existing != null) {
+            throw new BizException("该订单已评价");
+        }
+        ReviewEntity entity = new ReviewEntity();
+        entity.setOrderId(review.orderId());
+        entity.setUserId(user.userId());
+        entity.setMerchantId(order.getMerchantId());
+        entity.setRating(review.rating());
+        entity.setContent(review.content());
+        reviewMapper.insert(entity);
+        return toReview(entity);
     }
 
     public List<Category> categories(CurrentUser user) {
@@ -380,21 +508,100 @@ public class DemoStore {
     }
 
     public Map<String, Object> merchantStats() {
+        List<Order> orders = adminOrders();
         return Map.of(
-                "todayIncome", new BigDecimal("2840.50"),
-                "todayOrders", 105,
+                "todayIncome", orders.stream().map(Order::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                "todayOrders", orders.size(),
                 "conversionRate", "18.5%",
-                "refundOrders", 2
+                "refundOrders", orders.stream().filter(order -> CANCELED.equals(order.status())).count()
         );
     }
 
     public Map<String, Object> riderStats() {
+        List<DeliveryOrderEntity> completed = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .isNotNull(DeliveryOrderEntity::getRiderId)
+                .eq(DeliveryOrderEntity::getStatus, COMPLETED));
         return Map.of(
-                "todayIncome", new BigDecimal("284.50"),
-                "todayOrders", 42,
+                "todayIncome", BigDecimal.valueOf(completed.size()).multiply(new BigDecimal("4.50")),
+                "todayOrders", completed.size(),
                 "level", "黄金骑手",
                 "score", "4.8"
         );
+    }
+
+    public Map<String, Object> adminDashboard() {
+        List<Order> orders = adminOrders();
+        return Map.of(
+                "todayGmv", orders.stream().map(Order::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
+                "todayOrders", orders.size(),
+                "activeUsers", sysUserMapper.selectCount(Wrappers.<SysUserEntity>lambdaQuery().eq(SysUserEntity::getStatus, 1)),
+                "exceptionOrders", orders.stream().filter(order -> CANCELED.equals(order.status())).count()
+        );
+    }
+
+    public List<Map<String, Object>> adminUsers() {
+        return sysUserMapper.selectList(Wrappers.<SysUserEntity>lambdaQuery().orderByDesc(SysUserEntity::getCreateTime))
+                .stream()
+                .map(user -> Map.<String, Object>of(
+                        "id", user.getId(),
+                        "name", user.getNickname() == null ? "" : user.getNickname(),
+                        "phone", user.getPhone(),
+                        "role", user.getRole(),
+                        "status", user.getStatus() != null && user.getStatus() == 1 ? "正常" : "禁用"
+                ))
+                .toList();
+    }
+
+    public List<Map<String, Object>> adminRiders() {
+        return sysUserMapper.selectList(Wrappers.<SysUserEntity>lambdaQuery()
+                        .eq(SysUserEntity::getRole, "rider")
+                        .orderByDesc(SysUserEntity::getCreateTime))
+                .stream()
+                .map(user -> Map.<String, Object>of(
+                        "id", user.getId(),
+                        "name", user.getNickname() == null ? "" : user.getNickname(),
+                        "phone", user.getPhone(),
+                        "level", "黄金骑手",
+                        "status", user.getStatus() != null && user.getStatus() == 1 ? "正常" : "禁用"
+                ))
+                .toList();
+    }
+
+    public List<Map<String, Object>> adminMarketing() {
+        return marketingActivityMapper.selectList(Wrappers.<MarketingActivityEntity>lambdaQuery()
+                        .orderByDesc(MarketingActivityEntity::getStartTime))
+                .stream()
+                .map(activity -> Map.<String, Object>of(
+                        "id", activity.getId(),
+                        "name", activity.getName(),
+                        "type", activity.getType(),
+                        "status", activity.getStatus(),
+                        "startTime", activity.getStartTime() == null ? "" : activity.getStartTime(),
+                        "endTime", activity.getEndTime() == null ? "" : activity.getEndTime()
+                ))
+                .toList();
+    }
+
+    public Map<String, Object> adminAudit(String module, Long id, String status) {
+        if ("merchants".equals(module) || "merchant".equals(module)) {
+            MerchantEntity merchant = new MerchantEntity();
+            merchant.setAuditStatus(status == null ? "approved" : status);
+            int rows = merchantMapper.update(merchant, Wrappers.<MerchantEntity>lambdaUpdate().eq(MerchantEntity::getId, id));
+            if (rows != 1) {
+                throw new BizException("商家不存在");
+            }
+            return Map.of("module", module, "id", id, "result", merchant.getAuditStatus());
+        }
+        if ("riders".equals(module) || "users".equals(module)) {
+            SysUserEntity user = new SysUserEntity();
+            user.setStatus("disabled".equals(status) || "rejected".equals(status) ? 0 : 1);
+            int rows = sysUserMapper.update(user, Wrappers.<SysUserEntity>lambdaUpdate().eq(SysUserEntity::getId, id));
+            if (rows != 1) {
+                throw new BizException("用户不存在");
+            }
+            return Map.of("module", module, "id", id, "result", user.getStatus() == 1 ? "approved" : "disabled");
+        }
+        return Map.of("module", module, "id", id, "result", status == null ? "approved" : status);
     }
 
     private Order updateMerchantStatus(CurrentUser user, String orderId, String expected, String nextStatus) {
@@ -420,6 +627,19 @@ public class DemoStore {
             throw new BizException("订单状态已变化，请刷新");
         }
         return toOrder(deliveryOrderMapper.selectById(orderId));
+    }
+
+    private void restoreStock(String orderId) {
+        List<OrderItemEntity> items = orderItemMapper.selectList(Wrappers.<OrderItemEntity>lambdaQuery()
+                .eq(OrderItemEntity::getOrderId, orderId));
+        for (OrderItemEntity item : items) {
+            if (item.getDishId() == null || item.getQuantity() == null || item.getQuantity() <= 0) {
+                continue;
+            }
+            dishMapper.update(null, Wrappers.<DishEntity>lambdaUpdate()
+                    .setSql("stock = stock + " + item.getQuantity())
+                    .eq(DishEntity::getId, item.getDishId()));
+        }
     }
 
     private DeliveryOrderEntity requireOrder(String orderId) {
@@ -511,6 +731,19 @@ public class DemoStore {
 
     private CartItem toCartItem(CartItemEntity entity) {
         return new CartItem(entity.getDishId(), entity.getDishName(), entity.getQuantity(), entity.getPrice());
+    }
+
+    private Address toAddress(UserAddressEntity entity) {
+        return new Address(entity.getId(), entity.getReceiver(), entity.getPhone(), entity.getDetail(), Boolean.TRUE.equals(entity.getIsDefault()));
+    }
+
+    private Coupon toCoupon(CouponEntity entity) {
+        String status = "enabled".equals(entity.getStatus()) ? "可使用" : entity.getStatus();
+        return new Coupon(entity.getId(), entity.getName(), entity.getThresholdAmount(), entity.getDiscountAmount(), status);
+    }
+
+    private Review toReview(ReviewEntity entity) {
+        return new Review(entity.getId(), entity.getOrderId(), entity.getRating(), entity.getContent(), entity.getReply());
     }
 
     private String nextOrderId() {

@@ -7,7 +7,7 @@ import com.chengyiwaimai.model.Models.Order;
 import com.chengyiwaimai.model.Models.RiderLocation;
 import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import com.chengyiwaimai.websocket.OrderSocketHandler;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,10 +22,10 @@ import java.util.List;
 @RestController
 @RequestMapping("/orders")
 public class OrderController {
-    private final DemoStore store;
+    private final BusinessService store;
     private final OrderSocketHandler socketHandler;
 
-    public OrderController(DemoStore store, OrderSocketHandler socketHandler) {
+    public OrderController(BusinessService store, OrderSocketHandler socketHandler) {
         this.store = store;
         this.socketHandler = socketHandler;
     }
@@ -52,7 +52,7 @@ public class OrderController {
     public ApiResponse<Order> pay(HttpServletRequest request, @PathVariable String orderId) {
         CurrentUser user = AuthContext.requireRole(request, "customer");
         Order order = store.payOrder(user, orderId);
-        socketHandler.broadcast("订单已支付：" + order.id());
+        socketHandler.broadcast(order.id(), "订单已支付：" + order.id());
         return ApiResponse.ok(order);
     }
 
@@ -65,7 +65,7 @@ public class OrderController {
             case "ready" -> store.merchantReady(user, orderId);
             default -> throw new BizException("不支持的商家操作");
         };
-        socketHandler.broadcast(order.status() + "：" + order.id());
+        socketHandler.broadcast(order.id(), order.status() + "：" + order.id());
         return ApiResponse.ok(order);
     }
 
@@ -78,7 +78,7 @@ public class OrderController {
             case "delivered" -> store.riderDelivered(user, orderId);
             default -> throw new BizException("不支持的骑手操作");
         };
-        socketHandler.broadcast(order.status() + "：" + order.id());
+        socketHandler.broadcast(order.id(), order.status() + "：" + order.id());
         return ApiResponse.ok(order);
     }
 
@@ -86,7 +86,7 @@ public class OrderController {
     public ApiResponse<RiderLocation> location(HttpServletRequest request, @PathVariable String orderId, @RequestBody RiderLocation location) {
         CurrentUser user = AuthContext.requireRole(request, "rider");
         store.requireRiderOrder(user, orderId);
-        socketHandler.broadcast("骑手位置更新：" + orderId + "," + location.longitude() + "," + location.latitude());
+        socketHandler.broadcast(orderId, "骑手位置更新：" + orderId + "," + location.longitude() + "," + location.latitude());
         return ApiResponse.ok(location);
     }
 }

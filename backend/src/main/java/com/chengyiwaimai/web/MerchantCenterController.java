@@ -5,7 +5,7 @@ import com.chengyiwaimai.model.Models.Category;
 import com.chengyiwaimai.model.Models.Dish;
 import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,9 +19,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/merchant-center")
 public class MerchantCenterController {
-    private final DemoStore store;
+    private final BusinessService store;
 
-    public MerchantCenterController(DemoStore store) {
+    public MerchantCenterController(BusinessService store) {
         this.store = store;
     }
 
@@ -86,13 +86,15 @@ public class MerchantCenterController {
     }
 
     @GetMapping("/reviews")
-    public ApiResponse<?> reviews() {
-        return ApiResponse.ok(store.reviews());
+    public ApiResponse<?> reviews(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantReviews(user));
     }
 
     @PostMapping("/reviews/{reviewId}/reply")
-    public ApiResponse<Map<String, Object>> replyReview(@PathVariable Long reviewId, @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("reviewId", reviewId, "reply", body.getOrDefault("reply", "感谢支持")));
+    public ApiResponse<?> replyReview(HttpServletRequest request, @PathVariable Long reviewId, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.replyReview(user, reviewId, String.valueOf(body.getOrDefault("reply", "感谢支持"))));
     }
 
     @GetMapping("/profile")

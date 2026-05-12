@@ -1,7 +1,90 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { api, type Order } from '../api/client';
 import { MerchantModule } from './management/ManagementPanels';
 
+function MerchantError({ message }: { message: string }) {
+  if (!message) {
+    return null;
+  }
+  return <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{message}</div>;
+}
+
+function statusTone(status: string) {
+  if (status === '待商家接单') {
+    return 'border-l-error';
+  }
+  if (status === '商家已接单') {
+    return 'border-l-secondary-container';
+  }
+  if (status === '商家已出餐') {
+    return 'border-l-tertiary';
+  }
+  return 'border-l-outline-variant';
+}
+
+function MerchantOrderCard({ order, onAction, loadingId }: { order: Order; onAction: (orderId: string, action: 'accept' | 'reject' | 'ready') => void; loadingId: string }) {
+  const loading = loadingId === order.id;
+  return (
+    <div className={`bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 ${statusTone(order.status)}`}>
+      <div className="flex justify-between items-start gap-md mb-md border-b border-outline-variant/30 pb-sm">
+        <div>
+          <span className="bg-primary/10 text-primary font-bold font-label-md text-label-md px-2 py-0.5 rounded">{order.status}</span>
+          <p className="font-label-md text-label-md text-on-surface-variant mt-xs">订单号：{order.id}</p>
+        </div>
+        <span className="font-headline-sm text-headline-sm font-bold text-error">¥{Number(order.totalAmount).toFixed(2)}</span>
+      </div>
+      <div className="space-y-xs mb-md">
+        <p className="font-body-md text-body-md font-medium text-on-surface">{order.merchantName}</p>
+        <p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">{order.address}</p>
+      </div>
+      <div className="flex gap-sm">
+        {order.status === '待商家接单' && (
+          <>
+            <button disabled={loading} onClick={() => onAction(order.id, 'reject')} className="flex-1 py-2 rounded-xl text-on-surface-variant border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors disabled:opacity-50">拒单</button>
+            <button disabled={loading} onClick={() => onAction(order.id, 'accept')} className="flex-[2] py-2 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50">接单并打印</button>
+          </>
+        )}
+        {order.status === '商家已接单' && (
+          <button disabled={loading} onClick={() => onAction(order.id, 'ready')} className="flex-1 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50">标记出餐</button>
+        )}
+        {!['待商家接单', '商家已接单'].includes(order.status) && (
+          <span className="text-body-md text-on-surface-variant">当前状态无需商家处理</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MerchantWorkbench() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [error, setError] = useState('');
+  const [loadingId, setLoadingId] = useState('');
+
+  const refreshOrders = () => {
+    api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败'));
+  };
+
+  useEffect(() => {
+    refreshOrders();
+  }, []);
+
+  const pendingOrders = orders.filter((order) => order.status === '待商家接单' || order.status === '商家已接单').slice(0, 6);
+  const stats = useMemo(() => ({
+    todayIncome: orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
+    todayOrders: orders.length,
+    pending: orders.filter((order) => order.status === '待商家接单').length,
+    ready: orders.filter((order) => order.status === '商家已出餐').length,
+  }), [orders]);
+
+  const action = (orderId: string, nextAction: 'accept' | 'reject' | 'ready') => {
+    setLoadingId(orderId);
+    setError('');
+    api.merchantAction(orderId, nextAction)
+      .then(refreshOrders)
+      .catch((err) => setError(err instanceof Error ? err.message : '订单状态已变化，请刷新'))
+      .finally(() => setLoadingId(''));
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface">
       <div className="flex justify-between items-center mb-xl bg-surface-container-lowest p-md rounded-2xl shadow-sm border border-outline-variant/30">
@@ -29,10 +112,10 @@ function MerchantWorkbench() {
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold">今日营业数据</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-xl">
         {[
-          { title: "今日预计收入", value: "¥ 2,840.50", m: "较昨日 +5%", c: "primary", icon: "account_balance_wallet" },
-          { title: "今日有效订单", value: "105", m: "较昨日 +12", c: "secondary", icon: "receipt_long" },
-          { title: "进店转化率", value: "18.5%", m: "较昨日 -1.2%", c: "tertiary", icon: "storefront" },
-          { title: "待处理退单", value: "2", m: "需尽快处理", c: "error", icon: "warning" },
+          { title: "今日预计收入", value: `¥ ${stats.todayIncome.toFixed(2)}`, m: "实时订单汇总", c: "primary", icon: "account_balance_wallet" },
+          { title: "今日有效订单", value: String(stats.todayOrders), m: "来自真实订单", c: "secondary", icon: "receipt_long" },
+          { title: "待接订单", value: String(stats.pending), m: "需尽快处理", c: "tertiary", icon: "storefront" },
+          { title: "待骑手取餐", value: String(stats.ready), m: "已进入骑手大厅", c: "error", icon: "warning" },
         ].map((item, idx) => (
           <div key={idx} className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border border-outline-variant/30 flex flex-col relative overflow-hidden group ${item.c === 'error' ? 'border-error/30 bg-error-container/10' : ''}`}>
             <div className="flex justify-between items-start z-10 mb-sm">
@@ -48,9 +131,12 @@ function MerchantWorkbench() {
       </div>
 
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold flex items-center justify-between">实时单况 <button className="text-primary font-body-md text-body-md font-medium hover:underline flex items-center">查看全部 <span className="material-symbols-outlined text-[18px]">chevron_right</span></button></h3>
+      <MerchantError message={error} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+         {pendingOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无待处理订单</p>}
+         {pendingOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
          {/* Pending Orders */}
-         <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-error">
+         {false && <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-error">
              <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
                  <div className="flex items-center gap-sm"><span className="bg-error text-on-error font-bold font-label-md text-label-md px-2 py-0.5 rounded">新订单 #42</span></div>
                  <span className="font-label-md text-label-md text-error flex items-center"><span className="material-symbols-outlined text-[16px] mr-0.5">timer</span>等待接单 04:59</span>
@@ -67,9 +153,9 @@ function MerchantWorkbench() {
                  <button className="flex-1 py-2 rounded-xl text-on-surface-variant border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors">拒单</button>
                  <button className="flex-[2] py-2 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity">立即接单 (打印)</button>
              </div>
-         </div>
+         </div>}
          {/* Cooking Orders */}
-         <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-secondary-container">
+         {false && <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-secondary-container">
              <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
                  <div className="flex items-center gap-sm"><span className="bg-secondary-container text-on-secondary-container font-bold font-label-md text-label-md px-2 py-0.5 rounded">出餐中 #40</span></div>
                  <span className="font-label-md text-label-md text-on-surface-variant flex items-center"><span className="material-symbols-outlined text-[16px] mr-0.5">schedule</span>已接单 8分钟</span>
@@ -85,9 +171,9 @@ function MerchantWorkbench() {
              <div className="flex gap-sm">
                  <button className="flex-1 py-2 rounded-xl bg-secondary-container text-on-secondary-container font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity">标记出餐</button>
              </div>
-         </div>
+         </div>}
          {/* Waiting Pickup */}
-         <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-tertiary">
+         {false && <div className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 border-l-tertiary">
              <div className="flex justify-between items-center mb-md border-b border-outline-variant/30 pb-sm">
                  <div className="flex items-center gap-sm"><span className="bg-tertiary/20 text-tertiary font-bold font-label-md text-label-md px-2 py-0.5 rounded">待取餐 #38</span></div>
                  <span className="font-label-md text-label-md text-on-surface-variant flex items-center"><span className="material-symbols-outlined text-[16px] mr-1">moped</span>骑手已到店</span>
@@ -102,7 +188,7 @@ function MerchantWorkbench() {
              <div className="flex gap-sm">
                  <button className="flex-1 py-2 rounded-xl text-tertiary border border-tertiary/50 hover:bg-tertiary/10 font-body-md font-medium transition-colors flex justify-center items-center gap-xs"><span className="material-symbols-outlined text-[18px]">phone</span>呼叫骑手</button>
              </div>
-         </div>
+         </div>}
       </div>
       <div className="h-xl md:hidden"></div>
     </div>
@@ -110,6 +196,48 @@ function MerchantWorkbench() {
 }
 
 function MerchantOrders() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [activeStatus, setActiveStatus] = useState('全部');
+  const [error, setError] = useState('');
+  const [loadingId, setLoadingId] = useState('');
+  const statuses = ['全部', '待商家接单', '商家已接单', '商家已出餐', '骑手已接单', '骑手已取餐', '已完成', '已取消'];
+  const shownOrders = activeStatus === '全部' ? orders : orders.filter((order) => order.status === activeStatus);
+
+  const refreshOrders = () => {
+    api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败'));
+  };
+
+  useEffect(() => {
+    refreshOrders();
+  }, []);
+
+  const action = (orderId: string, nextAction: 'accept' | 'reject' | 'ready') => {
+    setLoadingId(orderId);
+    setError('');
+    api.merchantAction(orderId, nextAction)
+      .then(refreshOrders)
+      .catch((err) => setError(err instanceof Error ? err.message : '订单状态已变化，请刷新'))
+      .finally(() => setLoadingId(''));
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
+      <header className="px-lg py-md border-b border-outline-variant/30 bg-surface z-10 shrink-0">
+         <h2 className="font-headline-md text-headline-md font-bold text-on-surface mb-md">订单管理</h2>
+         <div className="flex gap-md overflow-x-auto no-scrollbar">
+             {statuses.map((status) => (
+                 <button key={status} onClick={() => setActiveStatus(status)} className={`whitespace-nowrap font-body-md text-body-md font-medium pb-sm border-b-2 transition-colors ${activeStatus === status ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'}`}>{status}</button>
+             ))}
+         </div>
+      </header>
+      <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md bg-surface-container-low">
+          <MerchantError message={error} />
+          {shownOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
+          {shownOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
       <header className="px-lg py-md border-b border-outline-variant/30 bg-surface z-10 shrink-0">
@@ -241,6 +369,11 @@ function MerchantMenu() {
 
 export default function Merchant({ setRole }: { setRole: () => void }) {
   const [activeTab, setActiveTab] = useState('workbench');
+  const logout = () => {
+    localStorage.removeItem('chengyi_token');
+    localStorage.removeItem('chengyi_role');
+    setRole();
+  };
 
   return (
     <div className="bg-surface text-on-surface h-screen flex overflow-hidden w-full">
@@ -272,7 +405,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
           ))}
         </div>
         <div className="mt-auto pt-md border-t border-outline-variant">
-          <button onClick={setRole} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all rounded-lg font-body-md text-body-md">
+          <button onClick={logout} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all rounded-lg font-body-md text-body-md">
             <span className="material-symbols-outlined">logout</span>
             退出登录
           </button>
@@ -283,7 +416,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="md:hidden sticky top-0 w-full z-50 flex justify-between items-center px-md py-sm bg-surface shadow-sm pt-safe">
           <span className="text-headline-md font-headline-md font-bold text-primary">商家中心</span>
-          <button onClick={setRole} className="material-symbols-outlined text-primary">logout</button>
+          <button onClick={logout} className="material-symbols-outlined text-primary">logout</button>
         </header>
 
         {activeTab === 'workbench' && <MerchantWorkbench />}
@@ -308,7 +441,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
       </div>
       
       {/* Dev Switcher tool (Desktop) */}
-      <button onClick={setRole} className="hidden md:block absolute top-4 right-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur font-mono border border-white/20 hover:bg-black/70 transition-colors">← Switch Role</button>
+      {import.meta.env.DEV && <button onClick={logout} className="hidden md:block absolute top-4 right-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur font-mono border border-white/20 hover:bg-black/70 transition-colors">← Switch Role</button>}
     </div>
   );
 }

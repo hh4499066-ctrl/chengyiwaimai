@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, type CartItem, type Dish, type Merchant, type Order } from '../../api/client';
-import { demoOrder, dishes as mockDishes, merchants as mockMerchants } from '../../mock/data';
+import { dishes as mockDishes, merchants as mockMerchants } from '../../mock/data';
 
 type Navigate = (screen: string) => void;
 
@@ -301,8 +301,67 @@ export function PayResultPage({ go }: { go: Navigate }) {
   );
 }
 
-export function TrackingPage({ go }: { go: Navigate }) {
-  const steps = ['订单已支付', '商家已接单', '商家已出餐', '骑手已取餐', '正在配送'];
+const trackingSteps = [
+  { status: '待商家接单', label: '订单已支付' },
+  { status: '商家已接单', label: '商家已接单' },
+  { status: '商家已出餐', label: '商家已出餐' },
+  { status: '骑手已接单', label: '骑手已接单' },
+  { status: '骑手已取餐', label: '骑手已取餐' },
+  { status: '已完成', label: '已送达' },
+];
+
+function orderStepIndex(status?: string) {
+  if (!status || status === '待支付') {
+    return -1;
+  }
+  if (status === '已取消') {
+    return -1;
+  }
+  const index = trackingSteps.findIndex((step) => step.status === status);
+  return index >= 0 ? index : 0;
+}
+
+function socketUrl(orderId?: string) {
+  const base = import.meta.env.VITE_API_BASE_URL || '/api';
+  const wsBase = base.startsWith('http') ? base.replace(/^http/, 'ws') : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${base}`;
+  const query = orderId ? `?orderId=${encodeURIComponent(orderId)}` : '';
+  return `${wsBase.replace(/\/api$/, '')}/ws/orders${query}`;
+}
+
+export function TrackingPage({ order, setOrder, go }: { order: Order | null; setOrder: (order: Order) => void; go: Navigate }) {
+  const [current, setCurrent] = useState<Order | null>(order);
+  const [error, setError] = useState('');
+  const activeStep = orderStepIndex(current?.status);
+
+  const refresh = () => {
+    api
+      .getOrders()
+      .then((orders) => {
+        const next = order ? orders.find((item) => item.id === order.id) : orders[0];
+        if (next) {
+          setCurrent(next);
+          setOrder(next);
+        }
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : '订单状态加载失败'));
+  };
+
+  useEffect(() => {
+    refresh();
+    const timer = window.setInterval(refresh, 10000);
+    let socket: WebSocket | null = null;
+    try {
+      socket = new WebSocket(socketUrl(order?.id));
+      socket.onmessage = refresh;
+    } catch {
+      socket = null;
+    }
+    return () => {
+      window.clearInterval(timer);
+      socket?.close();
+    };
+  }, [order?.id]);
+
   return (
     <div className="bg-surface min-h-full pb-[100px]">
       <PhoneHeader title="配送跟踪" onBack={() => go('home')} />
@@ -312,19 +371,20 @@ export function TrackingPage({ go }: { go: Navigate }) {
         <div className="absolute right-24 bottom-20 text-tertiary"><span className="material-symbols-outlined text-[40px] fill">electric_moped</span></div>
       </div>
       <main className="p-md -mt-lg relative z-10 space-y-md">
+        <ErrorBanner message={error} />
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
-          <h2 className="font-headline-sm text-headline-sm font-bold">{demoOrder.status}</h2>
-          <p className="text-body-md text-on-surface-variant mt-xs">{demoOrder.riderName} 正在送往 {demoOrder.address}</p>
+          <h2 className="font-headline-sm text-headline-sm font-bold">{current?.status || '暂无订单'}</h2>
+          <p className="text-body-md text-on-surface-variant mt-xs">{current ? `${current.merchantName} · ${current.address}` : '请先创建并支付订单'}</p>
         </section>
         <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30 space-y-md">
-          {steps.map((step) => (
-            <div key={step} className="flex gap-sm">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center bg-primary text-on-primary"><span className="material-symbols-outlined text-[16px]">check</span></div>
-              <span className="font-body-md text-on-surface">{step}</span>
+          {trackingSteps.map((step, index) => (
+            <div key={step.status} className="flex gap-sm">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center ${index <= activeStep ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}><span className="material-symbols-outlined text-[16px]">{index <= activeStep ? 'check' : 'radio_button_unchecked'}</span></div>
+              <span className={`font-body-md ${index <= activeStep ? 'text-on-surface' : 'text-on-surface-variant'}`}>{step.label}</span>
             </div>
           ))}
         </section>
-        <button onClick={() => go('review')} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">模拟送达并评价</button>
+        <button disabled={current?.status !== '已完成'} onClick={() => go('review')} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md disabled:opacity-50">评价订单</button>
       </main>
     </div>
   );
@@ -361,7 +421,7 @@ export function ReviewPage({ orderId, go }: { orderId: string | null; go: Naviga
   );
 }
 
-export function OrdersPage({ go }: { go: Navigate }) {
+export function OrdersPage({ go, setOrder }: { go: Navigate; setOrder: (order: Order) => void }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
 
@@ -376,7 +436,7 @@ export function OrdersPage({ go }: { go: Navigate }) {
         <ErrorBanner message={error} />
         {orders.length === 0 && !error && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
         {orders.map((order) => (
-          <button key={order.id} onClick={() => go('tracking')} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+          <button key={order.id} onClick={() => { setOrder(order); go('tracking'); }} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
             <div className="flex justify-between"><h2 className="font-headline-sm text-headline-sm font-bold">{order.merchantName}</h2><span className="text-primary text-label-md">{order.status}</span></div>
             <p className="text-body-md text-on-surface-variant mt-xs">订单号：{order.id}</p>
             <p className="font-headline-sm text-headline-sm text-primary mt-sm">¥{Number(order.totalAmount).toFixed(1)}</p>

@@ -3,7 +3,7 @@ package com.chengyiwaimai.web;
 import com.chengyiwaimai.common.ApiResponse;
 import com.chengyiwaimai.model.Models.Dish;
 import com.chengyiwaimai.model.Models.Merchant;
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,9 +14,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/merchants")
 public class MerchantController {
-    private final DemoStore store;
+    private final BusinessService store;
 
-    public MerchantController(DemoStore store) {
+    public MerchantController(BusinessService store) {
         this.store = store;
     }
 

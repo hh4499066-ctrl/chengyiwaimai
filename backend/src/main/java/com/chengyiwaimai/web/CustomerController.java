@@ -6,7 +6,7 @@ import com.chengyiwaimai.model.Models.CartItem;
 import com.chengyiwaimai.model.Models.Review;
 import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,9 +22,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/customer")
 public class CustomerController {
-    private final DemoStore store;
+    private final BusinessService store;
 
-    public CustomerController(DemoStore store) {
+    public CustomerController(BusinessService store) {
         this.store = store;
     }
 
@@ -35,13 +35,15 @@ public class CustomerController {
     }
 
     @GetMapping("/addresses")
-    public ApiResponse<?> addresses() {
-        return ApiResponse.ok(store.addresses());
+    public ApiResponse<?> addresses(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.addresses(user));
     }
 
     @PostMapping("/addresses")
-    public ApiResponse<?> saveAddress(@RequestBody Address address) {
-        return ApiResponse.ok(store.saveAddress(address));
+    public ApiResponse<?> saveAddress(HttpServletRequest request, @RequestBody Address address) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.saveAddress(user, address));
     }
 
     @GetMapping("/coupons")
@@ -82,8 +84,9 @@ public class CustomerController {
     }
 
     @GetMapping("/reviews")
-    public ApiResponse<?> reviews() {
-        return ApiResponse.ok(store.reviews());
+    public ApiResponse<?> reviews(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.reviews(user));
     }
 
     @PostMapping("/reviews")

@@ -61,3 +61,52 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cart_item' AND INDEX_NAME = 'idx_cart_item_user_id') = 0, 'ALTER TABLE cart_item ADD KEY idx_cart_item_user_id (user_id)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS user_address (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  receiver VARCHAR(50) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  detail VARCHAR(255) NOT NULL,
+  is_default TINYINT DEFAULT 0,
+  deleted TINYINT DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user_address' AND INDEX_NAME = 'idx_user_address_user_id') = 0, 'ALTER TABLE user_address ADD KEY idx_user_address_user_id (user_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+CREATE TABLE IF NOT EXISTS review (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_id VARCHAR(36) NOT NULL,
+  user_id BIGINT NOT NULL,
+  merchant_id BIGINT,
+  rating INT NOT NULL,
+  content VARCHAR(500),
+  reply VARCHAR(500),
+  deleted TINYINT DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND INDEX_NAME = 'uk_review_order_id') = 0, 'ALTER TABLE review ADD UNIQUE KEY uk_review_order_id (order_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND INDEX_NAME = 'idx_review_user_id') = 0, 'ALTER TABLE review ADD KEY idx_review_user_id (user_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'review' AND INDEX_NAME = 'idx_review_merchant_id') = 0, 'ALTER TABLE review ADD KEY idx_review_merchant_id (merchant_id)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+DELETE c1 FROM coupon c1
+JOIN coupon c2 ON c1.name = c2.name AND c1.id > c2.id;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'coupon' AND INDEX_NAME = 'uk_coupon_name') = 0, 'ALTER TABLE coupon ADD UNIQUE KEY uk_coupon_name (name)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+DELETE a1 FROM marketing_activity a1
+JOIN marketing_activity a2 ON a1.name = a2.name AND a1.id > a2.id;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketing_activity' AND INDEX_NAME = 'uk_marketing_activity_name') = 0, 'ALTER TABLE marketing_activity ADD UNIQUE KEY uk_marketing_activity_name (name)', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

@@ -1,7 +1,7 @@
 package com.chengyiwaimai.web;
 
 import com.chengyiwaimai.common.ApiResponse;
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,28 +10,20 @@ import java.util.Map;
 @RestController
 @RequestMapping("/admin")
 public class AdminController {
-    private final DemoStore store;
+    private final BusinessService store;
 
-    public AdminController(DemoStore store) {
+    public AdminController(BusinessService store) {
         this.store = store;
     }
 
     @GetMapping("/dashboard")
     public ApiResponse<Map<String, Object>> dashboard() {
-        return ApiResponse.ok(Map.of(
-                "todayGmv", 128459,
-                "todayOrders", 421,
-                "activeUsers", 3280,
-                "exceptionOrders", 3
-        ));
+        return ApiResponse.ok(store.adminDashboard());
     }
 
     @GetMapping("/users")
     public ApiResponse<List<Map<String, Object>>> users() {
-        return ApiResponse.ok(List.of(
-                Map.of("id", 1, "name", "张同学", "phone", "13800000001", "status", "正常"),
-                Map.of("id", 2, "name", "王师傅", "phone", "13800000002", "status", "正常")
-        ));
+        return ApiResponse.ok(store.adminUsers());
     }
 
     @GetMapping("/merchants")
@@ -41,10 +33,7 @@ public class AdminController {
 
     @GetMapping("/riders")
     public ApiResponse<List<Map<String, Object>>> riders() {
-        return ApiResponse.ok(List.of(
-                Map.of("id", 1, "name", "王师傅", "level", "黄金骑手", "status", "在线"),
-                Map.of("id", 2, "name", "李师傅", "level", "白银骑手", "status", "休息")
-        ));
+        return ApiResponse.ok(store.adminRiders());
     }
 
     @GetMapping("/orders")
@@ -54,12 +43,21 @@ public class AdminController {
 
     @GetMapping("/{module}")
     public ApiResponse<List<Map<String, Object>>> list(@PathVariable String module) {
-        return ApiResponse.ok(List.of(Map.of("module", module, "status", "demo", "name", "橙意外卖演示数据")));
+        if ("marketing".equals(module)) {
+            return ApiResponse.ok(store.adminMarketing());
+        }
+        if ("users".equals(module)) {
+            return ApiResponse.ok(store.adminUsers());
+        }
+        if ("riders".equals(module)) {
+            return ApiResponse.ok(store.adminRiders());
+        }
+        return ApiResponse.ok(List.of(Map.of("module", module, "status", "unsupported")));
     }
 
     @PostMapping("/{module}/{id}/audit")
     public ApiResponse<Map<String, Object>> audit(@PathVariable String module, @PathVariable Long id, @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("module", module, "id", id, "result", body.getOrDefault("status", "approved")));
+        return ApiResponse.ok(store.adminAudit(module, id, String.valueOf(body.getOrDefault("status", "approved"))));
     }
 
     @PostMapping("/{module}")

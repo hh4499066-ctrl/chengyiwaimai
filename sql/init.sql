@@ -18,10 +18,20 @@ INSERT INTO dish(id, merchant_id, category_name, name, description, price, stock
 (103, 1, '饮品', '冰柠檬茶', '清爽解腻，少冰少糖可选。', 9.00, 200, 'on_sale')
 ON DUPLICATE KEY UPDATE merchant_id = VALUES(merchant_id), category_name = VALUES(category_name), name = VALUES(name), description = VALUES(description), price = VALUES(price), stock = VALUES(stock), status = VALUES(status);
 
+INSERT INTO user_address(user_id, receiver, phone, detail, is_default)
+SELECT id, '张同学', '13800000001', '学校东门 3 号宿舍楼 502', 1
+FROM sys_user
+WHERE phone = '13800000001'
+  AND NOT EXISTS (
+    SELECT 1 FROM user_address WHERE user_id = sys_user.id AND detail = '学校东门 3 号宿舍楼 502'
+  );
+
 INSERT INTO coupon(name, threshold_amount, discount_amount, status) VALUES
 ('新人首单立减券', 20.00, 8.00, 'enabled'),
-('校园夜宵满减券', 35.00, 6.00, 'enabled');
+('校园夜宵满减券', 35.00, 6.00, 'enabled')
+ON DUPLICATE KEY UPDATE threshold_amount = VALUES(threshold_amount), discount_amount = VALUES(discount_amount), status = VALUES(status), deleted = 0;
 
 INSERT INTO marketing_activity(name, type, start_time, end_time, status) VALUES
 ('新客首单立减', 'coupon', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 'enabled'),
-('午餐高峰免配送费', 'delivery_fee', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 'enabled');
+('午餐高峰免配送费', 'delivery_fee', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 'enabled')
+ON DUPLICATE KEY UPDATE type = VALUES(type), start_time = VALUES(start_time), end_time = VALUES(end_time), status = VALUES(status), deleted = 0;

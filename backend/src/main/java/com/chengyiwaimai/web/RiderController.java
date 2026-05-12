@@ -5,7 +5,7 @@ import com.chengyiwaimai.model.Models.RiderLocation;
 import com.chengyiwaimai.model.Models.WithdrawRequest;
 import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,9 +15,9 @@ import java.util.Map;
 @RestController
 @RequestMapping("/rider")
 public class RiderController {
-    private final DemoStore store;
+    private final BusinessService store;
 
-    public RiderController(DemoStore store) {
+    public RiderController(BusinessService store) {
         this.store = store;
     }
 
@@ -32,11 +32,9 @@ public class RiderController {
     }
 
     @GetMapping("/lobby")
-    public ApiResponse<List<Map<String, Object>>> lobby() {
-        return ApiResponse.ok(List.of(
-                Map.of("orderId", "CY202605120001", "income", 4.5, "distance", "1.2km", "merchant", "老刘家招牌牛肉面", "address", "学校东门 3 号宿舍楼 502"),
-                Map.of("orderId", "CY202605120002", "income", 3.2, "distance", "3.5km", "merchant", "橙意轻食研究所", "address", "实验楼 A 座大厅")
-        ));
+    public ApiResponse<List<Map<String, Object>>> lobby(HttpServletRequest request) {
+        AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.riderLobbyOrders());
     }
 
     @GetMapping("/tasks")
@@ -46,7 +44,9 @@ public class RiderController {
     }
 
     @PostMapping("/location")
-    public ApiResponse<RiderLocation> location(@RequestBody RiderLocation location) {
+    public ApiResponse<RiderLocation> location(HttpServletRequest request, @RequestBody RiderLocation location) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        store.requireRiderOrder(user, location.orderId());
         return ApiResponse.ok(location);
     }
 

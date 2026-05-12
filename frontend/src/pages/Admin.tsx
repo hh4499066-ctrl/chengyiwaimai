@@ -264,6 +264,11 @@ function AdminRiderAudit() {
 
 export default function Admin({ setRole }: { setRole: () => void }) {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const logout = () => {
+    localStorage.removeItem('chengyi_token');
+    localStorage.removeItem('chengyi_role');
+    setRole();
+  };
 
   return (
     <div className="bg-surface text-on-surface h-screen flex overflow-hidden w-full">
@@ -295,7 +300,7 @@ export default function Admin({ setRole }: { setRole: () => void }) {
           ))}
         </div>
         <div className="mt-auto pt-md border-t border-outline-variant">
-          <button onClick={setRole} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface hover:bg-primary/10 hover:text-primary transition-all rounded-lg font-body-md text-body-md">
+          <button onClick={logout} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface hover:bg-primary/10 hover:text-primary transition-all rounded-lg font-body-md text-body-md">
             <span className="material-symbols-outlined">logout</span>
             退出登录
           </button>
@@ -305,7 +310,7 @@ export default function Admin({ setRole }: { setRole: () => void }) {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="md:hidden fixed top-0 w-full z-50 flex justify-between items-center px-md py-sm bg-surface shadow-sm">
           <span className="text-headline-md font-headline-md font-bold text-primary">橙意外卖 Admin</span>
-          <button onClick={setRole} className="material-symbols-outlined text-primary">logout</button>
+          <button onClick={logout} className="material-symbols-outlined text-primary">logout</button>
         </header>
         
         {activeTab === 'dashboard' && <AdminDashboard />}

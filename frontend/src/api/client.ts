@@ -62,6 +62,14 @@ export type ReviewPayload = {
   content: string;
 };
 
+export type RiderLobbyOrder = {
+  orderId: string;
+  income: number;
+  distance: string;
+  merchant: string;
+  address: string;
+};
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('chengyi_token');
   const response = await fetch(`${API_BASE}${path}`, {
@@ -120,6 +128,13 @@ export const api = {
     }),
   payOrder: (orderId: string) => request<Order>(`/orders/${orderId}/pay`, { method: 'POST' }),
   getOrders: () => request<Order[]>('/orders'),
+  getMerchantOrders: () => request<Order[]>('/merchant-center/orders'),
+  merchantAction: (orderId: string, action: 'accept' | 'reject' | 'ready' | 'cancel') =>
+    request<Order>(`/orders/${orderId}/merchant/${action}`, { method: 'POST' }),
+  getRiderLobby: () => request<RiderLobbyOrder[]>('/rider/lobby'),
+  getRiderTasks: () => request<Order[]>('/rider/tasks'),
+  riderAction: (orderId: string, action: 'accept' | 'pickup' | 'delivered') =>
+    request<Order>(`/orders/${orderId}/rider/${action}`, { method: 'POST' }),
   submitReview: (payload: ReviewPayload) =>
     request<unknown>('/customer/reviews', {
       method: 'POST',

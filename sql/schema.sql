@@ -87,13 +87,43 @@ CREATE TABLE IF NOT EXISTS cart_item (
   KEY idx_cart_item_user_id (user_id)
 );
 
+CREATE TABLE IF NOT EXISTS user_address (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  receiver VARCHAR(50) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  detail VARCHAR(255) NOT NULL,
+  is_default TINYINT DEFAULT 0,
+  deleted TINYINT DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_user_address_user_id (user_id)
+);
+
 CREATE TABLE IF NOT EXISTS coupon (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   name VARCHAR(80) NOT NULL,
   threshold_amount DECIMAL(10,2) DEFAULT 0,
   discount_amount DECIMAL(10,2) NOT NULL,
   status VARCHAR(20) DEFAULT 'enabled',
-  deleted TINYINT DEFAULT 0
+  deleted TINYINT DEFAULT 0,
+  UNIQUE KEY uk_coupon_name (name)
+);
+
+CREATE TABLE IF NOT EXISTS review (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  order_id VARCHAR(36) NOT NULL,
+  user_id BIGINT NOT NULL,
+  merchant_id BIGINT,
+  rating INT NOT NULL,
+  content VARCHAR(500),
+  reply VARCHAR(500),
+  deleted TINYINT DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_review_order_id (order_id),
+  KEY idx_review_user_id (user_id),
+  KEY idx_review_merchant_id (merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS marketing_activity (
@@ -103,5 +133,6 @@ CREATE TABLE IF NOT EXISTS marketing_activity (
   start_time DATETIME,
   end_time DATETIME,
   status VARCHAR(20) DEFAULT 'enabled',
-  deleted TINYINT DEFAULT 0
+  deleted TINYINT DEFAULT 0,
+  UNIQUE KEY uk_marketing_activity_name (name)
 );

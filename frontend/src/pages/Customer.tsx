@@ -24,6 +24,12 @@ export default function Customer({ setRole }: { setRole: () => void }) {
     go('merchant');
   };
 
+  const logout = () => {
+    localStorage.removeItem('chengyi_token');
+    localStorage.removeItem('chengyi_role');
+    setRole();
+  };
+
   return (
     <div className="max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden bg-surface flex flex-col">
       <div className="flex-1 overflow-y-auto w-full relative pb-safe">
@@ -36,9 +42,9 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrder={setCurrentOrder} go={go} />}
         {screen === 'pay' && <PayPage order={currentOrder} setOrder={setCurrentOrder} go={go} />}
         {screen === 'pay-result' && <PayResultPage go={go} />}
-        {screen === 'tracking' && <TrackingPage go={go} />}
+        {screen === 'tracking' && <TrackingPage order={currentOrder} setOrder={setCurrentOrder} go={go} />}
         {screen === 'review' && <ReviewPage orderId={currentOrder?.id ?? null} go={go} />}
-        {screen === 'orders' && <OrdersPage go={go} />}
+        {screen === 'orders' && <OrdersPage go={go} setOrder={setCurrentOrder} />}
       </div>
 
       <nav className="shrink-0 w-full bg-surface border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">
@@ -72,7 +78,7 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         </button>
       </nav>
 
-      <button onClick={setRole} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur">→ Role</button>
+      {import.meta.env.DEV && <button onClick={logout} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur">→ Role</button>}
     </div>
   );
 }

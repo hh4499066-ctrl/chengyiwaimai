@@ -1,6 +1,6 @@
 package com.chengyiwaimai.task;
 
-import com.chengyiwaimai.service.DemoStore;
+import com.chengyiwaimai.service.BusinessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -10,9 +10,9 @@ import org.springframework.stereotype.Component;
 public class OrderTimeoutTask {
     private static final Logger log = LoggerFactory.getLogger(OrderTimeoutTask.class);
 
-    private final DemoStore store;
+    private final BusinessService store;
 
-    public OrderTimeoutTask(DemoStore store) {
+    public OrderTimeoutTask(BusinessService store) {
         this.store = store;
     }
 

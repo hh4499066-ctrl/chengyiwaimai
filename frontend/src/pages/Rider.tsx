@@ -1,6 +1,80 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { api, type Order, type RiderLobbyOrder } from '../api/client';
 
-function RiderLobby() {
+function RiderError({ message }: { message: string }) {
+  if (!message) {
+    return null;
+  }
+  return <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{message}</div>;
+}
+
+function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
+  const [orders, setOrders] = useState<RiderLobbyOrder[]>([]);
+  const [error, setError] = useState('');
+  const [loadingId, setLoadingId] = useState('');
+
+  const refresh = () => {
+    api.getRiderLobby().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '大厅订单加载失败'));
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const accept = (orderId: string) => {
+    setLoadingId(orderId);
+    setError('');
+    api.riderAction(orderId, 'accept')
+      .then(() => {
+        refresh();
+        onAccepted();
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : '订单状态已变化，请刷新'))
+      .finally(() => setLoadingId(''));
+  };
+
+  return (
+    <div className="bg-surface h-screen text-on-surface overflow-y-auto no-scrollbar pb-[100px] bg-[radial-gradient(ellipse_at_top_right,_var(--color-surface-container-high),_transparent_50%)]">
+      <div className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-md py-sm flex justify-between items-center pt-safe border-b border-surface-variant">
+        <h1 className="text-headline-sm font-headline-sm text-primary">接单大厅</h1>
+        <div className="flex bg-surface-variant rounded-full p-1 relative">
+          <span className="px-4 py-1.5 rounded-full text-label-md font-label-md bg-primary-container text-on-primary-container z-10 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary"></span>在线中</span>
+        </div>
+      </div>
+      <div className="px-md py-md pt-lg pb-xl">
+        <RiderError message={error} />
+        <div className="flex gap-sm overflow-x-auto no-scrollbar my-md">
+          <button className="px-md py-xs rounded-full bg-primary text-on-primary text-label-md font-label-md whitespace-nowrap shadow-[0_2px_8px_rgba(171,53,0,0.25)] flex items-center gap-xs">全部订单 <span className="opacity-80">{orders.length}</span></button>
+          <button onClick={refresh} className="px-md py-xs rounded-full bg-surface-container-high text-on-surface-variant text-label-md font-label-md whitespace-nowrap hover:bg-surface-variant transition-colors flex items-center gap-xs">刷新</button>
+        </div>
+        <div className="space-y-4">
+          {orders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无可抢订单</p>}
+          {orders.map((order) => (
+            <div key={order.orderId} className="bg-surface-container-lowest rounded-2xl p-md shadow-[0_4px_16px_rgba(38,24,20,0.04)] border border-outline-variant/30 relative overflow-hidden group">
+              <div className="flex justify-between items-start mb-md">
+                <div><h2 className="text-headline-sm font-headline-sm text-on-surface">¥{Number(order.income).toFixed(2)}</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">预计收入</p></div>
+                <div className="text-right"><p className="text-body-md font-body-md text-primary font-medium">{order.distance}</p><p className="text-label-md font-label-md text-on-surface-variant mt-xs">总路程</p></div>
+              </div>
+              <div className="relative pl-6 mb-md space-y-md">
+                <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-outline-variant"></div>
+                <div className="relative">
+                  <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-tertiary ring-4 ring-tertiary/20"></span>
+                  <p className="text-body-md font-body-md text-on-surface line-clamp-1">{order.merchant}</p>
+                  <div className="flex items-center gap-xs mt-xs"><span className="material-symbols-outlined text-[14px] text-tertiary">near_me</span><p className="text-label-md font-label-md text-tertiary">订单号 {order.orderId}</p></div>
+                </div>
+                <div className="relative">
+                  <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20"></span>
+                  <p className="text-body-md font-body-md text-on-surface line-clamp-1">{order.address}</p>
+                </div>
+              </div>
+              <button disabled={loadingId === order.orderId} onClick={() => accept(order.orderId)} className="w-full py-sm rounded-xl bg-primary text-on-primary text-body-lg font-body-lg font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] hover:bg-[#832600] active:scale-[0.98] transition-all flex items-center justify-center gap-xs relative overflow-hidden disabled:opacity-50">抢单</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="bg-surface h-screen text-on-surface overflow-y-auto no-scrollbar pb-[100px] bg-[radial-gradient(ellipse_at_top_right,_var(--color-surface-container-high),_transparent_50%)]">
       <div className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-md py-sm flex justify-between items-center pt-safe border-b border-surface-variant">
@@ -69,6 +143,100 @@ function RiderLobby() {
 }
 
 function RiderTask() {
+  const [tasks, setTasks] = useState<Order[]>([]);
+  const [error, setError] = useState('');
+  const [loadingId, setLoadingId] = useState('');
+
+  const refresh = () => {
+    api.getRiderTasks().then(setTasks).catch((err) => setError(err instanceof Error ? err.message : '任务加载失败'));
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const nextAction = (order: Order): 'pickup' | 'delivered' | null => {
+    if (order.status === '骑手已接单') {
+      return 'pickup';
+    }
+    if (order.status === '骑手已取餐') {
+      return 'delivered';
+    }
+    return null;
+  };
+
+  const actionLabel = (order: Order) => {
+    if (order.status === '骑手已接单') {
+      return '已到店取餐';
+    }
+    if (order.status === '骑手已取餐') {
+      return '确认送达';
+    }
+    return '已完成';
+  };
+
+  const submit = (order: Order) => {
+    const action = nextAction(order);
+    if (!action) {
+      return;
+    }
+    setLoadingId(order.id);
+    setError('');
+    api.riderAction(order.id, action)
+      .then(refresh)
+      .catch((err) => setError(err instanceof Error ? err.message : '订单状态已变化，请刷新'))
+      .finally(() => setLoadingId(''));
+  };
+
+  return (
+    <div className="bg-surface h-screen text-on-surface overflow-hidden flex flex-col relative">
+      <div className="absolute inset-0 z-0 bg-[#e3f2fd]">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_25%,transparent_25%),linear-gradient(225deg,#ffffff_25%,transparent_25%)] bg-[length:48px_48px] opacity-50"></div>
+        <div className="absolute top-1/4 left-1/3 flex items-center justify-center">
+            <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute"></div>
+            <span className="material-symbols-outlined text-primary text-[32px] drop-shadow-md fill relative">location_on</span>
+        </div>
+        <svg className="absolute top-1/4 left-1/3 w-1/2 h-1/4 stroke-primary/80 stroke-[4px]" fill="none" viewBox="0 0 200 100" preserveAspectRatio="none"><path strokeDasharray="8,8" d="M0,0 Q50,80 150,50 T200,100"/></svg>
+        <div className="absolute top-1/2 right-1/4">
+            <span className="material-symbols-outlined text-tertiary text-[28px] drop-shadow-md fill">storefront</span>
+        </div>
+      </div>
+
+      <div className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-md py-sm flex justify-between items-center pt-safe shadow-sm">
+        <h1 className="text-headline-sm font-headline-sm text-primary font-bold">配送任务</h1>
+        <button onClick={refresh} className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"><span className="material-symbols-outlined text-[20px]">refresh</span></button>
+      </div>
+
+      <div className="z-10 mt-auto bg-surface rounded-t-3xl shadow-[0_-4px_24px_rgba(31,41,55,0.08)] pb-[100px] flex flex-col max-h-[80vh]">
+        <div className="w-full flex justify-center py-2 shrink-0"><div className="w-12 h-1.5 bg-outline-variant/50 rounded-full"></div></div>
+        <div className="px-md pb-md flex-1 overflow-y-auto no-scrollbar">
+          <div className="flex items-center justify-between mb-md">
+            <div><h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">当前任务</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">共 {tasks.length} 单进行中</p></div>
+            <button onClick={refresh} className="p-2 rounded-full bg-primary/10 text-primary active:bg-primary/20"><span className="material-symbols-outlined text-[20px]">my_location</span></button>
+          </div>
+          <RiderError message={error} />
+          <div className="space-y-md mt-md">
+            {tasks.length === 0 && <p className="text-body-md text-on-surface-variant">暂无配送任务</p>}
+            {tasks.map((task, index) => (
+              <div key={task.id} className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-8 h-8 bg-error rounded-bl-2xl flex items-center justify-center text-on-error font-body-md font-bold">{index + 1}</div>
+                <div className="flex justify-between items-start mb-sm pr-6">
+                    <div className="flex gap-sm items-center"><div className="w-10 h-10 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary"><span className="material-symbols-outlined fill">storefront</span></div><div><h3 className="text-body-lg font-body-lg text-on-surface font-semibold line-clamp-1">{task.merchantName}</h3><p className="text-label-md font-label-md text-tertiary font-medium">订单：{task.id}</p></div></div>
+                </div>
+                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md flex justify-between items-center"><div className="flex gap-2 items-center"><span className="material-symbols-outlined text-outline text-[18px]">payments</span><span className="text-label-md font-label-md text-on-surface-variant">金额 <strong className="text-body-md font-body-md text-on-surface mx-1">¥{Number(task.totalAmount).toFixed(2)}</strong></span></div><span className="text-label-md font-label-md text-error">{task.status}</span></div>
+                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">{task.address}</p></div></div>
+                <div className="flex gap-sm">
+                    <button className="flex-1 py-2.5 rounded-xl border border-primary text-primary font-body-md font-medium flex items-center justify-center gap-xs hover:bg-primary/5"><span className="material-symbols-outlined text-[18px]">phone_enabled</span>联系商家</button>
+                    <button disabled={!nextAction(task) || loadingId === task.id} onClick={() => submit(task)} className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] flex items-center justify-center gap-xs hover:bg-[#832600] disabled:opacity-50">{actionLabel(task)}</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="bg-surface h-screen text-on-surface overflow-hidden flex flex-col relative">
       <div className="absolute inset-0 z-0 bg-[#e3f2fd]">
@@ -221,10 +389,15 @@ function RiderProfile() {
 
 export default function Rider({ setRole }: { setRole: () => void }) {
   const [view, setView] = useState('lobby');
+  const logout = () => {
+    localStorage.removeItem('chengyi_token');
+    localStorage.removeItem('chengyi_role');
+    setRole();
+  };
 
   return (
     <div className="max-w-[448px] mx-auto w-full min-h-screen relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden bg-surface">
-      {view === 'lobby' && <RiderLobby />}
+      {view === 'lobby' && <RiderLobby onAccepted={() => setView('task')} />}
       {view === 'task' && <RiderTask />}
       {view === 'earnings' && <RiderEarnings />}
       {view === 'profile' && <RiderProfile />}
@@ -243,7 +416,7 @@ export default function Rider({ setRole }: { setRole: () => void }) {
         ))}
       </nav>
       {/* Dev Switcher tool */}
-      <button onClick={setRole} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs">← Role</button>
+      {import.meta.env.DEV && <button onClick={logout} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs">← Role</button>}
     </div>
   );
 }
