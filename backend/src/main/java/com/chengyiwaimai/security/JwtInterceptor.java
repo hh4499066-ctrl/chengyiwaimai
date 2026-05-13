@@ -53,11 +53,7 @@ public class JwtInterceptor implements HandlerInterceptor {
         if (authorization != null && authorization.startsWith("Bearer ")) {
             return jwtUtil.parseToken(authorization.substring("Bearer ".length()).trim());
         }
-        String token = request.getParameter("token");
-        if (token == null || token.isBlank()) {
-            throw new BizException(401, "未登录或登录已过期");
-        }
-        return jwtUtil.parseToken(token.trim());
+        throw new BizException(401, "未登录或登录已过期");
     }
 
     private void checkPathRole(String path, CurrentUser user) {

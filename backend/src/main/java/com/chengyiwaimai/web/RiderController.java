@@ -47,6 +47,7 @@ public class RiderController {
     public ApiResponse<RiderLocation> location(HttpServletRequest request, @RequestBody RiderLocation location) {
         CurrentUser user = AuthContext.requireRole(request, "rider");
         store.requireRiderOrder(user, location.orderId());
+        store.cacheRiderLocation(location.orderId(), location);
         return ApiResponse.ok(location);
     }
 

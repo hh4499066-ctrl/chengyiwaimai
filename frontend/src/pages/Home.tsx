@@ -23,12 +23,18 @@ function enrichMerchant(merchant: Merchant, index: number): Required<Merchant> {
 
 export default function Home({
   onSearch,
+  onMessage,
   onMerchantClick,
 }: {
   onSearch?: () => void;
+  onMessage?: () => void;
   onMerchantClick?: (merchantId: number) => void;
 }) {
   const [merchantList, setMerchantList] = useState<Required<Merchant>[]>(() => mockMerchants.map(enrichMerchant));
+  const [address, setAddress] = useState('学校东门');
+  const [addressOpen, setAddressOpen] = useState(false);
+  const [category, setCategory] = useState('全部分类');
+  const [sort, setSort] = useState<'default' | 'sales' | 'distance'>('default');
 
   useEffect(() => {
     api
@@ -38,20 +44,32 @@ export default function Home({
   }, []);
 
   const openMerchant = (merchantId: number) => onMerchantClick?.(merchantId);
+  const distanceValue = (distance: string) => Number.parseFloat(distance.replace(/[^\d.]/g, '')) || 999;
+  const shownMerchants = [...merchantList]
+    .filter((merchant) => category === '全部分类' || merchant.category.includes(category) || merchant.tags.some((tag) => tag.includes(category)))
+    .sort((a, b) => {
+      if (sort === 'sales') {
+        return b.monthlySales - a.monthlySales;
+      }
+      if (sort === 'distance') {
+        return distanceValue(a.distance) - distanceValue(b.distance);
+      }
+      return b.rating - a.rating;
+    });
 
   return (
     <div className="bg-surface text-on-surface font-body-md min-h-screen relative pb-[80px]">
       <div className="px-md pt-lg pb-sm sticky top-0 z-40 bg-surface/90 backdrop-blur-md">
         <div className="flex items-center justify-between mb-sm">
-          <div className="flex items-center gap-xs text-primary font-bold">
+          <button onClick={() => setAddressOpen(true)} className="flex items-center gap-xs text-primary font-bold active:scale-[0.98]">
             <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>location_on</span>
-            <span className="font-headline-sm text-headline-sm">学校东门</span>
+            <span className="font-headline-sm text-headline-sm">{address}</span>
             <span className="material-symbols-outlined text-[16px]">expand_more</span>
-          </div>
-          <div className="relative">
+          </button>
+          <button onClick={onMessage} className="relative">
             <span className="material-symbols-outlined text-[24px] text-on-surface-variant">notifications</span>
             <span className="absolute top-0 right-0 w-[8px] h-[8px] bg-error rounded-full border-2 border-surface"></span>
-          </div>
+          </button>
         </div>
         <div className="bg-surface-variant/50 rounded-full flex items-center px-md py-sm">
           <span className="material-symbols-outlined text-on-surface-variant mr-sm">search</span>
@@ -85,12 +103,12 @@ export default function Home({
               ['cruelty_free', '生鲜果蔬', '#E8F5E9'],
               ['more_horiz', '全部分类', '#F5F5F5'],
             ].map(([icon, label, color]) => (
-              <div key={label} className="flex flex-col items-center gap-xs">
+              <button key={label} onClick={() => setCategory(label)} className="flex flex-col items-center gap-xs active:scale-[0.96]">
                 <div className="w-[56px] h-[56px] rounded-full flex items-center justify-center shadow-sm" style={{ backgroundColor: color }}>
                   <span className="material-symbols-outlined text-[28px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
                 </div>
-                <span className="font-label-md text-label-md text-on-surface-variant">{label}</span>
-              </div>
+                <span className={`font-label-md text-label-md ${category === label ? 'text-primary font-bold' : 'text-on-surface-variant'}`}>{label}</span>
+              </button>
             ))}
           </div>
         </section>
@@ -98,10 +116,10 @@ export default function Home({
         <section>
           <div className="flex justify-between items-end mb-sm">
             <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">附近好店推荐</h2>
-            <span className="font-label-md text-label-md text-on-surface-variant flex items-center">查看更多 <span className="material-symbols-outlined text-[16px]">chevron_right</span></span>
+            <button onClick={onSearch} className="font-label-md text-label-md text-on-surface-variant flex items-center">查看更多 <span className="material-symbols-outlined text-[16px]">chevron_right</span></button>
           </div>
           <div className="flex gap-sm overflow-x-auto hide-scrollbar pb-xs -mx-md px-md">
-            {merchantList.slice(0, 4).map((merchant) => (
+            {shownMerchants.slice(0, 4).map((merchant) => (
               <button key={merchant.id} onClick={() => openMerchant(merchant.id)} className="text-left min-w-[240px] bg-surface-container-lowest rounded-xl shadow-[0_4px_16px_rgba(31,41,55,0.04)] overflow-hidden flex-shrink-0 border border-outline-variant/30 active:scale-[0.98] transition-transform">
                 <div className="h-[120px] relative">
                   <img alt={merchant.name} className="w-full h-full object-cover" src={merchant.image} />
@@ -132,12 +150,12 @@ export default function Home({
 
         <section className="pb-xl">
           <div className="sticky top-[140px] bg-surface z-30 py-sm mb-sm flex gap-md border-b border-outline-variant/20">
-            <button className="font-body-lg text-body-lg font-bold text-on-surface border-b-2 border-primary pb-xs">综合排序</button>
-            <button className="font-body-lg text-body-lg text-on-surface-variant pb-xs">销量优先</button>
-            <button className="font-body-lg text-body-lg text-on-surface-variant pb-xs">距离最近</button>
+            <button onClick={() => setSort('default')} className={`font-body-lg text-body-lg pb-xs ${sort === 'default' ? 'font-bold text-on-surface border-b-2 border-primary' : 'text-on-surface-variant'}`}>综合排序</button>
+            <button onClick={() => setSort('sales')} className={`font-body-lg text-body-lg pb-xs ${sort === 'sales' ? 'font-bold text-on-surface border-b-2 border-primary' : 'text-on-surface-variant'}`}>销量优先</button>
+            <button onClick={() => setSort('distance')} className={`font-body-lg text-body-lg pb-xs ${sort === 'distance' ? 'font-bold text-on-surface border-b-2 border-primary' : 'text-on-surface-variant'}`}>距离最近</button>
           </div>
           <div className="flex flex-col gap-md">
-            {merchantList.map((merchant) => (
+            {shownMerchants.map((merchant) => (
               <button key={merchant.id} onClick={() => openMerchant(merchant.id)} className="w-full text-left flex gap-sm p-sm bg-surface-container-lowest rounded-xl shadow-[0_4px_16px_rgba(31,41,55,0.04)] border border-outline-variant/20 active:scale-[0.98] transition-transform">
                 <div className="w-[88px] h-[88px] rounded-lg overflow-hidden flex-shrink-0">
                   <img alt={merchant.name} className="w-full h-full object-cover" src={merchant.image} />
@@ -166,6 +184,15 @@ export default function Home({
           </div>
         </section>
       </main>
+      {addressOpen && (
+        <div className="fixed inset-0 z-[80] bg-black/30 flex items-end" onClick={() => setAddressOpen(false)}>
+          <div className="w-full bg-surface rounded-t-3xl p-md space-y-sm" onClick={(event) => event.stopPropagation()}>
+            {['学校东门', '学生公寓 3 号楼', '图书馆北门'].map((item) => (
+              <button key={item} onClick={() => { setAddress(item); setAddressOpen(false); }} className={`w-full text-left p-md rounded-xl ${address === item ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface'}`}>{item}</button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

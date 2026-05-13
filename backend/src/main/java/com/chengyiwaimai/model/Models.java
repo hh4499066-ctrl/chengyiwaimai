@@ -23,7 +23,7 @@ public final class Models {
     public record CartItem(Long dishId, String name, Integer quantity, BigDecimal price) {
     }
 
-    public record CreateOrderRequest(Long merchantId, String address, List<CartItem> items) {
+    public record CreateOrderRequest(Long merchantId, String address, String remark, String payMethod, List<CartItem> items) {
     }
 
     public record Order(String id, Long merchantId, String merchantName, String status, BigDecimal totalAmount, String address, LocalDateTime createTime) {
@@ -45,5 +45,11 @@ public final class Models {
     }
 
     public record WithdrawRequest(BigDecimal amount, String accountNo) {
+    }
+
+    public record DishStatusRequest(String status) {
+    }
+
+    public record DishStockRequest(Integer stock) {
     }
 }

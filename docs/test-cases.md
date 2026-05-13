@@ -1,115 +1,30 @@
-# 演示接口测试流程
+# 演示测试用例
 
-以下示例默认后端运行在 `http://localhost:8080/api`。
+## 主流程
 
-## 1. 登录和角色可信性
+1. 用户登录：`13800000001` + `123456`。
+2. 首页切换定位、分类筛选、排序和搜索。
+3. 进入商家详情，切换左侧菜品分类。
+4. 点击菜品卡片打开详情弹层，加入购物车。
+5. 购物车加减数量，删除到 0 后页面移除。
+6. 确认订单选择地址、优惠券，填写备注并提交订单。
+7. 支付页切换微信、支付宝、校园一卡通并支付。
+8. 商家端登录，查看订单并接单、出餐。
+9. 骑手端登录，上线后在接单大厅抢单。
+10. 骑手取餐、上报位置、确认送达。
+11. 用户端配送跟踪页通过轮询和 WebSocket 刷新状态。
+12. 用户选择星级并提交真实评价内容。
+13. 后台管理端查看数据看板和订单。
+14. 退出登录清理 `chengyi_token`、`chengyi_role` 并回到登录页。
 
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"phone\":\"13800000001\",\"code\":\"123456\",\"role\":\"admin\"}"
-```
+## 异常测试
 
-预期：返回 `role=customer`，角色来自数据库。
-
-错误验证码：
-
-```bash
-curl -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"phone\":\"13800000001\",\"code\":\"000000\",\"role\":\"customer\"}"
-```
-
-预期：返回 `验证码错误`。
-
-## 2. 获取 Token
-
-```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d "{\"phone\":\"13800000001\",\"code\":\"123456\",\"role\":\"customer\"}" | jq -r ".data.token")
-```
-
-Windows PowerShell 可手动复制 `data.token`。
-
-## 3. 权限校验
-
-无 token：
-
-```bash
-curl http://localhost:8080/api/orders
-```
-
-预期：未登录。
-
-用户 token 调后台：
-
-```bash
-curl http://localhost:8080/api/admin/orders -H "Authorization: Bearer $TOKEN"
-```
-
-预期：无权访问。
-
-## 4. 商家和菜品公开访问
-
-```bash
-curl http://localhost:8080/api/merchants
-curl http://localhost:8080/api/merchants/1/dishes
-```
-
-预期：无需 token 即可访问。
-
-## 5. 购物车
-
-```bash
-curl -X POST http://localhost:8080/api/customer/cart \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "{\"dishId\":101,\"name\":\"招牌红烧牛肉面\",\"quantity\":1,\"price\":28.5}"
-```
-
-```bash
-curl -X PUT http://localhost:8080/api/customer/cart/101 \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "{\"dishId\":101,\"quantity\":2}"
-```
-
-## 6. 创建订单
-
-```bash
-curl -X POST http://localhost:8080/api/orders \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d "{\"merchantId\":1,\"address\":\"学校东门 3 号宿舍楼 502\",\"items\":[{\"dishId\":101,\"name\":\"招牌红烧牛肉面\",\"quantity\":1,\"price\":28.5}]}"
-```
-
-预期：订单 `userId` 为当前登录用户，库存减少，返回字段包含 `id`。
-
-## 7. 支付与状态流转
-
-```bash
-curl -X POST http://localhost:8080/api/orders/{id}/pay -H "Authorization: Bearer $TOKEN"
-```
-
-商家账号登录后：
-
-```bash
-curl -X POST http://localhost:8080/api/orders/{id}/merchant/accept -H "Authorization: Bearer $MERCHANT_TOKEN"
-curl -X POST http://localhost:8080/api/orders/{id}/merchant/ready -H "Authorization: Bearer $MERCHANT_TOKEN"
-```
-
-骑手账号登录后：
-
-```bash
-curl -X POST http://localhost:8080/api/orders/{id}/rider/accept -H "Authorization: Bearer $RIDER_TOKEN"
-curl -X POST http://localhost:8080/api/orders/{id}/rider/pickup -H "Authorization: Bearer $RIDER_TOKEN"
-curl -X POST http://localhost:8080/api/orders/{id}/rider/delivered -H "Authorization: Bearer $RIDER_TOKEN"
-```
-
-## 8. 异常场景
-
-- 重复支付同一订单：预期返回 `订单状态已变化，请刷新`。
-- 跳过状态直接骑手接单：预期失败。
-- 不存在订单支付：预期返回 `订单不存在`。
-- 库存不足下单：预期失败且不写入订单。
+- 未登录访问 `/orders` 返回未登录。
+- 普通用户访问 `/admin/orders` 返回无权访问。
+- REST URL 使用 `?token=` 不应通过鉴权。
+- 非本人订单 WebSocket 订阅失败。
+- 库存不足下单失败且不创建订单。
+- 未完成订单评价失败。
+- 重复评价同一订单失败。
+- 骑手离线时不能抢单。
+- WebSocket 连接失败时配送跟踪页继续轮询。

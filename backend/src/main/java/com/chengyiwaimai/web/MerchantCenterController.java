@@ -3,12 +3,15 @@ package com.chengyiwaimai.web;
 import com.chengyiwaimai.common.ApiResponse;
 import com.chengyiwaimai.model.Models.Category;
 import com.chengyiwaimai.model.Models.Dish;
+import com.chengyiwaimai.model.Models.DishStatusRequest;
+import com.chengyiwaimai.model.Models.DishStockRequest;
 import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.BusinessService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -57,6 +60,18 @@ public class MerchantCenterController {
     public ApiResponse<?> saveDish(HttpServletRequest request, @RequestBody Dish dish) {
         CurrentUser user = AuthContext.requireRole(request, "merchant");
         return ApiResponse.ok(store.saveDish(user, dish));
+    }
+
+    @PatchMapping("/dishes/{dishId}/status")
+    public ApiResponse<?> updateDishStatus(HttpServletRequest request, @PathVariable Long dishId, @RequestBody DishStatusRequest body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.updateDishStatus(user, dishId, body.status()));
+    }
+
+    @PatchMapping("/dishes/{dishId}/stock")
+    public ApiResponse<?> updateDishStock(HttpServletRequest request, @PathVariable Long dishId, @RequestBody DishStockRequest body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.updateDishStock(user, dishId, body.stock()));
     }
 
     @GetMapping("/categories")

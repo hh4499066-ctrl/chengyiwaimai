@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api, type Order, type RiderLobbyOrder } from '../api/client';
+import { api, type Order, type RiderLobbyOrder, type RiderStats } from '../api/client';
 
 function RiderError({ message }: { message: string }) {
   if (!message) {
@@ -12,6 +12,7 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
   const [orders, setOrders] = useState<RiderLobbyOrder[]>([]);
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
+  const [online, setOnline] = useState(true);
 
   const refresh = () => {
     api.getRiderLobby().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '大厅订单加载失败'));
@@ -37,9 +38,9 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
     <div className="bg-surface h-screen text-on-surface overflow-y-auto no-scrollbar pb-[100px] bg-[radial-gradient(ellipse_at_top_right,_var(--color-surface-container-high),_transparent_50%)]">
       <div className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md px-md py-sm flex justify-between items-center pt-safe border-b border-surface-variant">
         <h1 className="text-headline-sm font-headline-sm text-primary">接单大厅</h1>
-        <div className="flex bg-surface-variant rounded-full p-1 relative">
-          <span className="px-4 py-1.5 rounded-full text-label-md font-label-md bg-primary-container text-on-primary-container z-10 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-primary"></span>在线中</span>
-        </div>
+        <button onClick={() => setOnline((value) => !value)} className="flex bg-surface-variant rounded-full p-1 relative">
+          <span className={`px-4 py-1.5 rounded-full text-label-md font-label-md z-10 flex items-center gap-1 ${online ? 'bg-primary-container text-on-primary-container' : 'bg-surface-container-high text-on-surface-variant'}`}><span className={`w-2 h-2 rounded-full ${online ? 'bg-primary' : 'bg-outline'}`}></span>{online ? '在线中' : '离线中'}</span>
+        </button>
       </div>
       <div className="px-md py-md pt-lg pb-xl">
         <RiderError message={error} />
@@ -48,8 +49,9 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
           <button onClick={refresh} className="px-md py-xs rounded-full bg-surface-container-high text-on-surface-variant text-label-md font-label-md whitespace-nowrap hover:bg-surface-variant transition-colors flex items-center gap-xs">刷新</button>
         </div>
         <div className="space-y-4">
-          {orders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无可抢订单</p>}
-          {orders.map((order) => (
+          {!online && <p className="text-body-md text-on-surface-variant">离线时不展示可接订单，请先上线。</p>}
+          {online && orders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无可抢订单</p>}
+          {online && orders.map((order) => (
             <div key={order.orderId} className="bg-surface-container-lowest rounded-2xl p-md shadow-[0_4px_16px_rgba(38,24,20,0.04)] border border-outline-variant/30 relative overflow-hidden group">
               <div className="flex justify-between items-start mb-md">
                 <div><h2 className="text-headline-sm font-headline-sm text-on-surface">¥{Number(order.income).toFixed(2)}</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">预计收入</p></div>
@@ -67,7 +69,7 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
                   <p className="text-body-md font-body-md text-on-surface line-clamp-1">{order.address}</p>
                 </div>
               </div>
-              <button disabled={loadingId === order.orderId} onClick={() => accept(order.orderId)} className="w-full py-sm rounded-xl bg-primary text-on-primary text-body-lg font-body-lg font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] hover:bg-[#832600] active:scale-[0.98] transition-all flex items-center justify-center gap-xs relative overflow-hidden disabled:opacity-50">抢单</button>
+              <button disabled={!online || loadingId === order.orderId} onClick={() => accept(order.orderId)} className="w-full py-sm rounded-xl bg-primary text-on-primary text-body-lg font-body-lg font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] hover:bg-[#832600] active:scale-[0.98] transition-all flex items-center justify-center gap-xs relative overflow-hidden disabled:opacity-50">抢单</button>
             </div>
           ))}
         </div>
@@ -123,6 +125,17 @@ function RiderTask() {
       .finally(() => setLoadingId(''));
   };
 
+  const reportLocation = () => {
+    const task = tasks[0];
+    if (!task) {
+      setError('暂无任务可上报位置');
+      return;
+    }
+    api.reportRiderLocation({ orderId: task.id, longitude: 113.3245, latitude: 23.1064 })
+      .then(() => setError('位置已上报'))
+      .catch((err) => setError(err instanceof Error ? err.message : '位置上报失败'));
+  };
+
   return (
     <div className="bg-surface h-screen text-on-surface overflow-hidden flex flex-col relative">
       <div className="absolute inset-0 z-0 bg-[#e3f2fd]">
@@ -147,7 +160,7 @@ function RiderTask() {
         <div className="px-md pb-md flex-1 overflow-y-auto no-scrollbar">
           <div className="flex items-center justify-between mb-md">
             <div><h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">当前任务</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">共 {tasks.length} 单进行中</p></div>
-            <button onClick={refresh} className="p-2 rounded-full bg-primary/10 text-primary active:bg-primary/20"><span className="material-symbols-outlined text-[20px]">my_location</span></button>
+            <button onClick={reportLocation} className="p-2 rounded-full bg-primary/10 text-primary active:bg-primary/20"><span className="material-symbols-outlined text-[20px]">my_location</span></button>
           </div>
           <RiderError message={error} />
           <div className="space-y-md mt-md">
@@ -175,16 +188,33 @@ function RiderTask() {
 }
 
 function RiderEarnings() {
+  const [stats, setStats] = useState<RiderStats>({ todayIncome: 0, todayOrders: 0, totalIncome: 0, totalOrders: 0, level: '黄金骑手', score: '4.8', onTimeRate: '99.8%' });
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    api.getRiderIncome().then(setStats).catch(() => undefined);
+  }, []);
+
+  const submitWithdraw = () => {
+    const amount = Number(window.prompt('提现金额', '50'));
+    const accountNo = window.prompt('提现账户', '校园卡 6222****8888') || '';
+    if (amount > 0 && accountNo) {
+      api.withdraw(amount, accountNo).then(() => setMessage('提现申请已提交')).catch((err) => setMessage(err instanceof Error ? err.message : '提现失败'));
+    }
+  };
+
   return (
     <div className="bg-surface min-h-screen text-on-surface pb-[100px] flex flex-col font-sans">
       <div className="sticky top-0 z-50 bg-primary px-lg py-md pt-safe shadow-md rounded-b-[24px]">
         <h1 className="text-headline-md font-headline-md text-on-primary mb-xl mt-sm text-center">收入统计</h1>
         <div className="flex justify-between items-center text-primary-fixed-dim/90 mb-xs px-sm"><span className="text-label-md font-label-md">今日预估收入(元)</span><span className="material-symbols-outlined text-[18px] cursor-pointer hover:text-white transition-colors">info</span></div>
-        <div className="flex items-baseline gap-xs px-sm mb-lg"><span className="text-[48px] font-display-xl font-bold text-white leading-none">284.50</span></div>
-        <div className="flex border-t border-white/20 pt-sm"><div className="flex-1 text-center py-sm border-r border-white/20"><div className="text-primary-fixed-dim text-label-md font-label-md mb-xs">今日完成(单)</div><div className="text-white text-headline-sm font-headline-sm font-semibold">42</div></div><div className="flex-1 text-center py-sm"><div className="text-primary-fixed-dim text-label-md font-label-md mb-xs">好评奖励(元)</div><div className="text-white text-headline-sm font-headline-sm font-semibold">15.00</div></div></div>
+        <div className="flex items-baseline gap-xs px-sm mb-lg"><span className="text-[48px] font-display-xl font-bold text-white leading-none">{Number(stats.todayIncome).toFixed(2)}</span></div>
+        <div className="flex border-t border-white/20 pt-sm"><div className="flex-1 text-center py-sm border-r border-white/20"><div className="text-primary-fixed-dim text-label-md font-label-md mb-xs">今日完成(单)</div><div className="text-white text-headline-sm font-headline-sm font-semibold">{stats.todayOrders}</div></div><div className="flex-1 text-center py-sm"><div className="text-primary-fixed-dim text-label-md font-label-md mb-xs">累计收入</div><div className="text-white text-headline-sm font-headline-sm font-semibold">{Number(stats.totalIncome).toFixed(2)}</div></div></div>
       </div>
 
       <div className="px-lg py-xl mt-[-24px] relative z-10 flex-1 overflow-y-auto no-scrollbar">
+        {message && <div className="mb-md rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
+        <button onClick={submitWithdraw} className="w-full mb-md bg-primary text-on-primary rounded-full py-sm font-bold">申请提现</button>
         <div className="bg-surface-container-lowest rounded-[20px] p-md shadow-sm border border-outline-variant/30 flex mb-lg">
           {['今日', '本周', '本月'].map((tab, i) => (
             <button key={i} className={`flex-1 py-sm text-body-md font-body-md rounded-[12px] font-medium transition-colors ${i===0 ? 'bg-primary-container text-on-primary-container shadow-sm':'text-on-surface-variant'}`}>{tab}</button>
@@ -228,13 +258,14 @@ function RiderEarnings() {
   );
 }
 
-function RiderProfile() {
+function RiderProfile({ onLogout }: { onLogout: () => void }) {
+  const tip = (message: string) => window.alert(message);
   return (
     <div className="bg-surface h-screen text-on-surface overflow-y-auto no-scrollbar pb-[100px]">
       <div className="bg-primary pt-safe pb-xl px-lg rounded-b-[32px] relative overflow-hidden shadow-md">
         <div className="absolute top-[-50px] right-[-50px] w-[150px] h-[150px] rounded-full bg-white/10 blur-xl"></div>
         <div className="absolute bottom-[-30px] left-[-20px] w-[100px] h-[100px] rounded-full bg-black/10 blur-lg"></div>
-        <div className="flex justify-between items-center py-md relative z-10"><h1 className="text-headline-md font-headline-md text-on-primary font-bold">我的主页</h1><button className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white backdrop-blur-md hover:bg-white/30 transition-colors"><span className="material-symbols-outlined">settings</span></button></div>
+        <div className="flex justify-between items-center py-md relative z-10"><h1 className="text-headline-md font-headline-md text-on-primary font-bold">我的主页</h1><button onClick={() => tip('骑手设置已打开（演示）')} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white backdrop-blur-md hover:bg-white/30 transition-colors"><span className="material-symbols-outlined">settings</span></button></div>
         <div className="flex items-center gap-md mt-sm relative z-10">
             <div className="relative"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=rider" alt="avatar" className="w-[80px] h-[80px] rounded-full border-[3px] border-white/50 bg-primary-container object-cover shadow-sm"/><div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#137333] border-2 border-primary flex items-center justify-center"><span className="material-symbols-outlined text-[12px] text-white font-bold">check</span></div></div>
             <div><h2 className="text-headline-sm font-headline-sm text-on-primary font-bold flex items-center gap-xs">王师傅 <span className="bg-[#FFD700] text-[#B8860B] text-[10px] px-1.5 py-0.5 rounded-sm font-bold flex items-center">⭐ 黄金骑手</span></h2><p className="text-body-md font-body-md text-primary-fixed-dim/90 mt-xs mb-xs">RD-20231089</p>
@@ -256,10 +287,12 @@ function RiderProfile() {
             {[
                 { i: "electric_moped", t: "我的车辆", d: "已绑定 (粤A 83**)", c: "text-primary" },
                 { i: "security", t: "资质认证", d: "身份证、健康证已认证", c: "text-tertiary" },
-                { i: "headset_mic", t: "联系客服", d: "", c: "text-secondary" },
-                { i: "help_center", t: "新手指南", d: "", c: "text-outline" }
+                { i: "payments", t: "提现记录", d: "查看最近申请", c: "text-primary", action: () => tip('最近提现申请已提交，等待平台审核。') },
+                { i: "star", t: "评分评价", d: "综合评分 4.8", c: "text-tertiary", action: () => tip('暂无新的差评，继续保持准时配送。') },
+                { i: "headset_mic", t: "联系客服", d: "", c: "text-secondary", action: () => tip('骑手客服：400-800-2026') },
+                { i: "logout", t: "退出登录", d: "", c: "text-error", action: onLogout }
             ].map((x, i) => (
-                <button key={i} className="w-full flex items-center justify-between p-md hover:bg-surface-variant/30 transition-colors active:bg-surface-variant/50">
+                <button key={i} onClick={x.action} className="w-full flex items-center justify-between p-md hover:bg-surface-variant/30 transition-colors active:bg-surface-variant/50">
                     <div className="flex items-center gap-md"><div className={`w-10 h-10 rounded-full bg-surface-variant/30 flex items-center justify-center ${x.c}`}><span className="material-symbols-outlined text-[20px]">{x.i}</span></div><span className="text-body-lg font-body-lg font-medium">{x.t}</span></div>
                     <div className="flex items-center gap-xs"><span className="text-label-md font-label-md text-on-surface-variant">{x.d}</span><span className="material-symbols-outlined text-outline-variant">chevron_right</span></div>
                 </button>
@@ -283,7 +316,7 @@ export default function Rider({ setRole }: { setRole: () => void }) {
       {view === 'lobby' && <RiderLobby onAccepted={() => setView('task')} />}
       {view === 'task' && <RiderTask />}
       {view === 'earnings' && <RiderEarnings />}
-      {view === 'profile' && <RiderProfile />}
+      {view === 'profile' && <RiderProfile onLogout={logout} />}
       
       <nav className="absolute bottom-0 w-full bg-surface/90 backdrop-blur-xl border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">
         {[

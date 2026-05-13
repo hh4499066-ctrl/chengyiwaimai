@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/orders")
@@ -49,7 +50,7 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/pay")
-    public ApiResponse<Order> pay(HttpServletRequest request, @PathVariable String orderId) {
+    public ApiResponse<Order> pay(HttpServletRequest request, @PathVariable String orderId, @RequestBody(required = false) Map<String, Object> body) {
         CurrentUser user = AuthContext.requireRole(request, "customer");
         Order order = store.payOrder(user, orderId);
         socketHandler.broadcast(order.id(), "订单已支付：" + order.id());
@@ -86,7 +87,15 @@ public class OrderController {
     public ApiResponse<RiderLocation> location(HttpServletRequest request, @PathVariable String orderId, @RequestBody RiderLocation location) {
         CurrentUser user = AuthContext.requireRole(request, "rider");
         store.requireRiderOrder(user, orderId);
+        store.cacheRiderLocation(orderId, location);
         socketHandler.broadcast(orderId, "骑手位置更新：" + orderId + "," + location.longitude() + "," + location.latitude());
         return ApiResponse.ok(location);
+    }
+
+    @GetMapping("/{orderId}/location")
+    public ApiResponse<Map<String, Object>> latestLocation(HttpServletRequest request, @PathVariable String orderId) {
+        CurrentUser user = AuthContext.currentUser(request);
+        store.requireOrderSubscription(user, orderId);
+        return ApiResponse.ok(store.latestRiderLocation(orderId));
     }
 }

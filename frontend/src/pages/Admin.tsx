@@ -1,9 +1,33 @@
 import React, { useState } from 'react';
 import { AdminModule } from './management/ManagementPanels';
+import { api, type AdminDashboard as AdminDashboardData, type AdminMerchant, type AdminUser } from '../api/client';
 
 // === SUBCOMPONENTS (Matching Admin HTMLs) ===
 
 function AdminDashboard() {
+  const [dashboard, setDashboard] = useState<AdminDashboardData>({ todayGmv: 0, todayOrders: 0, activeUsers: 0, todayExceptionOrders: 0, totalGmv: 0, totalOrders: 0, totalExceptionOrders: 0 });
+  const [scope, setScope] = useState<'today' | 'total'>('today');
+
+  React.useEffect(() => {
+    api.getAdminDashboard().then(setDashboard).catch(() => undefined);
+  }, []);
+
+  const exportCsv = () => {
+    const rows = [
+      ['metric', 'value'],
+      ['gmv', scope === 'today' ? dashboard.todayGmv : dashboard.totalGmv ?? dashboard.todayGmv],
+      ['orders', scope === 'today' ? dashboard.todayOrders : dashboard.totalOrders ?? dashboard.todayOrders],
+      ['activeUsers', dashboard.activeUsers],
+      ['exceptionOrders', scope === 'today' ? dashboard.todayExceptionOrders ?? 0 : dashboard.totalExceptionOrders ?? 0],
+    ];
+    const url = URL.createObjectURL(new Blob([rows.map((row) => row.join(',')).join('\n')], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `chengyi-dashboard-${scope}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-md md:p-lg pt-[80px] md:pt-lg bg-surface">
       <div className="flex justify-between items-end mb-xl">
@@ -12,10 +36,10 @@ function AdminDashboard() {
           <p className="font-body-md text-body-md text-on-surface-variant mt-sm">平台实时运营状态监控</p>
         </div>
         <div className="hidden md:flex items-center gap-md">
-          <button className="bg-surface-container-high text-on-surface-variant px-md py-sm rounded-lg font-body-md text-body-md flex items-center gap-sm hover:bg-surface-variant transition-colors">
-            <span className="material-symbols-outlined text-sm">calendar_month</span>今日数据<span className="material-symbols-outlined text-sm">expand_more</span>
+          <button onClick={() => setScope((value) => value === 'today' ? 'total' : 'today')} className="bg-surface-container-high text-on-surface-variant px-md py-sm rounded-lg font-body-md text-body-md flex items-center gap-sm hover:bg-surface-variant transition-colors">
+            <span className="material-symbols-outlined text-sm">calendar_month</span>{scope === 'today' ? '今日数据' : '累计数据'}<span className="material-symbols-outlined text-sm">expand_more</span>
           </button>
-          <button className="bg-primary text-on-primary px-md py-sm rounded-lg font-body-md text-body-md flex items-center gap-sm hover:opacity-90 transition-opacity shadow-sm">
+          <button onClick={exportCsv} className="bg-primary text-on-primary px-md py-sm rounded-lg font-body-md text-body-md flex items-center gap-sm hover:opacity-90 transition-opacity shadow-sm">
             <span className="material-symbols-outlined text-sm">download</span>导出报表
           </button>
         </div>
@@ -24,9 +48,9 @@ function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md mb-xl">
         {/* Metric Cards */}
         {[
-          { title: "平台总流水 (今日)", value: "¥ 1,248,590", m: "+12.5%", c: "primary", icon: "account_balance_wallet" },
-          { title: "今日订单总数", value: "45,210", m: "+8.2%", c: "secondary", icon: "receipt_long" },
-          { title: "活跃用户数", value: "128,400", m: "+5.1%", c: "tertiary", icon: "group" },
+          { title: scope === 'today' ? "今日GMV" : "累计GMV", value: `¥ ${Number(scope === 'today' ? dashboard.todayGmv : dashboard.totalGmv ?? dashboard.todayGmv).toFixed(2)}`, m: "真实接口", c: "primary", icon: "account_balance_wallet" },
+          { title: scope === 'today' ? "今日订单" : "累计订单", value: String(scope === 'today' ? dashboard.todayOrders : dashboard.totalOrders ?? dashboard.todayOrders), m: "真实接口", c: "secondary", icon: "receipt_long" },
+          { title: "活跃用户数", value: String(dashboard.activeUsers), m: "状态正常用户", c: "tertiary", icon: "group" },
         ].map((item, idx) => (
           <div key={idx} className="bg-surface-container-lowest rounded-xl p-md shadow-[0_4px_16px_rgba(31,41,55,0.04)] border border-outline-variant/30 flex flex-col justify-between relative overflow-hidden group">
             <div className={`absolute left-0 top-0 bottom-0 w-[4px] bg-${item.c}`}></div>
@@ -52,7 +76,7 @@ function AdminDashboard() {
           <div className="flex justify-between items-start z-10 pl-sm">
             <div>
               <p className="font-body-md text-body-md text-on-error-container">异常订单预警</p>
-              <h3 className="font-headline-md text-headline-md text-error mt-xs">84</h3>
+              <h3 className="font-headline-md text-headline-md text-error mt-xs">{scope === 'today' ? dashboard.todayExceptionOrders ?? 0 : dashboard.totalExceptionOrders ?? 0}</h3>
             </div>
             <div className="bg-error/10 p-sm rounded-lg text-error">
               <span className="material-symbols-outlined fill">warning</span>
@@ -260,6 +284,58 @@ function AdminRiderAudit() {
   );
 }
 
+function AdminMerchantAuditLive() {
+  const [items, setItems] = useState<AdminMerchant[]>([]);
+  const [keyword, setKeyword] = useState('');
+  const [modal, setModal] = useState<string | null>(null);
+  const refresh = () => api.getAdminMerchants().then(setItems).catch(() => setItems([]));
+  React.useEffect(() => { refresh(); }, []);
+  const shown = items.filter((item) => !keyword || item.name.includes(keyword) || item.category.includes(keyword));
+  const audit = (item: AdminMerchant, status: string) => api.adminAudit('merchants', item.id, status).then(refresh);
+  return (
+    <div className="flex-1 overflow-y-auto p-lg bg-surface space-y-md">
+      <header><h1 className="font-headline-md text-headline-md font-bold">商家入驻审核</h1><p className="text-on-surface-variant">真实读取商家列表，支持筛选、查看、通过和驳回。</p></header>
+      <section className="bg-surface-container-lowest rounded-xl p-md border border-outline-variant/20 flex gap-sm">
+        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="flex-1 rounded-lg border border-outline-variant p-sm" placeholder="商家名称 / 类别" />
+        <button onClick={() => setKeyword('')} className="px-md py-sm rounded-lg border border-primary/30 text-primary">重置条件</button>
+      </section>
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-auto">
+        <table className="w-full text-left min-w-[760px]">
+          <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">商家</th><th className="p-md">类别</th><th className="p-md">电话</th><th className="p-md">审核</th><th className="p-md text-right">操作</th></tr></thead>
+          <tbody>{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20"><td className="p-md">{item.name}</td><td className="p-md">{item.category}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.auditStatus}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看资料</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过</button><button onClick={() => audit(item, 'rejected')} className="text-error">驳回</button></td></tr>)}</tbody>
+        </table>
+      </div>
+      {modal && <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg"><div className="bg-surface rounded-2xl p-lg max-w-lg w-full"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
+    </div>
+  );
+}
+
+function AdminRiderAuditLive() {
+  const [items, setItems] = useState<AdminUser[]>([]);
+  const [keyword, setKeyword] = useState('');
+  const [modal, setModal] = useState<string | null>(null);
+  const refresh = () => api.getAdminRiders().then(setItems).catch(() => setItems([]));
+  React.useEffect(() => { refresh(); }, []);
+  const shown = items.filter((item) => !keyword || item.name.includes(keyword) || item.phone.includes(keyword));
+  const audit = (item: AdminUser, status: string) => api.adminAudit('riders', item.id, status).then(refresh);
+  return (
+    <div className="flex-1 overflow-y-auto p-lg bg-surface space-y-md">
+      <header><h1 className="font-headline-md text-headline-md font-bold">骑手审核</h1><p className="text-on-surface-variant">真实读取骑手账号，支持查询、查看原件、通过和标记违规。</p></header>
+      <section className="bg-surface-container-lowest rounded-xl p-md border border-outline-variant/20 flex gap-sm">
+        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="flex-1 rounded-lg border border-outline-variant p-sm" placeholder="骑手姓名 / 手机号" />
+        <button onClick={() => setKeyword('')} className="px-md py-sm rounded-lg border border-primary/30 text-primary">重置</button>
+      </section>
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/20 overflow-auto">
+        <table className="w-full text-left min-w-[760px]">
+          <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">骑手</th><th className="p-md">手机号</th><th className="p-md">角色</th><th className="p-md">状态</th><th className="p-md text-right">操作</th></tr></thead>
+          <tbody>{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20"><td className="p-md">{item.name}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.role}</td><td className="p-md">{item.status}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看原件</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过审核</button><button onClick={() => audit(item, 'disabled')} className="text-error">标记违规</button></td></tr>)}</tbody>
+        </table>
+      </div>
+      {modal && <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg"><div className="bg-surface rounded-2xl p-lg max-w-lg w-full"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
+    </div>
+  );
+}
+
 // === MAIN ADMIN COMPONENT ===
 
 export default function Admin({ setRole }: { setRole: () => void }) {
@@ -314,8 +390,8 @@ export default function Admin({ setRole }: { setRole: () => void }) {
         </header>
         
         {activeTab === 'dashboard' && <AdminDashboard />}
-        {activeTab === 'merchant_audit' && <AdminMerchantAudit />}
-        {activeTab === 'rider_audit' && <AdminRiderAudit />}
+        {activeTab === 'merchant_audit' && <AdminMerchantAuditLive />}
+        {activeTab === 'rider_audit' && <AdminRiderAuditLive />}
         {['users', 'orders', 'marketing', 'settings'].includes(activeTab) && <AdminModule type={activeTab} />}
       </div>
     </div>

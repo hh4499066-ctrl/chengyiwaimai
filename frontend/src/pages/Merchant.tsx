@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api, type Order } from '../api/client';
+import { api, type Dish, type MerchantStats, type Order } from '../api/client';
 import { MerchantModule } from './management/ManagementPanels';
 
 function MerchantError({ message }: { message: string }) {
@@ -22,7 +22,7 @@ function statusTone(status: string) {
   return 'border-l-outline-variant';
 }
 
-function MerchantOrderCard({ order, onAction, loadingId }: { order: Order; onAction: (orderId: string, action: 'accept' | 'reject' | 'ready') => void; loadingId: string }) {
+function MerchantOrderCard({ order, onAction, loadingId }: { key?: React.Key; order: Order; onAction: (orderId: string, action: 'accept' | 'reject' | 'ready') => void; loadingId: string }) {
   const loading = loadingId === order.id;
   return (
     <div className={`bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 ${statusTone(order.status)}`}>
@@ -59,6 +59,7 @@ function MerchantWorkbench() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
+  const [serverStats, setServerStats] = useState<MerchantStats | null>(null);
 
   const refreshOrders = () => {
     api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败'));
@@ -66,12 +67,13 @@ function MerchantWorkbench() {
 
   useEffect(() => {
     refreshOrders();
+    api.getMerchantStats().then(setServerStats).catch(() => undefined);
   }, []);
 
   const pendingOrders = orders.filter((order) => order.status === '待商家接单' || order.status === '商家已接单').slice(0, 6);
   const stats = useMemo(() => ({
-    todayIncome: orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0),
-    todayOrders: orders.length,
+    todayIncome: Number(serverStats?.todayIncome ?? orders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0)),
+    todayOrders: Number(serverStats?.todayOrders ?? orders.length),
     pending: orders.filter((order) => order.status === '待商家接单').length,
     ready: orders.filter((order) => order.status === '商家已出餐').length,
   }), [orders]);
@@ -261,6 +263,159 @@ function MerchantMenu() {
   );
 }
 
+function MerchantMenuLive() {
+  const [dishes, setDishes] = useState<Dish[]>([]);
+  const [editing, setEditing] = useState<Dish | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [categories, setCategories] = useState(['全部', '招牌推荐', '热销单品', '饮品']);
+  const [activeCategory, setActiveCategory] = useState('全部');
+  const [form, setForm] = useState({ name: '', description: '', price: '18', sales: '99', categoryName: '招牌推荐', status: 'on_sale' });
+
+  const refresh = () => api.getMerchantDishes().then(setDishes).catch((err) => setError(err instanceof Error ? err.message : '商品加载失败'));
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const openForm = (dish?: Dish) => {
+    setEditing(dish || null);
+    setForm({
+      name: dish?.name || '',
+      description: dish?.description || dish?.desc || '',
+      price: String(dish?.price ?? 18),
+      sales: String(dish?.sales ?? 99),
+      categoryName: dish?.categoryName || dish?.category || '招牌推荐',
+      status: dish?.status || 'on_sale',
+    });
+    setFormOpen(true);
+  };
+
+  const save = () => {
+    api.saveMerchantDish({
+      id: editing?.id ?? 0,
+      merchantId: editing?.merchantId ?? 0,
+      name: form.name,
+      description: form.description,
+      price: Number(form.price),
+      sales: Number(form.sales),
+      categoryName: form.categoryName,
+      status: form.status,
+    }).then(() => {
+      setMessage('保存成功');
+      setFormOpen(false);
+      refresh();
+    }).catch((err) => setError(err instanceof Error ? err.message : '保存失败'));
+  };
+
+  const toggleStatus = (dish: Dish) => {
+    api.updateMerchantDishStatus(dish.id, dish.status === 'on_sale' ? 'off_sale' : 'on_sale').then(refresh).catch((err) => setError(err instanceof Error ? err.message : '状态更新失败'));
+  };
+
+  const restock = (dish: Dish) => {
+    const next = Number(window.prompt('输入新库存', String(dish.sales ?? 99)));
+    if (Number.isFinite(next) && next >= 0) {
+      api.updateMerchantDishStock(dish.id, next).then(refresh).catch((err) => setError(err instanceof Error ? err.message : '库存更新失败'));
+    }
+  };
+  const shownDishes = activeCategory === '全部' ? dishes : dishes.filter((dish) => (dish.categoryName || dish.category) === activeCategory);
+
+  const addCategory = () => {
+    const name = window.prompt('新分类名称');
+    if (name) {
+      setCategories((items) => [...items, name]);
+    }
+  };
+
+  const editCategory = () => {
+    if (activeCategory === '全部') return;
+    const name = window.prompt('编辑分类名称', activeCategory);
+    if (name) {
+      setCategories((items) => items.map((item) => item === activeCategory ? name : item));
+      setActiveCategory(name);
+    }
+  };
+
+  const deleteCategory = () => {
+    if (activeCategory === '全部') return;
+    setCategories((items) => items.filter((item) => item !== activeCategory));
+    setActiveCategory('全部');
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
+      <header className="px-lg py-md border-b border-outline-variant/30 flex justify-between items-center bg-surface z-10 shrink-0">
+        <div>
+          <h2 className="font-headline-md text-headline-md font-bold text-on-surface">商品管理</h2>
+          <p className="font-label-md text-label-md text-on-surface-variant">真实联动菜品、价格、库存和上下架状态。</p>
+        </div>
+        <button onClick={() => openForm()} className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold flex items-center gap-xs shadow-sm"><span className="material-symbols-outlined text-[20px]">add</span>新建商品</button>
+      </header>
+      <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md">
+        <MerchantError message={error} />
+        {message && <div className="rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
+        <div className="flex flex-wrap gap-sm items-center">
+          {categories.map((category) => <button key={category} onClick={() => setActiveCategory(category)} className={`px-md py-xs rounded-full ${activeCategory === category ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>{category}</button>)}
+          <button onClick={addCategory} className="px-md py-xs rounded-full border border-primary text-primary">新增分类</button>
+          <button onClick={editCategory} className="px-md py-xs rounded-full border border-outline-variant">编辑分类</button>
+          <button onClick={deleteCategory} className="px-md py-xs rounded-full border border-error text-error">删除分类</button>
+        </div>
+        <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead><tr className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md"><th className="p-md">商品信息</th><th className="p-md">价格</th><th className="p-md">库存/状态</th><th className="p-md text-right">操作</th></tr></thead>
+            <tbody className="divide-y divide-outline-variant/20 font-body-md">
+              {shownDishes.map((dish) => (
+                <tr key={dish.id} className="hover:bg-surface-variant/20">
+                  <td className="p-md"><p className="font-bold">{dish.name}</p><p className="text-on-surface-variant">{dish.categoryName || dish.category}</p></td>
+                  <td className="p-md font-bold">¥{Number(dish.price).toFixed(2)}</td>
+                  <td className="p-md">{dish.status === 'on_sale' ? '售卖中' : '已下架'} · {dish.sales ?? 0}</td>
+                  <td className="p-md text-right whitespace-nowrap"><button onClick={() => openForm(dish)} className="text-primary mr-md">编辑</button><button onClick={() => toggleStatus(dish)} className="text-on-surface-variant mr-md">{dish.status === 'on_sale' ? '下架' : '上架'}</button><button onClick={() => restock(dish)} className="text-primary">补库存</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {formOpen && (
+        <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg">
+          <div className="bg-surface rounded-2xl p-lg w-full max-w-xl space-y-md">
+            <h3 className="font-headline-sm text-headline-sm font-bold">{editing ? '编辑商品' : '新建商品'}</h3>
+            {(['name', 'description', 'price', 'sales', 'categoryName'] as const).map((key) => (
+              <input key={key} value={form[key]} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder={key} />
+            ))}
+            <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm"><option value="on_sale">上架</option><option value="off_sale">下架</option></select>
+            <div className="flex justify-end gap-sm"><button onClick={() => setFormOpen(false)} className="px-md py-sm rounded-lg border">取消</button><button onClick={save} className="px-md py-sm rounded-lg bg-primary text-on-primary">保存</button></div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MerchantSettings() {
+  const [settings, setSettings] = useState({ status: 'open', deliveryFee: '1.5', minOrder: '20', announcement: '欢迎光临橙意外卖' });
+  const [message, setMessage] = useState('');
+  const save = () => {
+    api.saveBusinessSettings(settings).then(() => setMessage('营业设置已保存')).catch((err) => setMessage(err instanceof Error ? err.message : '保存失败'));
+  };
+  return (
+    <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface space-y-md">
+      <header><h2 className="font-headline-md text-headline-md font-bold">营业设置</h2><p className="text-on-surface-variant">营业状态、配送费、起送价和公告支持本地编辑并保存。</p></header>
+      {message && <div className="rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
+      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-lg space-y-md max-w-2xl">
+        <select value={settings.status} onChange={(event) => setSettings((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm">
+          <option value="open">营业中</option><option value="resting">休息中</option><option value="paused">暂停接单</option>
+        </select>
+        <input value={settings.deliveryFee} onChange={(event) => setSettings((prev) => ({ ...prev, deliveryFee: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="配送费" />
+        <input value={settings.minOrder} onChange={(event) => setSettings((prev) => ({ ...prev, minOrder: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="起送价" />
+        <textarea value={settings.announcement} onChange={(event) => setSettings((prev) => ({ ...prev, announcement: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm min-h-28" placeholder="店铺公告" />
+        <button onClick={save} className="bg-primary text-on-primary px-lg py-sm rounded-lg font-bold">保存配置</button>
+      </div>
+    </div>
+  );
+}
+
 export default function Merchant({ setRole }: { setRole: () => void }) {
   const [activeTab, setActiveTab] = useState('workbench');
   const logout = () => {
@@ -285,6 +440,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
             { id: 'reviews', icon: 'star', label: '评价管理' },
             { id: 'finance', icon: 'account_balance_wallet', label: '财务结算' },
             { id: 'marketing', icon: 'campaign', label: '营销中心' },
+            { id: 'settings', icon: 'settings', label: '营业设置' },
           ].map(t => (
             <button
               key={t.id}
@@ -315,7 +471,8 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
 
         {activeTab === 'workbench' && <MerchantWorkbench />}
         {activeTab === 'orders' && <MerchantOrders />}
-        {activeTab === 'menu' && <MerchantMenu />}
+        {activeTab === 'menu' && <MerchantMenuLive />}
+        {activeTab === 'settings' && <MerchantSettings />}
         {['reviews', 'finance', 'marketing'].includes(activeTab) && <MerchantModule type={activeTab} />}
 
         {/* Mobile Bottom Navigation */}

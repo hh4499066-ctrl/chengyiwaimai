@@ -28,7 +28,7 @@ public class AdminController {
 
     @GetMapping("/merchants")
     public ApiResponse<?> merchants() {
-        return ApiResponse.ok(store.merchants());
+        return ApiResponse.ok(store.adminMerchants());
     }
 
     @GetMapping("/riders")

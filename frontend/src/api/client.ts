@@ -44,6 +44,8 @@ export type CartItem = {
 export type CreateOrderPayload = {
   merchantId: number;
   address: string;
+  remark?: string;
+  payMethod?: string;
   items: CartItem[];
 };
 
@@ -57,10 +59,96 @@ export type Order = {
   createTime?: string;
 };
 
+export type Address = {
+  id?: number;
+  receiver: string;
+  phone: string;
+  detail: string;
+  isDefault?: boolean;
+};
+
+export type Coupon = {
+  id: number;
+  name: string;
+  thresholdAmount: number;
+  discountAmount: number;
+  status: string;
+};
+
+export type Review = {
+  id: number;
+  orderId: string;
+  rating: number;
+  content: string;
+  reply?: string;
+};
+
 export type ReviewPayload = {
   orderId: string;
   rating: number;
   content: string;
+};
+
+export type MerchantStats = {
+  todayIncome: number;
+  todayOrders: number;
+  totalIncome?: number;
+  totalOrders?: number;
+  conversionRate?: string;
+  refundOrders?: number;
+};
+
+export type RiderStats = {
+  todayIncome: number;
+  todayOrders: number;
+  totalIncome: number;
+  totalOrders: number;
+  level: string;
+  score: string;
+  onTimeRate?: string;
+};
+
+export type AdminDashboard = {
+  todayGmv: number;
+  todayOrders: number;
+  totalGmv?: number;
+  totalOrders?: number;
+  activeUsers: number;
+  todayExceptionOrders?: number;
+  totalExceptionOrders?: number;
+};
+
+export type AdminUser = {
+  id: number;
+  name: string;
+  phone: string;
+  role: string;
+  status: string;
+};
+
+export type AdminMerchant = {
+  id: number;
+  name: string;
+  category: string;
+  phone: string;
+  address: string;
+  auditStatus: string;
+  businessStatus: string;
+};
+
+export type MarketingActivity = {
+  id: number;
+  name: string;
+  type: string;
+  status: string;
+  startTime?: string;
+  endTime?: string;
+};
+
+export type RiderLocation = {
+  orderId: string;
+  longitude: number;
+  latitude: number;
 };
 
 export type RiderLobbyOrder = {
@@ -117,28 +205,102 @@ export const api = {
     }),
   updateCart: (dishId: number, quantity: number) =>
     request<CartItem>(`/customer/cart/${dishId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify({ dishId, quantity }),
     }),
   deleteCartItem: (dishId: number) => request<{ deleted: boolean }>(`/customer/cart/${dishId}`, { method: 'DELETE' }),
   clearCart: () => request<{ cleared: boolean }>('/customer/cart', { method: 'DELETE' }),
+  getAddresses: () => request<Address[]>('/customer/addresses'),
+  saveAddress: (payload: Address) =>
+    request<Address>('/customer/addresses', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getCoupons: () => request<Coupon[]>('/customer/coupons'),
+  getCustomerReviews: () => request<Review[]>('/customer/reviews'),
   createOrder: (payload: CreateOrderPayload) =>
     request<Order>('/orders', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
-  payOrder: (orderId: string) => request<Order>(`/orders/${orderId}/pay`, { method: 'POST' }),
+  payOrder: (orderId: string, payMethod: string) =>
+    request<Order>(`/orders/${orderId}/pay`, {
+      method: 'POST',
+      body: JSON.stringify({ payMethod }),
+    }),
   getOrders: () => request<Order[]>('/orders'),
+  getOrderLocation: (orderId: string) => request<{ orderId: string; available: boolean; longitude?: number; latitude?: number }>(`/orders/${orderId}/location`),
   getMerchantOrders: () => request<Order[]>('/merchant-center/orders'),
   merchantAction: (orderId: string, action: 'accept' | 'reject' | 'ready' | 'cancel') =>
     request<Order>(`/orders/${orderId}/merchant/${action}`, { method: 'POST' }),
+  getMerchantDishes: () => request<Dish[]>('/merchant-center/dishes'),
+  saveMerchantDish: (payload: Dish) =>
+    request<Dish>('/merchant-center/dishes', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateMerchantDishStatus: (dishId: number, status: string) =>
+    request<Dish>(`/merchant-center/dishes/${dishId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+  updateMerchantDishStock: (dishId: number, stock: number) =>
+    request<Dish>(`/merchant-center/dishes/${dishId}/stock`, {
+      method: 'PATCH',
+      body: JSON.stringify({ stock }),
+    }),
+  getMerchantStats: () => request<MerchantStats>('/merchant-center/stats'),
+  getMerchantReviews: () => request<Review[]>('/merchant-center/reviews'),
+  replyMerchantReview: (reviewId: number, reply: string) =>
+    request<Review>(`/merchant-center/reviews/${reviewId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ reply }),
+    }),
+  getMerchantCategories: () => request<Array<{ id: number; merchantId: number; name: string; sort: number }>>('/merchant-center/categories'),
+  saveMerchantCategory: (payload: { id?: number; name: string; sort?: number }) =>
+    request<{ id: number; merchantId: number; name: string; sort: number }>('/merchant-center/categories', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  saveBusinessSettings: (payload: Record<string, unknown>) =>
+    request<{ saved: boolean; settings: Record<string, unknown> }>('/merchant-center/business-settings', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   getRiderLobby: () => request<RiderLobbyOrder[]>('/rider/lobby'),
   getRiderTasks: () => request<Order[]>('/rider/tasks'),
   riderAction: (orderId: string, action: 'accept' | 'pickup' | 'delivered') =>
     request<Order>(`/orders/${orderId}/rider/${action}`, { method: 'POST' }),
+  reportRiderLocation: (payload: RiderLocation) =>
+    request<RiderLocation>(`/orders/${payload.orderId}/location`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getRiderIncome: () => request<RiderStats>('/rider/income'),
+  withdraw: (amount: number, accountNo: string) =>
+    request<{ status: string; amount: number; accountNo: string }>('/rider/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ amount, accountNo }),
+    }),
   submitReview: (payload: ReviewPayload) =>
     request<unknown>('/customer/reviews', {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+  getAdminDashboard: () => request<AdminDashboard>('/admin/dashboard'),
+  getAdminUsers: () => request<AdminUser[]>('/admin/users'),
+  getAdminOrders: () => request<Order[]>('/admin/orders'),
+  getAdminMerchants: () => request<AdminMerchant[]>('/admin/merchants'),
+  getAdminRiders: () => request<AdminUser[]>('/admin/riders'),
+  getAdminMarketing: () => request<MarketingActivity[]>('/admin/marketing'),
+  adminAudit: (module: 'merchants' | 'riders' | 'users', id: number, status: string) =>
+    request<{ module: string; id: number; result: string }>(`/admin/${module}/${id}/audit`, {
+      method: 'POST',
+      body: JSON.stringify({ status }),
+    }),
+  adminCreate: (module: string, body: Record<string, unknown>) =>
+    request<{ module: string; saved: boolean; data: Record<string, unknown> }>(`/admin/${module}`, {
+      method: 'POST',
+      body: JSON.stringify(body),
     }),
 };

@@ -32,13 +32,16 @@ import com.chengyiwaimai.model.Models.Dish;
 import com.chengyiwaimai.model.Models.Merchant;
 import com.chengyiwaimai.model.Models.Order;
 import com.chengyiwaimai.model.Models.Review;
+import com.chengyiwaimai.model.Models.RiderLocation;
 import com.chengyiwaimai.security.CurrentUser;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -72,6 +75,7 @@ public class BusinessService {
     private final ReviewMapper reviewMapper;
     private final SysUserMapper sysUserMapper;
     private final MarketingActivityMapper marketingActivityMapper;
+    private final StringRedisTemplate stringRedisTemplate;
     private final List<Category> categories = new CopyOnWriteArrayList<>();
 
     public BusinessService(
@@ -84,7 +88,8 @@ public class BusinessService {
             CouponMapper couponMapper,
             ReviewMapper reviewMapper,
             SysUserMapper sysUserMapper,
-            MarketingActivityMapper marketingActivityMapper
+            MarketingActivityMapper marketingActivityMapper,
+            StringRedisTemplate stringRedisTemplate
     ) {
         this.merchantMapper = merchantMapper;
         this.dishMapper = dishMapper;
@@ -96,6 +101,7 @@ public class BusinessService {
         this.reviewMapper = reviewMapper;
         this.sysUserMapper = sysUserMapper;
         this.marketingActivityMapper = marketingActivityMapper;
+        this.stringRedisTemplate = stringRedisTemplate;
         categories.add(new Category(1L, 1L, "招牌推荐", 1));
         categories.add(new Category(2L, 1L, "热销单品", 2));
         categories.add(new Category(3L, 1L, "饮品", 3));
@@ -161,6 +167,38 @@ public class BusinessService {
             dishMapper.updateById(entity);
         }
         return toDish(dishMapper.selectById(entity.getId()));
+    }
+
+    public Dish updateDishStatus(CurrentUser user, Long dishId, String status) {
+        MerchantEntity merchant = requireMerchant(user);
+        if (!"on_sale".equals(status) && !"off_sale".equals(status)) {
+            throw new BizException("商品状态不合法");
+        }
+        DishEntity update = new DishEntity();
+        update.setStatus(status);
+        int rows = dishMapper.update(update, Wrappers.<DishEntity>lambdaUpdate()
+                .eq(DishEntity::getId, dishId)
+                .eq(DishEntity::getMerchantId, merchant.getId()));
+        if (rows != 1) {
+            throw new BizException("商品不存在或无权操作");
+        }
+        return toDish(dishMapper.selectById(dishId));
+    }
+
+    public Dish updateDishStock(CurrentUser user, Long dishId, Integer stock) {
+        MerchantEntity merchant = requireMerchant(user);
+        if (stock == null || stock < 0) {
+            throw new BizException("库存不能为负数");
+        }
+        DishEntity update = new DishEntity();
+        update.setStock(stock);
+        int rows = dishMapper.update(update, Wrappers.<DishEntity>lambdaUpdate()
+                .eq(DishEntity::getId, dishId)
+                .eq(DishEntity::getMerchantId, merchant.getId()));
+        if (rows != 1) {
+            throw new BizException("商品不存在或无权操作");
+        }
+        return toDish(dishMapper.selectById(dishId));
     }
 
     public List<CartItem> cartItems(Long userId) {
@@ -274,6 +312,7 @@ public class BusinessService {
         order.setMerchantId(merchant.getId());
         order.setTotalAmount(total);
         order.setAddress(request.address());
+        order.setRemark(request.remark());
         order.setStatus(WAIT_PAY);
         deliveryOrderMapper.insert(order);
         clearCart(user.userId());
@@ -336,6 +375,39 @@ public class BusinessService {
         DeliveryOrderEntity order = requireOrder(orderId);
         if (!user.userId().equals(order.getRiderId())) {
             throw new BizException(403, "无权操作该订单");
+        }
+    }
+
+    public void cacheRiderLocation(String orderId, RiderLocation location) {
+        if (orderId == null || location == null || location.longitude() == null || location.latitude() == null) {
+            return;
+        }
+        try {
+            stringRedisTemplate.opsForValue().set(
+                    "rider:location:" + orderId,
+                    location.longitude() + "," + location.latitude(),
+                    Duration.ofMinutes(30)
+            );
+        } catch (RuntimeException ignored) {
+            // Redis only improves live tracking; order status updates must still succeed.
+        }
+    }
+
+    public Map<String, Object> latestRiderLocation(String orderId) {
+        try {
+            String value = stringRedisTemplate.opsForValue().get("rider:location:" + orderId);
+            if (value == null || value.isBlank()) {
+                return Map.of("orderId", orderId, "available", false);
+            }
+            String[] parts = value.split(",", 2);
+            return Map.of(
+                    "orderId", orderId,
+                    "available", true,
+                    "longitude", new BigDecimal(parts[0]),
+                    "latitude", new BigDecimal(parts[1])
+            );
+        } catch (RuntimeException ex) {
+            return Map.of("orderId", orderId, "available", false, "fallback", true);
         }
     }
 
@@ -548,34 +620,62 @@ public class BusinessService {
     }
 
     public Map<String, Object> merchantStats(CurrentUser user) {
-        List<Order> orders = merchantOrders(user);
+        MerchantEntity merchant = requireMerchant(user);
+        LocalDateTime start = todayStart();
+        LocalDateTime end = tomorrowStart();
+        List<DeliveryOrderEntity> todayOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .eq(DeliveryOrderEntity::getMerchantId, merchant.getId())
+                .ge(DeliveryOrderEntity::getCreateTime, start)
+                .lt(DeliveryOrderEntity::getCreateTime, end));
+        List<DeliveryOrderEntity> totalOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .eq(DeliveryOrderEntity::getMerchantId, merchant.getId()));
         return Map.of(
-                "todayIncome", orders.stream().map(Order::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
-                "todayOrders", orders.size(),
+                "todayIncome", sumPaid(todayOrders),
+                "todayOrders", todayOrders.size(),
+                "totalIncome", sumPaid(totalOrders),
+                "totalOrders", totalOrders.size(),
                 "conversionRate", "18.5%",
-                "refundOrders", orders.stream().filter(order -> CANCELED.equals(order.status())).count()
+                "refundOrders", todayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count()
         );
     }
 
     public Map<String, Object> riderStats(CurrentUser user) {
-        List<DeliveryOrderEntity> completed = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+        LocalDateTime start = todayStart();
+        LocalDateTime end = tomorrowStart();
+        List<DeliveryOrderEntity> todayCompleted = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .eq(DeliveryOrderEntity::getRiderId, user.userId())
+                .eq(DeliveryOrderEntity::getStatus, COMPLETED)
+                .ge(DeliveryOrderEntity::getUpdateTime, start)
+                .lt(DeliveryOrderEntity::getUpdateTime, end));
+        Long totalCompleted = deliveryOrderMapper.selectCount(Wrappers.<DeliveryOrderEntity>lambdaQuery()
                 .eq(DeliveryOrderEntity::getRiderId, user.userId())
                 .eq(DeliveryOrderEntity::getStatus, COMPLETED));
         return Map.of(
-                "todayIncome", BigDecimal.valueOf(completed.size()).multiply(new BigDecimal("4.50")),
-                "todayOrders", completed.size(),
+                "todayIncome", BigDecimal.valueOf(todayCompleted.size()).multiply(new BigDecimal("4.50")),
+                "todayOrders", todayCompleted.size(),
+                "totalIncome", BigDecimal.valueOf(totalCompleted).multiply(new BigDecimal("4.50")),
+                "totalOrders", totalCompleted,
                 "level", "黄金骑手",
-                "score", "4.8"
+                "score", "4.8",
+                "onTimeRate", "99.8%"
         );
     }
 
     public Map<String, Object> adminDashboard() {
-        List<Order> orders = adminOrders();
+        LocalDateTime start = todayStart();
+        LocalDateTime end = tomorrowStart();
+        List<DeliveryOrderEntity> todayOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .ge(DeliveryOrderEntity::getCreateTime, start)
+                .lt(DeliveryOrderEntity::getCreateTime, end));
+        List<DeliveryOrderEntity> totalOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery());
         return Map.of(
-                "todayGmv", orders.stream().map(Order::totalAmount).reduce(BigDecimal.ZERO, BigDecimal::add),
-                "todayOrders", orders.size(),
+                "todayGmv", sumPaid(todayOrders),
+                "todayOrders", todayOrders.size(),
+                "totalGmv", sumPaid(totalOrders),
+                "totalOrders", totalOrders.size(),
                 "activeUsers", sysUserMapper.selectCount(Wrappers.<SysUserEntity>lambdaQuery().eq(SysUserEntity::getStatus, 1)),
-                "exceptionOrders", orders.stream().filter(order -> CANCELED.equals(order.status())).count()
+                "todayExceptionOrders", todayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count(),
+                "totalExceptionOrders", totalOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count()
         );
     }
 
@@ -603,6 +703,21 @@ public class BusinessService {
                         "phone", user.getPhone(),
                         "level", "黄金骑手",
                         "status", user.getStatus() != null && user.getStatus() == 1 ? "正常" : "禁用"
+                ))
+                .toList();
+    }
+
+    public List<Map<String, Object>> adminMerchants() {
+        return merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery().orderByDesc(MerchantEntity::getCreateTime))
+                .stream()
+                .map(merchant -> Map.<String, Object>of(
+                        "id", merchant.getId(),
+                        "name", merchant.getName() == null ? "" : merchant.getName(),
+                        "category", merchant.getCategory() == null ? "" : merchant.getCategory(),
+                        "phone", merchant.getPhone() == null ? "" : merchant.getPhone(),
+                        "address", merchant.getAddress() == null ? "" : merchant.getAddress(),
+                        "auditStatus", merchant.getAuditStatus() == null ? "" : merchant.getAuditStatus(),
+                        "businessStatus", merchant.getBusinessStatus() == null ? "" : merchant.getBusinessStatus()
                 ))
                 .toList();
     }
@@ -657,6 +772,23 @@ public class BusinessService {
         return updateStatus(orderId, expected, nextStatus, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
                 .eq(DeliveryOrderEntity::getId, orderId)
                 .eq(DeliveryOrderEntity::getRiderId, user.userId()));
+    }
+
+    private LocalDateTime todayStart() {
+        return LocalDateTime.now().toLocalDate().atStartOfDay();
+    }
+
+    private LocalDateTime tomorrowStart() {
+        return todayStart().plusDays(1);
+    }
+
+    private BigDecimal sumPaid(List<DeliveryOrderEntity> orders) {
+        return orders.stream()
+                .filter(order -> !WAIT_PAY.equals(order.getStatus()))
+                .filter(order -> !CANCELED.equals(order.getStatus()))
+                .map(DeliveryOrderEntity::getTotalAmount)
+                .filter(amount -> amount != null)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private Order updateStatus(String orderId, String expected, String nextStatus, com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper<DeliveryOrderEntity> wrapper) {

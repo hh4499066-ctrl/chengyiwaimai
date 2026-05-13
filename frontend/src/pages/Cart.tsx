@@ -2,18 +2,22 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, type CartItem } from '../api/client';
 import { dishes, merchants } from '../mock/data';
 
-export default function Cart({ onCheckout }: { onCheckout?: () => void }) {
+export default function Cart({ onCheckout, onSearch, onMessage, onMerchant }: { onCheckout?: () => void; onSearch?: () => void; onMessage?: () => void; onMerchant?: () => void }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [error, setError] = useState('');
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
   const deliveryFee = items.length > 0 ? 1.5 : 0;
   const total = subtotal + deliveryFee;
 
-  useEffect(() => {
+  const refresh = () => {
     api
       .getCart()
       .then(setItems)
       .catch((err) => setError(err instanceof Error ? err.message : '购物车加载失败'));
+  };
+
+  useEffect(() => {
+    refresh();
   }, []);
 
   const changeQuantity = (item: CartItem, nextQuantity: number) => {
@@ -37,9 +41,9 @@ export default function Cart({ onCheckout }: { onCheckout?: () => void }) {
           <span className="text-headline-md font-headline-md font-bold text-primary">橙意外卖</span>
         </div>
         <div className="flex items-center gap-md">
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer scale-98 active:opacity-80 transition-transform">search</span>
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer scale-98 active:opacity-80 transition-transform">notifications</span>
-          <span className="material-symbols-outlined text-on-surface-variant cursor-pointer scale-98 active:opacity-80 transition-transform">shopping_cart</span>
+          <button onClick={onSearch} className="material-symbols-outlined text-on-surface-variant scale-98 active:opacity-80 transition-transform">search</button>
+          <button onClick={onMessage} className="material-symbols-outlined text-on-surface-variant scale-98 active:opacity-80 transition-transform">notifications</button>
+          <button onClick={refresh} className="material-symbols-outlined text-on-surface-variant scale-98 active:opacity-80 transition-transform">shopping_cart</button>
         </div>
       </header>
 
@@ -47,11 +51,11 @@ export default function Cart({ onCheckout }: { onCheckout?: () => void }) {
         {error && <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{error}</div>}
         <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(31,41,55,0.04)] p-md flex flex-col gap-sm border border-surface-variant/30">
           <div className="flex items-center justify-between border-b border-surface-variant/20 pb-sm">
-            <div className="flex items-center gap-xs">
+            <button onClick={onMerchant} className="flex items-center gap-xs text-left">
               <span className="material-symbols-outlined text-on-surface-variant text-[20px]">storefront</span>
               <h2 className="font-headline-sm text-headline-sm text-on-surface">{merchants[0].name}</h2>
               <span className="material-symbols-outlined text-on-surface-variant text-[16px]">chevron_right</span>
-            </div>
+            </button>
           </div>
 
           <div className="flex flex-col gap-md pt-sm">

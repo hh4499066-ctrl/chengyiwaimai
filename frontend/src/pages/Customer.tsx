@@ -33,10 +33,10 @@ export default function Customer({ setRole }: { setRole: () => void }) {
   return (
     <div className="max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden bg-surface flex flex-col">
       <div className="flex-1 overflow-y-auto w-full relative pb-safe">
-        {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMerchantClick={openMerchant} />}
-        {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} />}
-        {screen === 'message' && activeTab === 'message' && <Message />}
-        {screen === 'profile' && activeTab === 'profile' && <Profile />}
+        {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMessage={() => go('message')} onMerchantClick={openMerchant} />}
+        {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} onSearch={() => go('search')} onMessage={() => go('message')} onMerchant={() => go('merchant')} />}
+        {screen === 'message' && activeTab === 'message' && <Message onCart={() => go('cart')} onTracking={() => go('tracking')} />}
+        {screen === 'profile' && activeTab === 'profile' && <Profile onLogout={logout} goOrders={() => go('orders')} goAddress={() => window.alert('地址管理请在确认订单页选择或新增')} goCoupons={() => window.alert('优惠券列表会在确认订单页展示')} goReviews={() => go('orders')} />}
         {screen === 'search' && <SearchPage onBack={() => go('home')} onMerchant={openMerchant} />}
         {screen === 'merchant' && <MerchantDetailPage merchantId={selectedMerchantId} go={go} />}
         {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrder={setCurrentOrder} go={go} />}
