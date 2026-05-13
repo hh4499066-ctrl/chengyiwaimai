@@ -62,16 +62,31 @@ public class AdminController {
 
     @PostMapping("/{module}")
     public ApiResponse<Map<String, Object>> create(@PathVariable String module, @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("module", module, "saved", true, "data", body));
+        if ("marketing".equals(module)) {
+            return ApiResponse.ok(store.createAdminMarketing(body));
+        }
+        throw new com.chengyiwaimai.common.BizException("该后台模块暂不支持新增");
     }
 
     @PutMapping("/{module}/{id}")
     public ApiResponse<Map<String, Object>> update(@PathVariable String module, @PathVariable Long id, @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("module", module, "id", id, "updated", true, "data", body));
+        if ("marketing".equals(module)) {
+            return ApiResponse.ok(store.updateAdminMarketing(id, body));
+        }
+        throw new com.chengyiwaimai.common.BizException("该后台模块暂不支持编辑");
     }
 
     @DeleteMapping("/{module}/{id}")
     public ApiResponse<Map<String, Object>> delete(@PathVariable String module, @PathVariable Long id) {
-        return ApiResponse.ok(Map.of("module", module, "id", id, "deleted", true));
+        if ("marketing".equals(module)) {
+            store.deleteAdminMarketing(id);
+            return ApiResponse.ok(Map.of("deleted", true));
+        }
+        throw new com.chengyiwaimai.common.BizException("该后台模块暂不支持删除");
+    }
+
+    @PatchMapping("/users/{id}/status")
+    public ApiResponse<Map<String, Object>> userStatus(@PathVariable Long id, @RequestBody Map<String, Object> body) {
+        return ApiResponse.ok(store.updateUserStatus(id, String.valueOf(body.getOrDefault("status", "enabled"))));
     }
 }

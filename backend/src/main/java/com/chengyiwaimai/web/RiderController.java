@@ -43,6 +43,12 @@ public class RiderController {
         return ApiResponse.ok(store.riderOrders(user));
     }
 
+    @GetMapping("/history")
+    public ApiResponse<?> history(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.riderHistory(user));
+    }
+
     @PostMapping("/location")
     public ApiResponse<RiderLocation> location(HttpServletRequest request, @RequestBody RiderLocation location) {
         CurrentUser user = AuthContext.requireRole(request, "rider");
@@ -58,8 +64,15 @@ public class RiderController {
     }
 
     @PostMapping("/withdraw")
-    public ApiResponse<Map<String, Object>> withdraw(@RequestBody WithdrawRequest request) {
-        return ApiResponse.ok(Map.of("status", "submitted", "amount", request.amount(), "accountNo", request.accountNo()));
+    public ApiResponse<Map<String, Object>> withdraw(HttpServletRequest httpRequest, @RequestBody WithdrawRequest request) {
+        CurrentUser user = AuthContext.requireRole(httpRequest, "rider");
+        return ApiResponse.ok(store.withdraw(user, request.amount(), request.accountNo()));
+    }
+
+    @GetMapping("/withdraw-records")
+    public ApiResponse<List<Map<String, Object>>> withdrawRecords(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.withdrawRecords(user));
     }
 
     @GetMapping("/level")

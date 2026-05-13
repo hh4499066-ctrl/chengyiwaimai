@@ -36,6 +36,8 @@ function MerchantOrderCard({ order, onAction, loadingId }: { key?: React.Key; or
       <div className="space-y-xs mb-md">
         <p className="font-body-md text-body-md font-medium text-on-surface">{order.merchantName}</p>
         <p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">{order.address}</p>
+        <p className="font-label-md text-label-md text-on-surface-variant">备注：{order.remark?.trim() || '无备注'}</p>
+        {order.payMethod && <p className="font-label-md text-label-md text-on-surface-variant">支付方式：{order.payMethod}</p>}
       </div>
       <div className="flex gap-sm">
         {order.status === '待商家接单' && (
@@ -55,11 +57,12 @@ function MerchantOrderCard({ order, onAction, loadingId }: { key?: React.Key; or
   );
 }
 
-function MerchantWorkbench() {
+function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
   const [serverStats, setServerStats] = useState<MerchantStats | null>(null);
+  const [businessStatus, setBusinessStatus] = useState('open');
 
   const refreshOrders = () => {
     api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败'));
@@ -68,6 +71,7 @@ function MerchantWorkbench() {
   useEffect(() => {
     refreshOrders();
     api.getMerchantStats().then(setServerStats).catch(() => undefined);
+    api.getBusinessSettings().then((data) => setBusinessStatus(String(data.businessStatus || 'open'))).catch(() => undefined);
   }, []);
 
   const pendingOrders = orders.filter((order) => order.status === '待商家接单' || order.status === '商家已接单').slice(0, 6);
@@ -76,7 +80,7 @@ function MerchantWorkbench() {
     todayOrders: Number(serverStats?.todayOrders ?? orders.length),
     pending: orders.filter((order) => order.status === '待商家接单').length,
     ready: orders.filter((order) => order.status === '商家已出餐').length,
-  }), [orders]);
+  }), [orders, serverStats]);
 
   const action = (orderId: string, nextAction: 'accept' | 'reject' | 'ready') => {
     setLoadingId(orderId);
@@ -85,6 +89,13 @@ function MerchantWorkbench() {
       .then(refreshOrders)
       .catch((err) => setError(err instanceof Error ? err.message : '订单状态已变化，请刷新'))
       .finally(() => setLoadingId(''));
+  };
+
+  const toggleBusinessStatus = () => {
+    const next = businessStatus === 'open' ? 'paused' : 'open';
+    api.saveBusinessSettings({ businessStatus: next })
+      .then((data) => setBusinessStatus(String(data.businessStatus || next)))
+      .catch((err) => setError(err instanceof Error ? err.message : '营业状态保存失败'));
   };
 
   return (
@@ -99,16 +110,16 @@ function MerchantWorkbench() {
             <p className="font-body-md text-body-md text-on-surface-variant mt-xs">ID: 80921102 · 普通外卖商家</p>
           </div>
         </div>
-        <div className="flex items-center gap-sm bg-primary/10 px-md py-sm rounded-full border border-primary/20">
+        <button onClick={toggleBusinessStatus} className="flex items-center gap-sm bg-primary/10 px-md py-sm rounded-full border border-primary/20">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
             </span>
-            <span className="font-label-md text-label-md font-bold text-primary">营业中</span>
-            <div className="ml-md w-[40px] h-[24px] bg-primary rounded-full relative cursor-pointer shadow-inner">
-                <div className="absolute right-1 top-1 bottom-1 w-4 bg-white rounded-full shadow-sm"></div>
+            <span className="font-label-md text-label-md font-bold text-primary">{businessStatus === 'open' ? '营业中' : '暂停接单'}</span>
+            <div className={`ml-md w-[40px] h-[24px] rounded-full relative cursor-pointer shadow-inner ${businessStatus === 'open' ? 'bg-primary' : 'bg-outline-variant'}`}>
+                <div className={`absolute top-1 bottom-1 w-4 bg-white rounded-full shadow-sm ${businessStatus === 'open' ? 'right-1' : 'left-1'}`}></div>
             </div>
-        </div>
+        </button>
       </div>
 
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold">今日营业数据</h3>
@@ -132,7 +143,7 @@ function MerchantWorkbench() {
         ))}
       </div>
 
-      <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold flex items-center justify-between">实时单况 <button className="text-primary font-body-md text-body-md font-medium hover:underline flex items-center">查看全部 <span className="material-symbols-outlined text-[18px]">chevron_right</span></button></h3>
+      <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold flex items-center justify-between">实时单况 <button onClick={onViewAllOrders} className="text-primary font-body-md text-body-md font-medium hover:underline flex items-center">查看全部 <span className="material-symbols-outlined text-[18px]">chevron_right</span></button></h3>
       <MerchantError message={error} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
          {pendingOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无待处理订单</p>}
@@ -270,13 +281,22 @@ function MerchantMenuLive() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [categories, setCategories] = useState(['全部', '招牌推荐', '热销单品', '饮品']);
+  const [categoryRows, setCategoryRows] = useState<Array<{ id: number; merchantId: number; name: string; sort: number }>>([]);
   const [activeCategory, setActiveCategory] = useState('全部');
   const [form, setForm] = useState({ name: '', description: '', price: '18', sales: '99', categoryName: '招牌推荐', status: 'on_sale' });
 
   const refresh = () => api.getMerchantDishes().then(setDishes).catch((err) => setError(err instanceof Error ? err.message : '商品加载失败'));
+  const refreshCategories = () => api.getMerchantCategories().then((rows) => {
+    setCategoryRows(rows);
+    setCategories(['全部', ...rows.map((row) => row.name)]);
+    if (rows.length > 0 && !rows.some((row) => row.name === form.categoryName)) {
+      setForm((prev) => ({ ...prev, categoryName: rows[0].name }));
+    }
+  }).catch((err) => setError(err instanceof Error ? err.message : '分类加载失败'));
 
   useEffect(() => {
     refresh();
+    refreshCategories();
   }, []);
 
   const openForm = (dish?: Dish) => {
@@ -293,16 +313,17 @@ function MerchantMenuLive() {
   };
 
   const save = () => {
-    api.saveMerchantDish({
-      id: editing?.id ?? 0,
-      merchantId: editing?.merchantId ?? 0,
+    const payload = {
+      ...(editing?.id ? { id: editing.id } : {}),
+      ...(editing?.merchantId ? { merchantId: editing.merchantId } : {}),
       name: form.name,
       description: form.description,
       price: Number(form.price),
       sales: Number(form.sales),
       categoryName: form.categoryName,
       status: form.status,
-    }).then(() => {
+    };
+    api.saveMerchantDish(payload).then(() => {
       setMessage('保存成功');
       setFormOpen(false);
       refresh();
@@ -324,7 +345,10 @@ function MerchantMenuLive() {
   const addCategory = () => {
     const name = window.prompt('新分类名称');
     if (name) {
-      setCategories((items) => [...items, name]);
+      api.saveMerchantCategory({ name, sort: categoryRows.length + 1 }).then(() => {
+        setMessage('分类已保存');
+        refreshCategories();
+      }).catch((err) => setError(err instanceof Error ? err.message : '分类保存失败'));
     }
   };
 
@@ -332,15 +356,24 @@ function MerchantMenuLive() {
     if (activeCategory === '全部') return;
     const name = window.prompt('编辑分类名称', activeCategory);
     if (name) {
-      setCategories((items) => items.map((item) => item === activeCategory ? name : item));
-      setActiveCategory(name);
+      const row = categoryRows.find((item) => item.name === activeCategory);
+      if (!row) return;
+      api.updateMerchantCategory(row.id, { name, sort: row.sort }).then(() => {
+        setActiveCategory(name);
+        refreshCategories();
+        refresh();
+      }).catch((err) => setError(err instanceof Error ? err.message : '分类编辑失败'));
     }
   };
 
   const deleteCategory = () => {
     if (activeCategory === '全部') return;
-    setCategories((items) => items.filter((item) => item !== activeCategory));
-    setActiveCategory('全部');
+    const row = categoryRows.find((item) => item.name === activeCategory);
+    if (!row) return;
+    api.deleteMerchantCategory(row.id).then(() => {
+      setActiveCategory('全部');
+      refreshCategories();
+    }).catch((err) => setError(err instanceof Error ? err.message : '分类删除失败'));
   };
 
   return (
@@ -469,7 +502,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
           <button onClick={logout} className="material-symbols-outlined text-primary">logout</button>
         </header>
 
-        {activeTab === 'workbench' && <MerchantWorkbench />}
+        {activeTab === 'workbench' && <MerchantWorkbench onViewAllOrders={() => setActiveTab('orders')} />}
         {activeTab === 'orders' && <MerchantOrders />}
         {activeTab === 'menu' && <MerchantMenuLive />}
         {activeTab === 'settings' && <MerchantSettings />}

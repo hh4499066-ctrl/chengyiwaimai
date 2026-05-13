@@ -60,8 +60,13 @@ mysql -uroot -p < sql/init.sql
 
 ```bash
 mysql -uroot -p < sql/migration-20260512-auth-order-cart.sql
+mysql -uroot -p < sql/migration-20260513-review-fixes.sql
 mysql -uroot -p < sql/init.sql
 ```
+
+本轮迁移新增 `delivery_order.pay_method/coupon_id/discount_amount`、`dish_category`、`withdraw_record`，并为 `marketing_activity` 增加 `merchant_id`。优惠券抵扣和支付方式均以数据库订单记录为准。
+
+WebSocket 演示环境通过 query token 鉴权；生产环境建议改为短期票据、Cookie 或网关鉴权。后端不得打印完整 token。REST 接口仍只接受 Authorization Header，不能通过 `?token=` 认证。
 
 ## 构建检查
 

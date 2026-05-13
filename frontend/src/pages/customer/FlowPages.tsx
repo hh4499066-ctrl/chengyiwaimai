@@ -37,6 +37,7 @@ function enrichMerchant(merchant: Merchant, index: number): Required<Merchant> {
     deliveryFee: merchant.deliveryFee ?? fallback.deliveryFee,
     image: merchant.image || imageFor(index),
     tags: merchant.tags?.length ? merchant.tags : fallback.tags,
+    businessStatus: merchant.businessStatus || 'open',
   };
 }
 
@@ -246,7 +247,11 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
   const [remark, setRemark] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const total = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0) + (items.length > 0 ? 1.5 : 0), [items]);
+  const goodsAmount = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
+  const deliveryFee = items.length > 0 ? 1.5 : 0;
+  const couponAvailable = selectedCoupon ? goodsAmount >= Number(selectedCoupon.thresholdAmount) : false;
+  const discountAmount = selectedCoupon && couponAvailable ? Math.min(Number(selectedCoupon.discountAmount), goodsAmount + deliveryFee) : 0;
+  const total = Math.max(0, goodsAmount + deliveryFee - discountAmount);
 
   useEffect(() => {
     api
@@ -268,7 +273,7 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
     setLoading(true);
     setError('');
     api
-      .createOrder({ merchantId, address: selectedAddress?.detail || address, remark, items })
+      .createOrder({ merchantId, address: selectedAddress?.detail || address, remark, couponId: selectedCoupon?.id, discountAmount, items })
       .then((order) => {
         setOrder(order);
         go('pay');
@@ -301,7 +306,9 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
               <span className="font-bold">¥{(item.price * item.quantity).toFixed(1)}</span>
             </div>
           ))}
-          <div className="flex justify-between pt-sm text-body-md text-on-surface-variant"><span>配送费</span><span>¥{items.length > 0 ? '1.5' : '0.0'}</span></div>
+          <div className="flex justify-between pt-sm text-body-md text-on-surface-variant"><span>商品金额</span><span>¥{goodsAmount.toFixed(1)}</span></div>
+          <div className="flex justify-between pt-sm text-body-md text-on-surface-variant"><span>配送费</span><span>¥{deliveryFee.toFixed(1)}</span></div>
+          <div className="flex justify-between pt-sm text-body-md text-primary"><span>优惠券抵扣</span><span>-¥{discountAmount.toFixed(1)}</span></div>
         </section>
       </main>
       <div className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between">
@@ -322,7 +329,7 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
           <div className="w-full bg-surface rounded-t-3xl p-md space-y-sm" onClick={(event) => event.stopPropagation()}>
             <button onClick={() => { setSelectedCoupon(null); setCouponOpen(false); }} className="w-full text-left p-md rounded-xl bg-surface-container-high">不使用优惠券</button>
             {coupons.map((item) => (
-              <button key={item.id} onClick={() => { setSelectedCoupon(item); setCouponOpen(false); }} className="w-full text-left p-md rounded-xl bg-surface-container-high">{item.name}<br /><span className="text-primary">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</span></button>
+              <button key={item.id} disabled={goodsAmount < Number(item.thresholdAmount)} onClick={() => { setSelectedCoupon(item); setCouponOpen(false); }} className="w-full text-left p-md rounded-xl bg-surface-container-high disabled:opacity-50">{item.name}<br /><span className="text-primary">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</span>{goodsAmount < Number(item.thresholdAmount) && <span className="block text-error text-label-md">未达到使用门槛</span>}</button>
             ))}
           </div>
         </div>
@@ -544,6 +551,12 @@ export function ReviewPage({ orderId, go }: { orderId: string | null; go: Naviga
 export function OrdersPage({ go, setOrder }: { go: Navigate; setOrder: (order: Order) => void }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
+  const cancel = (order: Order) => {
+    setError('');
+    api.cancelOrder(order.id)
+      .then(() => api.getOrders().then(setOrders))
+      .catch((err) => setError(err instanceof Error ? err.message : '取消订单失败'));
+  };
 
   useEffect(() => {
     api.getOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '历史订单加载失败'));
@@ -560,8 +573,54 @@ export function OrdersPage({ go, setOrder }: { go: Navigate; setOrder: (order: O
             <div className="flex justify-between"><h2 className="font-headline-sm text-headline-sm font-bold">{order.merchantName}</h2><span className="text-primary text-label-md">{order.status}</span></div>
             <p className="text-body-md text-on-surface-variant mt-xs">订单号：{order.id}</p>
             <p className="font-headline-sm text-headline-sm text-primary mt-sm">¥{Number(order.totalAmount).toFixed(1)}</p>
+            {order.remark && <p className="text-body-md text-on-surface-variant mt-xs">备注：{order.remark}</p>}
+            {order.status === '待支付' && <span onClick={(event) => { event.stopPropagation(); cancel(order); }} className="inline-block mt-sm rounded-full border border-error text-error px-md py-xs text-label-md">取消订单</span>}
           </button>
         ))}
+      </main>
+    </div>
+  );
+}
+
+export function AddressPage({ go }: { go: Navigate }) {
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    api.getAddresses().then(setAddresses).catch((err) => setError(err instanceof Error ? err.message : '地址加载失败'));
+  }, []);
+  const add = () => {
+    const detail = window.prompt('新增地址');
+    if (!detail) return;
+    api.saveAddress({ receiver: '同学', phone: '13800000000', detail, isDefault: addresses.length === 0 })
+      .then(() => api.getAddresses().then(setAddresses))
+      .catch((err) => setError(err instanceof Error ? err.message : '地址保存失败'));
+  };
+  return (
+    <div className="bg-surface min-h-full pb-[100px]">
+      <PhoneHeader title="我的地址" onBack={() => go('profile')} />
+      <main className="p-md space-y-md">
+        <ErrorBanner message={error} />
+        <button onClick={add} className="w-full rounded-full bg-primary text-on-primary py-sm font-bold">新增地址</button>
+        {addresses.length === 0 && <p className="text-center text-on-surface-variant py-xl">暂无地址</p>}
+        {addresses.map((item, index) => <div key={item.id ?? index} className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30"><h3 className="font-headline-sm font-bold">{item.receiver} {item.phone}</h3><p className="text-on-surface-variant mt-xs">{item.detail}</p></div>)}
+      </main>
+    </div>
+  );
+}
+
+export function CouponPage({ go }: { go: Navigate }) {
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    api.getCoupons().then(setCoupons).catch((err) => setError(err instanceof Error ? err.message : '优惠券加载失败'));
+  }, []);
+  return (
+    <div className="bg-surface min-h-full pb-[100px]">
+      <PhoneHeader title="我的优惠券" onBack={() => go('profile')} />
+      <main className="p-md space-y-md">
+        <ErrorBanner message={error} />
+        {coupons.length === 0 && <p className="text-center text-on-surface-variant py-xl">暂无可用优惠券</p>}
+        {coupons.map((item) => <div key={item.id} className="bg-primary-container rounded-2xl p-md text-on-primary-container"><h3 className="font-headline-sm font-bold">{item.name}</h3><p className="mt-xs">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</p><p className="text-label-md mt-sm">{item.status}</p></div>)}
       </main>
     </div>
   );

@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS dish (
   KEY idx_dish_merchant_id (merchant_id)
 );
 
+CREATE TABLE IF NOT EXISTS dish_category (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  merchant_id BIGINT NOT NULL,
+  name VARCHAR(50) NOT NULL,
+  sort INT DEFAULT 1,
+  deleted TINYINT DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_dish_category_merchant_name (merchant_id, name),
+  KEY idx_dish_category_merchant_id (merchant_id)
+);
+
 CREATE TABLE IF NOT EXISTS delivery_order (
   id VARCHAR(36) PRIMARY KEY,
   user_id BIGINT,
@@ -54,6 +66,9 @@ CREATE TABLE IF NOT EXISTS delivery_order (
   address VARCHAR(255),
   status VARCHAR(30) NOT NULL,
   remark VARCHAR(255),
+  pay_method VARCHAR(30),
+  coupon_id BIGINT,
+  discount_amount DECIMAL(10,2) DEFAULT 0,
   deleted TINYINT DEFAULT 0,
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -128,11 +143,23 @@ CREATE TABLE IF NOT EXISTS review (
 
 CREATE TABLE IF NOT EXISTS marketing_activity (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  merchant_id BIGINT,
   name VARCHAR(80) NOT NULL,
   type VARCHAR(30) NOT NULL,
   start_time DATETIME,
   end_time DATETIME,
   status VARCHAR(20) DEFAULT 'enabled',
   deleted TINYINT DEFAULT 0,
-  UNIQUE KEY uk_marketing_activity_name (name)
+  KEY idx_marketing_activity_merchant_id (merchant_id)
+);
+
+CREATE TABLE IF NOT EXISTS withdraw_record (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  rider_id BIGINT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  account_no VARCHAR(80) NOT NULL,
+  status VARCHAR(20) DEFAULT 'submitted',
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_withdraw_record_rider_id (rider_id)
 );

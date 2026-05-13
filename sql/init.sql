@@ -18,6 +18,12 @@ INSERT INTO dish(id, merchant_id, category_name, name, description, price, stock
 (103, 1, '饮品', '冰柠檬茶', '清爽解腻，少冰少糖可选。', 9.00, 200, 'on_sale')
 ON DUPLICATE KEY UPDATE merchant_id = VALUES(merchant_id), category_name = VALUES(category_name), name = VALUES(name), description = VALUES(description), price = VALUES(price), stock = VALUES(stock), status = VALUES(status);
 
+INSERT INTO dish_category(merchant_id, name, sort) VALUES
+(1, '招牌推荐', 1),
+(1, '热销单品', 2),
+(1, '饮品', 3)
+ON DUPLICATE KEY UPDATE sort = VALUES(sort), deleted = 0;
+
 INSERT INTO user_address(user_id, receiver, phone, detail, is_default)
 SELECT id, '张同学', '13800000001', '学校东门 3 号宿舍楼 502', 1
 FROM sys_user

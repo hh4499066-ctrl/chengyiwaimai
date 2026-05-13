@@ -174,7 +174,7 @@ function RiderTask() {
                 <div className="bg-surface-variant/30 rounded-xl p-sm mb-md flex justify-between items-center"><div className="flex gap-2 items-center"><span className="material-symbols-outlined text-outline text-[18px]">payments</span><span className="text-label-md font-label-md text-on-surface-variant">金额 <strong className="text-body-md font-body-md text-on-surface mx-1">¥{Number(task.totalAmount).toFixed(2)}</strong></span></div><span className="text-label-md font-label-md text-error">{task.status}</span></div>
                 <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">{task.address}</p></div></div>
                 <div className="flex gap-sm">
-                    <button className="flex-1 py-2.5 rounded-xl border border-primary text-primary font-body-md font-medium flex items-center justify-center gap-xs hover:bg-primary/5"><span className="material-symbols-outlined text-[18px]">phone_enabled</span>联系商家</button>
+                    <button onClick={() => window.alert(`模拟拨打商家电话：${task.merchantName} 020-88886666`)} className="flex-1 py-2.5 rounded-xl border border-primary text-primary font-body-md font-medium flex items-center justify-center gap-xs hover:bg-primary/5"><span className="material-symbols-outlined text-[18px]">phone_enabled</span>联系商家</button>
                     <button disabled={!nextAction(task) || loadingId === task.id} onClick={() => submit(task)} className="flex-1 py-2.5 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-[0_2px_8px_rgba(171,53,0,0.25)] flex items-center justify-center gap-xs hover:bg-[#832600] disabled:opacity-50">{actionLabel(task)}</button>
                 </div>
               </div>
@@ -190,6 +190,8 @@ function RiderTask() {
 function RiderEarnings() {
   const [stats, setStats] = useState<RiderStats>({ todayIncome: 0, todayOrders: 0, totalIncome: 0, totalOrders: 0, level: '黄金骑手', score: '4.8', onTimeRate: '99.8%' });
   const [message, setMessage] = useState('');
+  const [range, setRange] = useState('今日');
+  const [detail, setDetail] = useState<{ n: string; t: string; v: string; a: string } | null>(null);
 
   useEffect(() => {
     api.getRiderIncome().then(setStats).catch(() => undefined);
@@ -217,7 +219,7 @@ function RiderEarnings() {
         <button onClick={submitWithdraw} className="w-full mb-md bg-primary text-on-primary rounded-full py-sm font-bold">申请提现</button>
         <div className="bg-surface-container-lowest rounded-[20px] p-md shadow-sm border border-outline-variant/30 flex mb-lg">
           {['今日', '本周', '本月'].map((tab, i) => (
-            <button key={i} className={`flex-1 py-sm text-body-md font-body-md rounded-[12px] font-medium transition-colors ${i===0 ? 'bg-primary-container text-on-primary-container shadow-sm':'text-on-surface-variant'}`}>{tab}</button>
+            <button key={i} onClick={() => setRange(tab)} className={`flex-1 py-sm text-body-md font-body-md rounded-[12px] font-medium transition-colors ${range === tab ? 'bg-primary-container text-on-primary-container shadow-sm':'text-on-surface-variant'}`}>{tab}</button>
           ))}
         </div>
         <div className="bg-surface-container-lowest rounded-[20px] p-lg shadow-sm border border-outline-variant/30 mb-lg">
@@ -239,7 +241,7 @@ function RiderEarnings() {
           </div>
         </div>
         <div>
-          <div className="flex justify-between items-center mb-md px-xs"><h2 className="text-body-lg font-body-lg font-bold">明细</h2><button className="text-label-md font-label-md text-primary flex items-center">全部明细 <span className="material-symbols-outlined text-[16px]">chevron_right</span></button></div>
+          <div className="flex justify-between items-center mb-md px-xs"><h2 className="text-body-lg font-body-lg font-bold">{range}明细</h2><button onClick={() => setMessage(`已打开${range}全部明细`)} className="text-label-md font-label-md text-primary flex items-center">全部明细 <span className="material-symbols-outlined text-[16px]">chevron_right</span></button></div>
           <div className="space-y-sm">
             {[ 
               { n: '完成订单收入', t: '14:32', v: '+4.50', a: '单号: 83921123', c: 'text-primary' },
@@ -247,13 +249,24 @@ function RiderEarnings() {
               { n: '完成订单收入', t: '10:45', v: '+5.20', a: '单号: 83921098', c: 'text-primary' },
               { n: '超时扣款', t: '09:20', v: '-2.00', a: '单号: 83921012', c: 'text-error' }
             ].map((d, i) => (
-              <div key={i} className="bg-surface-container-lowest rounded-[16px] p-md flex items-center justify-between border border-outline-variant/30 shadow-[0_2px_8px_rgba(38,24,20,0.02)] active:scale-[0.98] transition-transform">
+              <button key={i} onClick={() => setDetail(d)} className="w-full text-left bg-surface-container-lowest rounded-[16px] p-md flex items-center justify-between border border-outline-variant/30 shadow-[0_2px_8px_rgba(38,24,20,0.02)] active:scale-[0.98] transition-transform">
                 <div className="flex gap-md items-center"><div className={`w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center ${d.c}`}><span className="material-symbols-outlined text-[20px] fill">{d.v.startsWith('-') ? 'warning' : 'payments'}</span></div><div><h3 className="text-body-md font-body-md font-bold mb-0.5">{d.n}</h3><div className="flex gap-sm items-center"><span className="text-label-md font-label-md text-on-surface-variant">{d.t}</span><span className="w-1 h-1 rounded-full bg-outline-variant"></span><span className="text-label-md font-label-md text-on-surface-variant truncate w-[100px]">{d.a}</span></div></div></div><div className={`text-headline-sm font-headline-sm font-bold ${d.v.startsWith('-') ? 'text-error' : 'text-on-surface'}`}>{d.v}</div>
-              </div>
+              </button>
             ))}
           </div>
         </div>
       </div>
+      {detail && (
+        <div className="fixed inset-0 z-[100] bg-black/30 flex items-end" onClick={() => setDetail(null)}>
+          <div className="w-full bg-surface rounded-t-3xl p-lg space-y-sm" onClick={(event) => event.stopPropagation()}>
+            <h3 className="font-headline-sm font-bold">{detail.n}</h3>
+            <p className="text-on-surface-variant">订单/来源：{detail.a}</p>
+            <p className="text-on-surface-variant">时间：{detail.t}</p>
+            <p className="text-primary font-bold">金额：{detail.v}</p>
+            <button onClick={() => setDetail(null)} className="w-full bg-primary text-on-primary rounded-full py-sm">关闭</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -285,8 +298,8 @@ function RiderProfile({ onLogout }: { onLogout: () => void }) {
         </div>
         <div className="bg-surface-container-lowest rounded-2xl shadow-sm border border-outline-variant/30 overflow-hidden divide-y divide-outline-variant/20">
             {[
-                { i: "electric_moped", t: "我的车辆", d: "已绑定 (粤A 83**)", c: "text-primary" },
-                { i: "security", t: "资质认证", d: "身份证、健康证已认证", c: "text-tertiary" },
+                { i: "electric_moped", t: "我的车辆", d: "已绑定 (粤A 83**)", c: "text-primary", action: () => tip('车辆信息：电动车 粤A 83**，电池健康 92%。') },
+                { i: "security", t: "资质认证", d: "身份证、健康证已认证", c: "text-tertiary", action: () => tip('资质认证：实名认证、健康证、骑手培训均已通过。') },
                 { i: "payments", t: "提现记录", d: "查看最近申请", c: "text-primary", action: () => tip('最近提现申请已提交，等待平台审核。') },
                 { i: "star", t: "评分评价", d: "综合评分 4.8", c: "text-tertiary", action: () => tip('暂无新的差评，继续保持准时配送。') },
                 { i: "headset_mic", t: "联系客服", d: "", c: "text-secondary", action: () => tip('骑手客服：400-800-2026') },

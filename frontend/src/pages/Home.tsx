@@ -18,6 +18,7 @@ function enrichMerchant(merchant: Merchant, index: number): Required<Merchant> {
     deliveryFee: merchant.deliveryFee ?? fallback.deliveryFee,
     image: merchant.image || merchantImages[index % merchantImages.length],
     tags: merchant.tags?.length ? merchant.tags : fallback.tags,
+    businessStatus: merchant.businessStatus || 'open',
   };
 }
 

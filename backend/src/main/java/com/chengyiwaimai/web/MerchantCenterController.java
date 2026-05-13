@@ -9,10 +9,12 @@ import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.BusinessService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -86,14 +88,53 @@ public class MerchantCenterController {
         return ApiResponse.ok(store.saveCategory(user, category));
     }
 
+    @PutMapping("/categories/{categoryId}")
+    public ApiResponse<?> updateCategory(HttpServletRequest request, @PathVariable Long categoryId, @RequestBody Category category) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.updateCategory(user, categoryId, category));
+    }
+
+    @DeleteMapping("/categories/{categoryId}")
+    public ApiResponse<?> deleteCategory(HttpServletRequest request, @PathVariable Long categoryId) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        store.deleteCategory(user, categoryId);
+        return ApiResponse.ok(Map.of("deleted", true));
+    }
+
     @GetMapping("/business-settings")
-    public ApiResponse<Map<String, Object>> businessSettings() {
+    public ApiResponse<Map<String, Object>> businessSettings(HttpServletRequest request) {
+        if (request != null) {
+            CurrentUser user = AuthContext.requireRole(request, "merchant");
+            return ApiResponse.ok(store.businessSettings(user));
+        }
         return ApiResponse.ok(Map.of("businessStatus", "营业中", "openTime", "09:00", "closeTime", "22:30", "deliveryRange", "5km"));
     }
 
     @PostMapping("/business-settings")
-    public ApiResponse<Map<String, Object>> saveBusinessSettings(@RequestBody Map<String, Object> body) {
+    public ApiResponse<Map<String, Object>> saveBusinessSettings(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        if (request != null) {
+            CurrentUser user = AuthContext.requireRole(request, "merchant");
+            return ApiResponse.ok(store.saveBusinessSettings(user, body));
+        }
         return ApiResponse.ok(Map.of("saved", true, "settings", body));
+    }
+
+    @GetMapping("/marketing")
+    public ApiResponse<?> marketing(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantMarketing(user));
+    }
+
+    @PostMapping("/marketing")
+    public ApiResponse<?> saveMarketing(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.saveMerchantMarketing(user, body));
+    }
+
+    @PutMapping("/marketing/{id}")
+    public ApiResponse<?> updateMarketing(HttpServletRequest request, @PathVariable Long id, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.updateMerchantMarketing(user, id, body));
     }
 
     @GetMapping("/stats")

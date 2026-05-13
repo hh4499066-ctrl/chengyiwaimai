@@ -18,6 +18,9 @@ public class DeliveryOrderEntity {
     private String address;
     private String status;
     private String remark;
+    private String payMethod;
+    private Long couponId;
+    private BigDecimal discountAmount;
     @TableLogic
     private Integer deleted;
     private LocalDateTime createTime;
@@ -85,6 +88,30 @@ public class DeliveryOrderEntity {
 
     public void setRemark(String remark) {
         this.remark = remark;
+    }
+
+    public String getPayMethod() {
+        return payMethod;
+    }
+
+    public void setPayMethod(String payMethod) {
+        this.payMethod = payMethod;
+    }
+
+    public Long getCouponId() {
+        return couponId;
+    }
+
+    public void setCouponId(Long couponId) {
+        this.couponId = couponId;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
     }
 
     public Integer getDeleted() {

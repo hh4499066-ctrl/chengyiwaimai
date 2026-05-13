@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, type CartItem } from '../api/client';
-import { dishes, merchants } from '../mock/data';
+import { dishes } from '../mock/data';
 
-export default function Cart({ onCheckout, onSearch, onMessage, onMerchant }: { onCheckout?: () => void; onSearch?: () => void; onMessage?: () => void; onMerchant?: () => void }) {
+export default function Cart({ onCheckout, onSearch, onMessage, onMerchant }: { onCheckout?: () => void; onSearch?: () => void; onMessage?: () => void; onMerchant?: (merchantId?: number) => void }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [error, setError] = useState('');
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
+  const cartMerchant = items.find((item) => item.merchantId || item.merchantName);
   const deliveryFee = items.length > 0 ? 1.5 : 0;
   const total = subtotal + deliveryFee;
 
@@ -51,9 +52,9 @@ export default function Cart({ onCheckout, onSearch, onMessage, onMerchant }: { 
         {error && <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{error}</div>}
         <section className="bg-surface-container-lowest rounded-xl shadow-[0_4px_12px_rgba(31,41,55,0.04)] p-md flex flex-col gap-sm border border-surface-variant/30">
           <div className="flex items-center justify-between border-b border-surface-variant/20 pb-sm">
-            <button onClick={onMerchant} className="flex items-center gap-xs text-left">
+            <button onClick={() => onMerchant?.(cartMerchant?.merchantId)} className="flex items-center gap-xs text-left">
               <span className="material-symbols-outlined text-on-surface-variant text-[20px]">storefront</span>
-              <h2 className="font-headline-sm text-headline-sm text-on-surface">{merchants[0].name}</h2>
+              <h2 className="font-headline-sm text-headline-sm text-on-surface">{cartMerchant?.merchantName || '购物车商家'}</h2>
               <span className="material-symbols-outlined text-on-surface-variant text-[16px]">chevron_right</span>
             </button>
           </div>

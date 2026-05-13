@@ -6,12 +6,18 @@ export default function Profile({
   goAddress,
   goCoupons,
   goReviews,
+  onSearch,
+  onMessage,
+  onCart,
 }: {
   onLogout?: () => void;
   goOrders?: () => void;
   goAddress?: () => void;
   goCoupons?: () => void;
   goReviews?: () => void;
+  onSearch?: () => void;
+  onMessage?: () => void;
+  onCart?: () => void;
 }) {
   const tip = (message: string) => window.alert(message);
   return (
@@ -20,14 +26,14 @@ export default function Profile({
       <header className="fixed top-0 w-full z-50 flex justify-between items-center px-md py-sm bg-surface dark:bg-surface-dim shadow-sm md:hidden">
         <div className="text-headline-md font-headline-md font-bold text-primary">橙意外卖</div>
         <div className="flex items-center gap-sm">
-          <button className="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant transition-colors scale-98 active:opacity-80 p-2 rounded-full flex items-center justify-center">
+          <button onClick={onSearch} className="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant transition-colors scale-98 active:opacity-80 p-2 rounded-full flex items-center justify-center">
             <span className="material-symbols-outlined">search</span>
           </button>
-          <button className="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant transition-colors scale-98 active:opacity-80 p-2 rounded-full flex items-center justify-center relative">
+          <button onClick={onMessage} className="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant transition-colors scale-98 active:opacity-80 p-2 rounded-full flex items-center justify-center relative">
             <span className="material-symbols-outlined">notifications</span>
             <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full"></span>
           </button>
-          <button className="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant transition-colors scale-98 active:opacity-80 p-2 rounded-full flex items-center justify-center">
+          <button onClick={onCart} className="text-primary dark:text-primary-fixed-dim hover:bg-surface-variant transition-colors scale-98 active:opacity-80 p-2 rounded-full flex items-center justify-center">
             <span className="material-symbols-outlined">shopping_cart</span>
           </button>
         </div>

@@ -3,7 +3,7 @@ import Home from './Home';
 import Cart from './Cart';
 import Message from './Message';
 import Profile from './Profile';
-import { CheckoutPage, MerchantDetailPage, OrdersPage, PayPage, PayResultPage, ReviewPage, SearchPage, TrackingPage } from './customer/FlowPages';
+import { AddressPage, CheckoutPage, CouponPage, MerchantDetailPage, OrdersPage, PayPage, PayResultPage, ReviewPage, SearchPage, TrackingPage } from './customer/FlowPages';
 import type { Order } from '../api/client';
 
 export default function Customer({ setRole }: { setRole: () => void }) {
@@ -34,9 +34,9 @@ export default function Customer({ setRole }: { setRole: () => void }) {
     <div className="max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden bg-surface flex flex-col">
       <div className="flex-1 overflow-y-auto w-full relative pb-safe">
         {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMessage={() => go('message')} onMerchantClick={openMerchant} />}
-        {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} onSearch={() => go('search')} onMessage={() => go('message')} onMerchant={() => go('merchant')} />}
+        {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} onSearch={() => go('search')} onMessage={() => go('message')} onMerchant={(merchantId) => merchantId ? openMerchant(merchantId) : go('merchant')} />}
         {screen === 'message' && activeTab === 'message' && <Message onCart={() => go('cart')} onTracking={() => go('tracking')} />}
-        {screen === 'profile' && activeTab === 'profile' && <Profile onLogout={logout} goOrders={() => go('orders')} goAddress={() => window.alert('地址管理请在确认订单页选择或新增')} goCoupons={() => window.alert('优惠券列表会在确认订单页展示')} goReviews={() => go('orders')} />}
+        {screen === 'profile' && activeTab === 'profile' && <Profile onLogout={logout} goOrders={() => go('orders')} goAddress={() => go('address')} goCoupons={() => go('coupons')} goReviews={() => go('orders')} onSearch={() => go('search')} onMessage={() => go('message')} onCart={() => go('cart')} />}
         {screen === 'search' && <SearchPage onBack={() => go('home')} onMerchant={openMerchant} />}
         {screen === 'merchant' && <MerchantDetailPage merchantId={selectedMerchantId} go={go} />}
         {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrder={setCurrentOrder} go={go} />}
@@ -45,6 +45,8 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         {screen === 'tracking' && <TrackingPage order={currentOrder} setOrder={setCurrentOrder} go={go} />}
         {screen === 'review' && <ReviewPage orderId={currentOrder?.id ?? null} go={go} />}
         {screen === 'orders' && <OrdersPage go={go} setOrder={setCurrentOrder} />}
+        {screen === 'address' && <AddressPage go={go} />}
+        {screen === 'coupons' && <CouponPage go={go} />}
       </div>
 
       <nav className="shrink-0 w-full bg-surface border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">

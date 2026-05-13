@@ -7,18 +7,17 @@ import com.baomidou.mybatisplus.annotation.TableName;
 
 import java.time.LocalDateTime;
 
-@TableName("marketing_activity")
-public class MarketingActivityEntity {
+@TableName("dish_category")
+public class CategoryEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long merchantId;
     private String name;
-    private String type;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
-    private String status;
+    private Integer sort;
     @TableLogic
     private Integer deleted;
+    private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 
     public Long getId() {
         return id;
@@ -44,36 +43,12 @@ public class MarketingActivityEntity {
         this.name = name;
     }
 
-    public String getType() {
-        return type;
+    public Integer getSort() {
+        return sort;
     }
 
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-
-    public void setEndTime(LocalDateTime endTime) {
-        this.endTime = endTime;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
+    public void setSort(Integer sort) {
+        this.sort = sort;
     }
 
     public Integer getDeleted() {
@@ -82,5 +57,21 @@ public class MarketingActivityEntity {
 
     public void setDeleted(Integer deleted) {
         this.deleted = deleted;
+    }
+
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
+    }
+
+    public LocalDateTime getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(LocalDateTime updateTime) {
+        this.updateTime = updateTime;
     }
 }

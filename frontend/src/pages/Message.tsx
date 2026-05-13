@@ -29,9 +29,6 @@ export default function Message({ onCart, onTracking }: { onCart?: () => void; o
   const openMessage = (message: MessageItem) => {
     setMessages((items) => items.map((item) => item.id === message.id ? { ...item, unread: false } : item));
     setSelected({ ...message, unread: false });
-    if (message.type === 'order') {
-      onTracking?.();
-    }
   };
 
   return (
@@ -95,6 +92,7 @@ export default function Message({ onCart, onTracking }: { onCart?: () => void; o
           <div className="w-full bg-surface rounded-t-3xl p-lg space-y-sm" onClick={(event) => event.stopPropagation()}>
             <h2 className="font-headline-sm text-headline-sm font-bold">{selected.title}</h2>
             <p className="text-body-md text-on-surface-variant">{selected.content}</p>
+            {selected.type === 'order' && <button onClick={() => { setSelected(null); onTracking?.(); }} className="w-full mt-md bg-primary text-on-primary rounded-full py-sm font-bold">查看订单状态</button>}
             <button onClick={() => setSelected(null)} className="w-full mt-md bg-primary text-on-primary rounded-full py-sm font-bold">知道了</button>
           </div>
         </div>

@@ -18,6 +18,7 @@ export type Merchant = {
   deliveryFee?: number;
   image?: string;
   tags?: string[];
+  businessStatus?: string;
 };
 
 export type Dish = {
@@ -39,6 +40,8 @@ export type CartItem = {
   name: string;
   quantity: number;
   price: number;
+  merchantId?: number;
+  merchantName?: string;
 };
 
 export type CreateOrderPayload = {
@@ -46,6 +49,8 @@ export type CreateOrderPayload = {
   address: string;
   remark?: string;
   payMethod?: string;
+  couponId?: number;
+  discountAmount?: number;
   items: CartItem[];
 };
 
@@ -56,6 +61,10 @@ export type Order = {
   status: string;
   totalAmount: number;
   address: string;
+  remark?: string;
+  payMethod?: string;
+  couponId?: number;
+  discountAmount?: number;
   createTime?: string;
 };
 
@@ -234,7 +243,7 @@ export const api = {
   merchantAction: (orderId: string, action: 'accept' | 'reject' | 'ready' | 'cancel') =>
     request<Order>(`/orders/${orderId}/merchant/${action}`, { method: 'POST' }),
   getMerchantDishes: () => request<Dish[]>('/merchant-center/dishes'),
-  saveMerchantDish: (payload: Dish) =>
+  saveMerchantDish: (payload: Partial<Dish> & { name: string; price: number }) =>
     request<Dish>('/merchant-center/dishes', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -262,13 +271,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  updateMerchantCategory: (id: number, payload: { name: string; sort?: number }) =>
+    request<{ id: number; merchantId: number; name: string; sort: number }>(`/merchant-center/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  deleteMerchantCategory: (id: number) => request<{ deleted: boolean }>(`/merchant-center/categories/${id}`, { method: 'DELETE' }),
+  getBusinessSettings: () => request<Record<string, unknown>>('/merchant-center/business-settings'),
   saveBusinessSettings: (payload: Record<string, unknown>) =>
-    request<{ saved: boolean; settings: Record<string, unknown> }>('/merchant-center/business-settings', {
+    request<{ saved: boolean; businessStatus?: string; settings: Record<string, unknown> }>('/merchant-center/business-settings', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  getMerchantMarketing: () => request<MarketingActivity[]>('/merchant-center/marketing'),
+  saveMerchantMarketing: (payload: Partial<MarketingActivity>) =>
+    request<MarketingActivity>('/merchant-center/marketing', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateMerchantMarketing: (id: number, payload: Partial<MarketingActivity>) =>
+    request<MarketingActivity>(`/merchant-center/marketing/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(payload),
     }),
   getRiderLobby: () => request<RiderLobbyOrder[]>('/rider/lobby'),
   getRiderTasks: () => request<Order[]>('/rider/tasks'),
+  getRiderHistory: () => request<Order[]>('/rider/history'),
   riderAction: (orderId: string, action: 'accept' | 'pickup' | 'delivered') =>
     request<Order>(`/orders/${orderId}/rider/${action}`, { method: 'POST' }),
   reportRiderLocation: (payload: RiderLocation) =>
@@ -282,6 +310,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ amount, accountNo }),
     }),
+  getWithdrawRecords: () => request<Array<{ id: number; amount: number; accountNo: string; status: string; createTime?: string }>>('/rider/withdraw-records'),
+  cancelOrder: (orderId: string) => request<Order>(`/orders/${orderId}/cancel`, { method: 'POST' }),
   submitReview: (payload: ReviewPayload) =>
     request<unknown>('/customer/reviews', {
       method: 'POST',
@@ -302,5 +332,16 @@ export const api = {
     request<{ module: string; saved: boolean; data: Record<string, unknown> }>(`/admin/${module}`, {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+  adminUpdate: (module: string, id: number, body: Record<string, unknown>) =>
+    request<Record<string, unknown>>(`/admin/${module}/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  adminDelete: (module: string, id: number) => request<Record<string, unknown>>(`/admin/${module}/${id}`, { method: 'DELETE' }),
+  updateAdminUserStatus: (id: number, status: string) =>
+    request<Record<string, unknown>>(`/admin/users/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
     }),
 };

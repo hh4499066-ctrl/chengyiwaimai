@@ -125,6 +125,8 @@ export function AdminModule({ type }: { type: string }) {
   const [marketing, setMarketing] = useState<MarketingActivity[]>([]);
   const [statusFilter, setStatusFilter] = useState('全部');
   const [modal, setModal] = useState<{ title: string; body: React.ReactNode } | null>(null);
+  const shownOrders = useMemo(() => statusFilter === '全部' ? orders : orders.filter((order) => order.status === statusFilter), [orders, statusFilter]);
+  const statuses = useMemo(() => ['全部', ...Array.from(new Set(orders.map((order) => order.status)))], [orders]);
 
   useEffect(() => {
     if (type === 'users') {
@@ -158,8 +160,6 @@ export function AdminModule({ type }: { type: string }) {
   }
 
   if (type === 'orders') {
-    const shownOrders = useMemo(() => statusFilter === '全部' ? orders : orders.filter((order) => order.status === statusFilter), [orders, statusFilter]);
-    const statuses = ['全部', ...Array.from(new Set(orders.map((order) => order.status)))];
     return (
       <PageShell title="订单管理" desc="展示真实订单并支持状态筛选。" action="导出订单" onAction={exportOrders}>
         <div className="flex gap-sm mb-md overflow-x-auto">{statuses.map((status) => <button key={status} onClick={() => setStatusFilter(status)} className={`px-md py-xs rounded-full ${statusFilter === status ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>{status}</button>)}</div>

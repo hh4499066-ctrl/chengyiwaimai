@@ -20,13 +20,13 @@ public final class Models {
     public record Dish(Long id, Long merchantId, String name, String description, BigDecimal price, Integer sales, String categoryName, String status) {
     }
 
-    public record CartItem(Long dishId, String name, Integer quantity, BigDecimal price) {
+    public record CartItem(Long dishId, String name, Integer quantity, BigDecimal price, Long merchantId, String merchantName) {
     }
 
-    public record CreateOrderRequest(Long merchantId, String address, String remark, String payMethod, List<CartItem> items) {
+    public record CreateOrderRequest(Long merchantId, String address, String remark, String payMethod, Long couponId, BigDecimal discountAmount, List<CartItem> items) {
     }
 
-    public record Order(String id, Long merchantId, String merchantName, String status, BigDecimal totalAmount, String address, LocalDateTime createTime) {
+    public record Order(String id, Long merchantId, String merchantName, String status, BigDecimal totalAmount, String address, String remark, String payMethod, Long couponId, BigDecimal discountAmount, LocalDateTime createTime) {
     }
 
     public record RiderLocation(String orderId, BigDecimal longitude, BigDecimal latitude) {

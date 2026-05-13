@@ -52,7 +52,8 @@ public class OrderController {
     @PostMapping("/{orderId}/pay")
     public ApiResponse<Order> pay(HttpServletRequest request, @PathVariable String orderId, @RequestBody(required = false) Map<String, Object> body) {
         CurrentUser user = AuthContext.requireRole(request, "customer");
-        Order order = store.payOrder(user, orderId);
+        String payMethod = body == null ? null : String.valueOf(body.getOrDefault("payMethod", ""));
+        Order order = store.payOrder(user, orderId, payMethod);
         socketHandler.broadcast(order.id(), "订单已支付：" + order.id());
         return ApiResponse.ok(order);
     }
@@ -66,6 +67,14 @@ public class OrderController {
             case "ready" -> store.merchantReady(user, orderId);
             default -> throw new BizException("不支持的商家操作");
         };
+        socketHandler.broadcast(order.id(), order.status() + "：" + order.id());
+        return ApiResponse.ok(order);
+    }
+
+    @PostMapping("/{orderId}/cancel")
+    public ApiResponse<Order> cancel(HttpServletRequest request, @PathVariable String orderId) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        Order order = store.cancelOrder(user, orderId);
         socketHandler.broadcast(order.id(), order.status() + "：" + order.id());
         return ApiResponse.ok(order);
     }
