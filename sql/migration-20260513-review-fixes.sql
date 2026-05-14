@@ -1,8 +1,25 @@
 USE chengyiwaimai;
 
-ALTER TABLE delivery_order ADD COLUMN IF NOT EXISTS pay_method VARCHAR(30);
-ALTER TABLE delivery_order ADD COLUMN IF NOT EXISTS coupon_id BIGINT;
-ALTER TABLE delivery_order ADD COLUMN IF NOT EXISTS discount_amount DECIMAL(10,2) DEFAULT 0;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'delivery_order' AND COLUMN_NAME = 'pay_method') = 0,
+  'ALTER TABLE delivery_order ADD COLUMN pay_method VARCHAR(30)',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'delivery_order' AND COLUMN_NAME = 'coupon_id') = 0,
+  'ALTER TABLE delivery_order ADD COLUMN coupon_id BIGINT',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'delivery_order' AND COLUMN_NAME = 'discount_amount') = 0,
+  'ALTER TABLE delivery_order ADD COLUMN discount_amount DECIMAL(10,2) DEFAULT 0',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 CREATE TABLE IF NOT EXISTS dish_category (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -57,8 +74,19 @@ CREATE TABLE IF NOT EXISTS withdraw_record (
   KEY idx_withdraw_record_owner (owner_type, owner_id)
 );
 
-ALTER TABLE withdraw_record ADD COLUMN IF NOT EXISTS owner_type VARCHAR(20) DEFAULT 'rider' AFTER rider_id;
-ALTER TABLE withdraw_record ADD COLUMN IF NOT EXISTS owner_id BIGINT AFTER owner_type;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'withdraw_record' AND COLUMN_NAME = 'owner_type') = 0,
+  'ALTER TABLE withdraw_record ADD COLUMN owner_type VARCHAR(20) DEFAULT ''rider'' AFTER rider_id',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'withdraw_record' AND COLUMN_NAME = 'owner_id') = 0,
+  'ALTER TABLE withdraw_record ADD COLUMN owner_id BIGINT AFTER owner_type',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 UPDATE withdraw_record SET owner_type = 'rider' WHERE owner_type IS NULL;
 UPDATE withdraw_record SET owner_id = rider_id WHERE owner_id IS NULL;
 

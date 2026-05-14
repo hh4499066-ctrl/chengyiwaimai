@@ -14,15 +14,20 @@ import java.util.Base64;
 @Component
 public class SensitiveDataCrypto {
     private static final String PREFIX = "enc:v1:";
+    private static final String DEMO_SECRET = "chengyi-waimai-local-demo-secret-2026-change-in-prod";
     private static final int GCM_TAG_BITS = 128;
     private static final int IV_BYTES = 12;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final SecretKeySpec key;
 
-    public SensitiveDataCrypto(@Value("${chengyi.data-encryption-key}") String secret) {
+    public SensitiveDataCrypto(@Value("${chengyi.data-encryption-key}") String secret,
+                               @Value("${chengyi.require-secure-secrets:false}") boolean requireSecureSecrets) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException("DATA_ENCRYPTION_KEY or JWT_SECRET must be configured");
+        }
+        if (requireSecureSecrets && DEMO_SECRET.equals(secret)) {
+            throw new IllegalStateException("DATA_ENCRYPTION_KEY must be configured with a non-demo value when REQUIRE_SECURE_SECRETS=true");
         }
         this.key = new SecretKeySpec(sha256(secret), "AES");
     }

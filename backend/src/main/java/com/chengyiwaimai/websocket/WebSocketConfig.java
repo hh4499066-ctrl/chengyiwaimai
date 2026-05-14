@@ -28,6 +28,6 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(orderSocketHandler, "/ws/orders")
                 .addInterceptors(orderSocketAuthInterceptor)
-                .setAllowedOrigins(allowedOrigins);
+                .setAllowedOriginPatterns(allowedOrigins);
     }
 }

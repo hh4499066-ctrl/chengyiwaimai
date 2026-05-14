@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
   servlet:
     context-path: /api
     encoding:
@@ -13,7 +13,7 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/chengyiwaimai?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
   data:
     redis:
@@ -28,7 +28,8 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 chengyi:
-  jwt-secret: ${JWT_SECRET:}
+  jwt-secret: ${JWT_SECRET:chengyi-waimai-local-demo-secret-2026-change-in-prod}
   jwt-access-token-minutes: ${JWT_ACCESS_TOKEN_MINUTES:120}
-  data-encryption-key: ${DATA_ENCRYPTION_KEY:${JWT_SECRET:}}
-  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  data-encryption-key: ${DATA_ENCRYPTION_KEY:${JWT_SECRET:chengyi-waimai-local-demo-secret-2026-change-in-prod}}
+  require-secure-secrets: ${REQUIRE_SECURE_SECRETS:false}
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:*,http://127.0.0.1:*}

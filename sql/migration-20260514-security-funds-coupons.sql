@@ -33,7 +33,7 @@ PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 INSERT INTO user_coupon(user_id, coupon_id, merchant_id, status, valid_start, valid_end)
 SELECT u.id, c.id, 0, 'claimed', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY)
 FROM sys_user u
-JOIN coupon c ON c.name IN ('鏂颁汉棣栧崟绔嬪噺鍒?', '鏍″洯澶滃婊″噺鍒?')
+JOIN coupon c ON c.status = 'enabled' AND c.deleted = 0
 WHERE u.phone = '13800000001'
   AND NOT EXISTS (
     SELECT 1 FROM user_coupon uc
