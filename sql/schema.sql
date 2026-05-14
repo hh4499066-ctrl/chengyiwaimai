@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS user_coupon (
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_user_coupon_user_status (user_id, status),
   KEY idx_user_coupon_coupon_id (coupon_id),
+  KEY idx_user_coupon_status (status),
   KEY idx_user_coupon_order_id (used_order_id)
 );
 
@@ -172,7 +173,7 @@ CREATE TABLE IF NOT EXISTS marketing_activity (
   end_time DATETIME,
   status VARCHAR(20) DEFAULT 'enabled',
   deleted TINYINT DEFAULT 0,
-  UNIQUE KEY uk_marketing_merchant_name (merchant_id, name, deleted),
+  UNIQUE KEY uk_marketing_merchant_name (merchant_id, name),
   KEY idx_marketing_activity_merchant_id (merchant_id)
 );
 

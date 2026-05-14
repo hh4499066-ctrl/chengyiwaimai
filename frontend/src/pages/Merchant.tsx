@@ -354,9 +354,15 @@ function MerchantMenuLive() {
 function MerchantSettings() {
   const [settings, setSettings] = useState({ status: 'open', deliveryFee: '1.5', minOrder: '20', announcement: '欢迎光临橙意外卖' });
   const [message, setMessage] = useState('');
+  const settingText = (value: unknown, fallback: string) => value === undefined || value === null || value === '' ? fallback : String(value);
   useEffect(() => {
     api.getBusinessSettings()
-      .then((data) => setSettings((prev) => ({ ...prev, status: String(data.businessStatus || 'open') })))
+      .then((data) => setSettings((prev) => ({
+        status: settingText(data.businessStatus ?? data.status, prev.status),
+        deliveryFee: settingText(data.deliveryFee, prev.deliveryFee),
+        minOrder: settingText(data.minOrder, prev.minOrder),
+        announcement: settingText(data.announcement, prev.announcement),
+      })))
       .catch((err) => setMessage(err instanceof Error ? err.message : '营业设置加载失败'));
   }, []);
   const save = () => {

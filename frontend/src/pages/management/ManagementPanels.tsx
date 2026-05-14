@@ -224,13 +224,16 @@ export function MerchantModule({ type }: { type: string }) {
     const grossIncome = Number(stats?.grossIncome ?? stats?.totalIncome ?? todayIncome);
     const availableBalance = Number(stats?.availableBalance ?? 0);
     const serviceFee = Number(stats?.platformServiceFee ?? 0);
+    const pendingWithdrawAmount = Number(stats?.pendingWithdrawAmount ?? 0);
+    const withdrawnAmount = Number(stats?.withdrawnAmount ?? 0);
     const financeCards = [
       { label: '今日收入', value: money(todayIncome) },
+      { label: '今日订单', value: `${Number(stats?.todayOrders ?? 0)} 单` },
       { label: '可提现余额', value: money(availableBalance) },
-      { label: '平台服务费', value: money(serviceFee) },
       { label: '累计有效收入', value: money(grossIncome) },
-      { label: '已占用提现', value: money(Number(stats?.pendingWithdrawAmount ?? 0) + Number(stats?.withdrawnAmount ?? 0)) },
-      { label: '取消订单', value: `${Number(stats?.canceledOrders ?? stats?.refundOrders ?? 0)} 单` },
+      { label: '平台服务费', value: money(serviceFee) },
+      { label: '待处理提现', value: money(pendingWithdrawAmount) },
+      { label: '已提现金额', value: money(withdrawnAmount) },
     ];
     const submitWithdraw = () => {
       const amount = Number(window.prompt('提现金额', String(availableBalance.toFixed(2))));
@@ -246,7 +249,7 @@ export function MerchantModule({ type }: { type: string }) {
     };
     return (
       <PageShell title="财务结算" desc="统计真实营业收入、订单和退款数据。" action="申请提现" onAction={submitWithdraw}>
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-md stagger-children">
+        <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-md stagger-children">
           {financeCards.map((item) => (
             <div key={item.label} className="liquid-card motion-border-glow rounded-xl p-md">
               <p className="text-body-md text-on-surface-variant">{item.label}</p>
