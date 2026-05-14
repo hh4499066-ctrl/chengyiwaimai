@@ -101,10 +101,16 @@ export type ReviewPayload = {
 export type MerchantStats = {
   todayIncome: number;
   todayOrders: number;
+  availableBalance?: number;
+  grossIncome?: number;
+  platformServiceFee?: number;
+  pendingWithdrawAmount?: number;
+  withdrawnAmount?: number;
   totalIncome?: number;
   totalOrders?: number;
   conversionRate?: string;
   refundOrders?: number;
+  canceledOrders?: number;
 };
 
 export type RiderStats = {
@@ -136,6 +142,7 @@ export type WithdrawRecord = {
   ownerId?: number;
   amount: number;
   accountNo: string;
+  accountNoMasked?: string;
   status: string;
   createTime?: string;
 };

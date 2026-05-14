@@ -4,6 +4,7 @@ E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\common\
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\common\GlobalExceptionHandler.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\config\CorsConfig.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\CartItemEntity.java
+E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\CategoryEntity.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\CouponEntity.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\DeliveryOrderEntity.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\DishEntity.java
@@ -13,7 +14,9 @@ E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\ReviewEntity.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\SysUserEntity.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\UserAddressEntity.java
+E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\entity\WithdrawRecordEntity.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\CartItemMapper.java
+E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\CategoryMapper.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\CouponMapper.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\DeliveryOrderMapper.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\DishMapper.java
@@ -23,6 +26,7 @@ E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\ReviewMapper.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\SysUserMapper.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\UserAddressMapper.java
+E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\mapper\WithdrawRecordMapper.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\model\Models.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\security\AuthContext.java
 E:\1a_java_project\chengyiwaimai\backend\src\main\java\com\chengyiwaimai\security\CurrentUser.java

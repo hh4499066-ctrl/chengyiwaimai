@@ -41,17 +41,21 @@ import com.chengyiwaimai.security.CurrentUser;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.security.SecureRandom;
+import java.sql.Date;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -70,6 +74,8 @@ public class BusinessService {
     public static final String COMPLETED = "已完成";
 
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final BigDecimal PLATFORM_SERVICE_FEE_RATE = new BigDecimal("0.06");
+    private static final BigDecimal RIDER_ORDER_INCOME = new BigDecimal("4.50");
 
     private final MerchantMapper merchantMapper;
     private final DishMapper dishMapper;
@@ -709,19 +715,27 @@ public class BusinessService {
         MerchantEntity merchant = requireMerchant(user);
         LocalDateTime start = todayStart();
         LocalDateTime end = tomorrowStart();
-        List<DeliveryOrderEntity> todayOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
-                .eq(DeliveryOrderEntity::getMerchantId, merchant.getId())
-                .ge(DeliveryOrderEntity::getCreateTime, start)
-                .lt(DeliveryOrderEntity::getCreateTime, end));
-        List<DeliveryOrderEntity> totalOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
-                .eq(DeliveryOrderEntity::getMerchantId, merchant.getId()));
-        return Map.of(
-                "todayIncome", sumPaid(todayOrders),
-                "todayOrders", todayOrders.size(),
-                "totalIncome", sumPaid(totalOrders),
-                "totalOrders", totalOrders.size(),
+        BigDecimal grossIncome = money(deliveryOrderMapper.sumMerchantEffectiveIncome(merchant.getId(), WAIT_PAY, CANCELED));
+        BigDecimal platformServiceFee = serviceFee(grossIncome);
+        BigDecimal pendingWithdrawAmount = money(withdrawRecordMapper.sumMerchantPendingWithdrawAmount(merchant.getId()));
+        BigDecimal withdrawnAmount = money(withdrawRecordMapper.sumMerchantWithdrawnAmount(merchant.getId()));
+        BigDecimal occupiedWithdrawAmount = pendingWithdrawAmount.add(withdrawnAmount);
+        BigDecimal availableBalance = grossIncome.subtract(platformServiceFee).subtract(occupiedWithdrawAmount).max(BigDecimal.ZERO);
+        long canceledOrders = count(deliveryOrderMapper.countMerchantCanceledOrders(merchant.getId(), CANCELED));
+
+        return orderedMap(
+                "availableBalance", availableBalance,
+                "grossIncome", grossIncome,
+                "platformServiceFee", platformServiceFee,
+                "pendingWithdrawAmount", pendingWithdrawAmount,
+                "withdrawnAmount", withdrawnAmount,
+                "totalIncome", grossIncome,
+                "totalOrders", count(deliveryOrderMapper.countMerchantEffectiveOrders(merchant.getId(), WAIT_PAY, CANCELED)),
+                "todayIncome", money(deliveryOrderMapper.sumMerchantEffectiveIncomeBetween(merchant.getId(), start, end, WAIT_PAY, CANCELED)),
+                "todayOrders", count(deliveryOrderMapper.countMerchantEffectiveOrdersBetween(merchant.getId(), start, end, WAIT_PAY, CANCELED)),
                 "conversionRate", "18.5%",
-                "refundOrders", todayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count()
+                "refundOrders", canceledOrders,
+                "canceledOrders", canceledOrders
         );
     }
 
@@ -751,13 +765,19 @@ public class BusinessService {
     public Map<String, Object> saveMerchantMarketing(CurrentUser user, Map<String, Object> body) {
         MarketingActivityEntity activity = toMarketingActivity(body);
         activity.setMerchantId(requireMerchant(user).getId());
-        marketingActivityMapper.insert(activity);
+        ensureMarketingNameAvailable(activity.getMerchantId(), activity.getName(), null);
+        try {
+            marketingActivityMapper.insert(activity);
+        } catch (DuplicateKeyException ex) {
+            throw new BizException("同名营销活动已存在");
+        }
         return marketingActivityMap(activity);
     }
 
     public Map<String, Object> updateMerchantMarketing(CurrentUser user, Long id, Map<String, Object> body) {
         Long merchantId = requireMerchant(user).getId();
         MarketingActivityEntity activity = toMarketingActivity(body);
+        ensureMarketingNameAvailable(merchantId, activity.getName(), id);
         int rows = marketingActivityMapper.update(activity, Wrappers.<MarketingActivityEntity>lambdaUpdate()
                 .eq(MarketingActivityEntity::getId, id)
                 .eq(MarketingActivityEntity::getMerchantId, merchantId));
@@ -779,9 +799,9 @@ public class BusinessService {
                 .eq(DeliveryOrderEntity::getRiderId, user.userId())
                 .eq(DeliveryOrderEntity::getStatus, COMPLETED));
         return Map.of(
-                "todayIncome", BigDecimal.valueOf(todayCompleted.size()).multiply(new BigDecimal("4.50")),
+                "todayIncome", BigDecimal.valueOf(todayCompleted.size()).multiply(RIDER_ORDER_INCOME),
                 "todayOrders", todayCompleted.size(),
-                "totalIncome", BigDecimal.valueOf(totalCompleted).multiply(new BigDecimal("4.50")),
+                "totalIncome", BigDecimal.valueOf(totalCompleted).multiply(RIDER_ORDER_INCOME),
                 "totalOrders", totalCompleted,
                 "level", "黄金骑手",
                 "score", "4.8",
@@ -793,92 +813,42 @@ public class BusinessService {
         LocalDateTime start = todayStart();
         LocalDateTime end = tomorrowStart();
         LocalDate trendStart = LocalDate.now().minusDays(29);
-        List<DeliveryOrderEntity> todayOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
-                .ge(DeliveryOrderEntity::getCreateTime, start)
-                .lt(DeliveryOrderEntity::getCreateTime, end));
-        List<DeliveryOrderEntity> totalOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery());
-        List<DeliveryOrderEntity> trendOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
-                .ge(DeliveryOrderEntity::getCreateTime, trendStart.atStartOfDay())
-                .lt(DeliveryOrderEntity::getCreateTime, end));
-        return Map.of(
-                "todayGmv", sumPaid(todayOrders),
-                "todayOrders", todayOrders.size(),
-                "totalGmv", sumPaid(totalOrders),
-                "totalOrders", totalOrders.size(),
+        Map<String, Object> summary = deliveryOrderMapper.selectDashboardSummary(start, end, WAIT_PAY, CANCELED);
+        List<Map<String, Object>> trendRows = deliveryOrderMapper.selectDashboardDailyTrend(trendStart.atStartOfDay(), end, WAIT_PAY, CANCELED);
+        return orderedMap(
+                "todayGmv", money(summaryValue(summary, "todayGmv")),
+                "todayOrders", count(summaryValue(summary, "todayOrders")),
+                "totalGmv", money(summaryValue(summary, "totalGmv")),
+                "totalOrders", count(summaryValue(summary, "totalOrders")),
                 "activeUsers", sysUserMapper.selectCount(Wrappers.<SysUserEntity>lambdaQuery().eq(SysUserEntity::getStatus, 1)),
-                "todayExceptionOrders", todayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count(),
-                "totalExceptionOrders", totalOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count(),
-                "dailyTrend", dailyTrend(trendStart, trendOrders),
-                "merchantRanking", merchantRanking(totalOrders),
-                "riderRanking", riderRanking(totalOrders)
+                "todayExceptionOrders", count(summaryValue(summary, "todayExceptionOrders")),
+                "totalExceptionOrders", count(summaryValue(summary, "totalExceptionOrders")),
+                "dailyTrend", dailyTrend(trendStart, trendRows),
+                "merchantRanking", deliveryOrderMapper.selectMerchantGmvTop5(WAIT_PAY, CANCELED),
+                "riderRanking", deliveryOrderMapper.selectRiderCompletedTop5(COMPLETED)
         );
     }
 
-    private List<Map<String, Object>> dailyTrend(LocalDate startDate, List<DeliveryOrderEntity> orders) {
+    private List<Map<String, Object>> dailyTrend(LocalDate startDate, List<Map<String, Object>> rows) {
+        Map<LocalDate, Map<String, Object>> byDate = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            LocalDate date = mapDate(row.get("date"));
+            if (date != null) {
+                byDate.put(date, row);
+            }
+        }
         return IntStream.range(0, 30)
                 .mapToObj(offset -> {
                     LocalDate date = startDate.plusDays(offset);
-                    List<DeliveryOrderEntity> dayOrders = orders.stream()
-                            .filter(order -> order.getCreateTime() != null)
-                            .filter(order -> order.getCreateTime().toLocalDate().equals(date))
-                            .toList();
+                    Map<String, Object> row = byDate.getOrDefault(date, Map.of());
                     return Map.<String, Object>of(
                             "date", date.toString(),
                             "label", date.format(DateTimeFormatter.ofPattern("MM/dd")),
-                            "gmv", sumPaid(dayOrders),
-                            "orders", dayOrders.size(),
-                            "exceptionOrders", dayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count()
+                            "gmv", money(summaryValue(row, "gmv")),
+                            "orders", count(summaryValue(row, "orders")),
+                            "exceptionOrders", count(summaryValue(row, "exceptionOrders"))
                     );
                 })
-                .toList();
-    }
-
-    private List<Map<String, Object>> merchantRanking(List<DeliveryOrderEntity> orders) {
-        Map<Long, MerchantEntity> merchantById = merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery())
-                .stream()
-                .collect(Collectors.toMap(MerchantEntity::getId, Function.identity(), (left, right) -> left));
-        return orders.stream()
-                .filter(this::isEffectivePaidOrder)
-                .filter(order -> order.getMerchantId() != null)
-                .collect(Collectors.groupingBy(DeliveryOrderEntity::getMerchantId))
-                .entrySet()
-                .stream()
-                .map(entry -> {
-                    MerchantEntity merchant = merchantById.get(entry.getKey());
-                    return Map.<String, Object>of(
-                            "merchantId", entry.getKey(),
-                            "name", merchant == null || merchant.getName() == null ? "商家 " + entry.getKey() : merchant.getName(),
-                            "orders", entry.getValue().size(),
-                            "gmv", sumPaid(entry.getValue())
-                    );
-                })
-                .sorted(Comparator.comparing(item -> (BigDecimal) item.get("gmv"), Comparator.reverseOrder()))
-                .limit(5)
-                .toList();
-    }
-
-    private List<Map<String, Object>> riderRanking(List<DeliveryOrderEntity> orders) {
-        Map<Long, SysUserEntity> userById = sysUserMapper.selectList(Wrappers.<SysUserEntity>lambdaQuery()
-                        .eq(SysUserEntity::getRole, "rider"))
-                .stream()
-                .collect(Collectors.toMap(SysUserEntity::getId, Function.identity(), (left, right) -> left));
-        return orders.stream()
-                .filter(order -> COMPLETED.equals(order.getStatus()))
-                .filter(order -> order.getRiderId() != null)
-                .collect(Collectors.groupingBy(DeliveryOrderEntity::getRiderId))
-                .entrySet()
-                .stream()
-                .map(entry -> {
-                    SysUserEntity rider = userById.get(entry.getKey());
-                    return Map.<String, Object>of(
-                            "riderId", entry.getKey(),
-                            "name", rider == null || rider.getNickname() == null ? "骑手 " + entry.getKey() : rider.getNickname(),
-                            "completedOrders", entry.getValue().size(),
-                            "income", BigDecimal.valueOf(entry.getValue().size()).multiply(new BigDecimal("4.50"))
-                    );
-                })
-                .sorted(Comparator.comparing(item -> (Integer) item.get("completedOrders"), Comparator.reverseOrder()))
-                .limit(5)
                 .toList();
     }
 
@@ -936,12 +906,23 @@ public class BusinessService {
     public Map<String, Object> createAdminMarketing(Map<String, Object> body) {
         MarketingActivityEntity activity = toMarketingActivity(body);
         activity.setMerchantId(parseLongValue(body.get("merchantId"), 0L));
-        marketingActivityMapper.insert(activity);
+        ensureMarketingNameAvailable(activity.getMerchantId(), activity.getName(), null);
+        try {
+            marketingActivityMapper.insert(activity);
+        } catch (DuplicateKeyException ex) {
+            throw new BizException("同名营销活动已存在");
+        }
         return marketingActivityMap(activity);
     }
 
     public Map<String, Object> updateAdminMarketing(Long id, Map<String, Object> body) {
+        MarketingActivityEntity old = marketingActivityMapper.selectById(id);
+        if (old == null) {
+            throw new BizException("营销活动不存在");
+        }
         MarketingActivityEntity activity = toMarketingActivity(body);
+        activity.setMerchantId(old.getMerchantId());
+        ensureMarketingNameAvailable(old.getMerchantId(), activity.getName(), id);
         int rows = marketingActivityMapper.update(activity, Wrappers.<MarketingActivityEntity>lambdaUpdate()
                 .eq(MarketingActivityEntity::getId, id));
         if (rows != 1) {
@@ -951,7 +932,15 @@ public class BusinessService {
     }
 
     public void deleteAdminMarketing(Long id) {
-        int rows = marketingActivityMapper.deleteById(id);
+        MarketingActivityEntity old = marketingActivityMapper.selectById(id);
+        if (old == null) {
+            throw new BizException("营销活动不存在");
+        }
+        MarketingActivityEntity update = new MarketingActivityEntity();
+        update.setName(deletedMarketingName(old.getName(), id));
+        update.setDeleted(1);
+        int rows = marketingActivityMapper.update(update, Wrappers.<MarketingActivityEntity>lambdaUpdate()
+                .eq(MarketingActivityEntity::getId, id));
         if (rows != 1) {
             throw new BizException("营销活动不存在");
         }
@@ -971,27 +960,52 @@ public class BusinessService {
         return createWithdrawRecord("rider", user.userId(), user.userId(), amount, accountNo);
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Map<String, Object> merchantWithdraw(CurrentUser user, BigDecimal amount, String accountNo) {
         MerchantEntity merchant = requireMerchant(user);
-        return createWithdrawRecord("merchant", merchant.getId(), user.userId(), amount, accountNo);
+        validateWithdrawAmount(amount);
+        String trimmedAccountNo = requireWithdrawAccount(accountNo);
+        BigDecimal availableBalance = merchantAvailableBalance(merchant.getId());
+        if (amount.compareTo(availableBalance) > 0) {
+            throw new BizException("提现金额超过可提现余额");
+        }
+        // 当前项目尚无独立资金账户表，先在 SERIALIZABLE 事务内基于订单和提现记录重算余额后落库。
+        // 后续资金规模扩大时，应引入商家资金账户表并对账户行加锁，避免跨实例并发下的超提风险。
+        return createWithdrawRecord("merchant", merchant.getId(), user.userId(), amount, trimmedAccountNo);
+    }
+
+    private BigDecimal merchantAvailableBalance(Long merchantId) {
+        BigDecimal grossIncome = money(deliveryOrderMapper.sumMerchantEffectiveIncome(merchantId, WAIT_PAY, CANCELED));
+        BigDecimal platformServiceFee = serviceFee(grossIncome);
+        BigDecimal occupiedWithdrawAmount = money(withdrawRecordMapper.sumMerchantOccupiedWithdrawAmount(merchantId));
+        return grossIncome.subtract(platformServiceFee).subtract(occupiedWithdrawAmount).max(BigDecimal.ZERO);
     }
 
     private Map<String, Object> createWithdrawRecord(String ownerType, Long ownerId, Long legacyRiderId, BigDecimal amount, String accountNo) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BizException("提现金额必须大于 0");
-        }
-        if (accountNo == null || accountNo.isBlank()) {
-            throw new BizException("提现账户不能为空");
-        }
+        validateWithdrawAmount(amount);
+        String trimmedAccountNo = requireWithdrawAccount(accountNo);
         WithdrawRecordEntity record = new WithdrawRecordEntity();
         record.setRiderId(legacyRiderId);
         record.setOwnerType(ownerType);
         record.setOwnerId(ownerId);
         record.setAmount(amount);
-        record.setAccountNo(accountNo.trim());
+        record.setAccountNo(trimmedAccountNo);
         record.setStatus("submitted");
         withdrawRecordMapper.insert(record);
         return withdrawRecordMap(record);
+    }
+
+    private void validateWithdrawAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BizException("提现金额必须大于 0");
+        }
+    }
+
+    private String requireWithdrawAccount(String accountNo) {
+        if (accountNo == null || accountNo.isBlank()) {
+            throw new BizException("提现账户不能为空");
+        }
+        return accountNo.trim();
     }
 
     public List<Map<String, Object>> withdrawRecords(CurrentUser user) {
@@ -1018,15 +1032,121 @@ public class BusinessService {
     }
 
     private Map<String, Object> withdrawRecordMap(WithdrawRecordEntity record) {
-        return Map.of(
+        String accountNoMasked = maskAccountNo(record.getAccountNo());
+        return orderedMap(
                 "id", record.getId(),
                 "ownerType", record.getOwnerType() == null ? "rider" : record.getOwnerType(),
                 "ownerId", record.getOwnerId() == null ? record.getRiderId() : record.getOwnerId(),
                 "amount", record.getAmount(),
-                "accountNo", record.getAccountNo(),
+                "accountNo", accountNoMasked,
+                "accountNoMasked", accountNoMasked,
                 "status", record.getStatus(),
                 "createTime", record.getCreateTime() == null ? "" : record.getCreateTime()
         );
+    }
+
+    private String maskAccountNo(String accountNo) {
+        if (accountNo == null || accountNo.isBlank()) {
+            return "";
+        }
+        String value = accountNo.trim();
+        if (value.length() <= 4) {
+            return "****";
+        }
+        if (value.length() <= 8) {
+            return "****" + value.substring(value.length() - 2);
+        }
+        return value.substring(0, 4) + " **** **** " + value.substring(value.length() - 4);
+    }
+
+    private void ensureMarketingNameAvailable(Long merchantId, String name, Long excludeId) {
+        LambdaQueryWrapper<MarketingActivityEntity> query = Wrappers.<MarketingActivityEntity>lambdaQuery()
+                .eq(MarketingActivityEntity::getMerchantId, merchantId == null ? 0L : merchantId)
+                .eq(MarketingActivityEntity::getName, name);
+        if (excludeId != null) {
+            query.ne(MarketingActivityEntity::getId, excludeId);
+        }
+        Long count = marketingActivityMapper.selectCount(query);
+        if (count != null && count > 0) {
+            throw new BizException("同名营销活动已存在");
+        }
+    }
+
+    private String deletedMarketingName(String name, Long id) {
+        String suffix = "__deleted_" + id;
+        String base = name == null ? "" : name;
+        int maxBaseLength = Math.max(0, 80 - suffix.length());
+        if (base.length() > maxBaseLength) {
+            base = base.substring(0, maxBaseLength);
+        }
+        return base + suffix;
+    }
+
+    private BigDecimal serviceFee(BigDecimal amount) {
+        return money(amount).multiply(PLATFORM_SERVICE_FEE_RATE).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal money(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (value instanceof BigDecimal decimal) {
+            return decimal.setScale(2, RoundingMode.HALF_UP);
+        }
+        if (value instanceof Number number) {
+            return BigDecimal.valueOf(number.doubleValue()).setScale(2, RoundingMode.HALF_UP);
+        }
+        return new BigDecimal(String.valueOf(value)).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private long count(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        return Long.parseLong(String.valueOf(value));
+    }
+
+    private Object summaryValue(Map<String, Object> row, String key) {
+        if (row == null || row.isEmpty()) {
+            return null;
+        }
+        if (row.containsKey(key)) {
+            return row.get(key);
+        }
+        String underscore = key.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(key) || entry.getKey().equalsIgnoreCase(underscore)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private LocalDate mapDate(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime.toLocalDate();
+        }
+        if (value instanceof Date date) {
+            return date.toLocalDate();
+        }
+        return LocalDate.parse(String.valueOf(value).substring(0, 10));
+    }
+
+    private Map<String, Object> orderedMap(Object... keyValues) {
+        LinkedHashMap<String, Object> result = new LinkedHashMap<>();
+        for (int i = 0; i < keyValues.length; i += 2) {
+            result.put(String.valueOf(keyValues[i]), keyValues[i + 1]);
+        }
+        return result;
     }
 
     public Map<String, Object> adminAudit(String module, Long id, String status) {

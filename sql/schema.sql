@@ -76,7 +76,10 @@ CREATE TABLE IF NOT EXISTS delivery_order (
   KEY idx_delivery_order_merchant_id (merchant_id),
   KEY idx_delivery_order_rider_id (rider_id),
   KEY idx_delivery_order_status (status),
-  KEY idx_delivery_order_create_time (create_time)
+  KEY idx_delivery_order_create_time (create_time),
+  KEY idx_delivery_order_status_create_time (status, create_time),
+  KEY idx_delivery_order_merchant_status (merchant_id, status),
+  KEY idx_delivery_order_rider_status (rider_id, status)
 );
 
 CREATE TABLE IF NOT EXISTS order_item (
@@ -150,7 +153,7 @@ CREATE TABLE IF NOT EXISTS marketing_activity (
   end_time DATETIME,
   status VARCHAR(20) DEFAULT 'enabled',
   deleted TINYINT DEFAULT 0,
-  UNIQUE KEY uk_marketing_merchant_name (merchant_id, name),
+  UNIQUE KEY uk_marketing_merchant_name (merchant_id, name, deleted),
   KEY idx_marketing_activity_merchant_id (merchant_id)
 );
 

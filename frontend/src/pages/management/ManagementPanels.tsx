@@ -221,16 +221,19 @@ export function MerchantModule({ type }: { type: string }) {
 
   if (type === 'finance') {
     const todayIncome = Number(stats?.todayIncome ?? 0);
-    const totalIncome = Number(stats?.totalIncome ?? todayIncome);
-    const serviceFee = Number((todayIncome * 0.06).toFixed(2));
+    const grossIncome = Number(stats?.grossIncome ?? stats?.totalIncome ?? todayIncome);
+    const availableBalance = Number(stats?.availableBalance ?? 0);
+    const serviceFee = Number(stats?.platformServiceFee ?? 0);
     const financeCards = [
       { label: '今日收入', value: money(todayIncome) },
-      { label: '可提现余额', value: money(Math.max(totalIncome - serviceFee, 0)) },
+      { label: '可提现余额', value: money(availableBalance) },
       { label: '平台服务费', value: money(serviceFee) },
-      { label: '退款订单', value: `${Number(stats?.refundOrders ?? 0)} 单` },
+      { label: '累计有效收入', value: money(grossIncome) },
+      { label: '已占用提现', value: money(Number(stats?.pendingWithdrawAmount ?? 0) + Number(stats?.withdrawnAmount ?? 0)) },
+      { label: '取消订单', value: `${Number(stats?.canceledOrders ?? stats?.refundOrders ?? 0)} 单` },
     ];
     const submitWithdraw = () => {
-      const amount = Number(window.prompt('提现金额', String(Math.max(totalIncome - serviceFee, 0).toFixed(2))));
+      const amount = Number(window.prompt('提现金额', String(availableBalance.toFixed(2))));
       if (!Number.isFinite(amount) || amount <= 0) {
         setModal({ title: '提现失败', body: '提现金额必须大于 0。' });
         return;
@@ -243,7 +246,7 @@ export function MerchantModule({ type }: { type: string }) {
     };
     return (
       <PageShell title="财务结算" desc="统计真实营业收入、订单和退款数据。" action="申请提现" onAction={submitWithdraw}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-md">
           {financeCards.map((item) => (
             <div key={item.label} className="bg-surface-container-lowest rounded-xl p-md border border-outline-variant/30 shadow-sm">
               <p className="text-body-md text-on-surface-variant">{item.label}</p>
@@ -265,7 +268,7 @@ export function MerchantModule({ type }: { type: string }) {
                 {withdrawRecords.map((record) => (
                   <tr key={record.id}>
                     <td className="p-md font-bold text-primary">{money(record.amount)}</td>
-                    <td className="p-md">{record.accountNo}</td>
+                    <td className="p-md">{record.accountNoMasked || record.accountNo}</td>
                     <td className="p-md">{record.status}</td>
                     <td className="p-md">{record.createTime || '-'}</td>
                   </tr>
