@@ -1,7 +1,6 @@
 package com.chengyiwaimai.websocket;
 
 import com.chengyiwaimai.security.CurrentUser;
-import com.chengyiwaimai.security.JwtUtil;
 import com.chengyiwaimai.service.BusinessService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,24 +21,27 @@ public class OrderSocketAuthInterceptor implements HandshakeInterceptor {
     public static final String ATTR_ORDER_ID = "orderId";
     public static final String ATTR_CURRENT_USER = "currentUser";
 
-    private final JwtUtil jwtUtil;
     private final BusinessService businessService;
+    private final WebSocketTicketService ticketService;
 
-    public OrderSocketAuthInterceptor(JwtUtil jwtUtil, BusinessService businessService) {
-        this.jwtUtil = jwtUtil;
+    public OrderSocketAuthInterceptor(BusinessService businessService, WebSocketTicketService ticketService) {
         this.businessService = businessService;
+        this.ticketService = ticketService;
     }
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
         Map<String, String> query = queryParams(request.getURI());
-        String token = query.get("token");
+        String ticket = query.get("ticket");
         String orderId = query.get("orderId");
-        if (token == null || token.isBlank() || orderId == null || orderId.isBlank()) {
+        if (ticket == null || ticket.isBlank() || orderId == null || orderId.isBlank()) {
             return false;
         }
         try {
-            CurrentUser user = jwtUtil.parseToken(token.trim());
+            CurrentUser user = ticketService.consumeTicket(ticket.trim(), orderId.trim());
+            if (user == null) {
+                return false;
+            }
             businessService.requireOrderSubscription(user, orderId.trim());
             attributes.put(ATTR_CURRENT_USER, user);
             attributes.put(ATTR_ORDER_ID, orderId.trim());

@@ -48,8 +48,9 @@ public class CustomerController {
     }
 
     @GetMapping("/coupons")
-    public ApiResponse<?> coupons() {
-        return ApiResponse.ok(store.coupons());
+    public ApiResponse<?> coupons(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.coupons(user));
     }
 
     @GetMapping("/cart")

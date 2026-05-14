@@ -30,7 +30,7 @@ function Portal({ open }: { open: (mode: 'mobile' | 'pc') => void }) {
             <span className="material-symbols-outlined text-[32px] fill">restaurant</span>
           </div>
           <h1 className="font-display-lg text-display-lg text-primary tracking-tight mb-unit">橙意外卖</h1>
-          <p className="font-body-lg text-body-lg text-on-surface-variant">温暖你的胃，便捷你的生活</p>
+          <p className="font-body-lg text-body-lg text-on-surface-variant">校园外卖演示系统</p>
         </header>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-lg w-full max-w-3xl">
           <button onClick={() => open('mobile')} className="text-left group bg-surface rounded-xl p-lg flex flex-col border border-outline-variant/40 shadow-[0_4px_20px_rgba(31,41,55,0.03)] hover:shadow-[0_8px_30px_rgba(171,53,0,0.08)] hover:border-primary-container/50 transition-all duration-300">
@@ -57,13 +57,13 @@ function Portal({ open }: { open: (mode: 'mobile' | 'pc') => void }) {
 
 function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string) => void; back: () => void }) {
   const [phone, setPhone] = useState(defaultPhoneByRole[role]);
-  const [code, setCode] = useState('123456');
+  const [password, setPassword] = useState('Demo@123456');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     setPhone(defaultPhoneByRole[role]);
-    setCode('123456');
+    setPassword('Demo@123456');
     setError('');
   }, [role]);
 
@@ -71,7 +71,7 @@ function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string
     setLoading(true);
     setError('');
     try {
-      const result = await api.login(phone, role, code);
+      const result = await api.login(phone, role, password);
       localStorage.setItem('chengyi_token', result.token);
       localStorage.setItem('chengyi_role', result.role);
       setRole(result.role);
@@ -92,7 +92,7 @@ function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string
             <span className="material-symbols-outlined text-[40px] text-primary fill">{role === 'merchant' ? 'storefront' : role === 'admin' ? 'admin_panel_settings' : role === 'rider' ? 'electric_moped' : 'ramen_dining'}</span>
           </div>
           <h1 className="font-display-lg text-display-lg text-on-surface mb-2">橙意外卖</h1>
-          <p className="font-body-md text-body-md text-on-surface-variant">{roleText[role]}登录 / 注册</p>
+          <p className="font-body-md text-body-md text-on-surface-variant">{roleText[role]}登录</p>
         </div>
         <div className="space-y-md">
           <div className="relative flex items-center h-14 bg-surface-container-lowest rounded-full px-md border border-outline-variant focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20 shadow-sm">
@@ -101,7 +101,7 @@ function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string
           </div>
           <div className="relative flex items-center h-14 bg-surface-container-lowest rounded-full px-md border border-outline-variant shadow-sm">
             <span className="material-symbols-outlined text-on-surface-variant mr-sm">lock</span>
-            <input value={code} onChange={(event) => setCode(event.target.value)} className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full" placeholder="验证码：123456" />
+            <input value={password} onChange={(event) => setPassword(event.target.value)} className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full" placeholder="请输入密码" type="password" />
           </div>
           {error && <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{error}</div>}
           <button onClick={submit} disabled={loading} className="w-full h-14 bg-primary text-on-primary rounded-full font-headline-sm text-headline-sm shadow-md active:scale-[0.98] transition-transform disabled:opacity-60">

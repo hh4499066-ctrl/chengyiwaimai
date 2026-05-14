@@ -36,4 +36,31 @@ public interface WithdrawRecordMapper extends BaseMapper<WithdrawRecordEntity> {
               AND status = 'completed'
             """)
     BigDecimal sumMerchantWithdrawnAmount(@Param("merchantId") Long merchantId);
+
+    @Select("""
+            SELECT COALESCE(SUM(amount), 0)
+            FROM withdraw_record
+            WHERE owner_type = 'rider'
+              AND owner_id = #{riderId}
+              AND status IN ('submitted', 'processing', 'approved', 'completed')
+            """)
+    BigDecimal sumRiderOccupiedWithdrawAmount(@Param("riderId") Long riderId);
+
+    @Select("""
+            SELECT COALESCE(SUM(amount), 0)
+            FROM withdraw_record
+            WHERE owner_type = 'rider'
+              AND owner_id = #{riderId}
+              AND status IN ('submitted', 'processing', 'approved')
+            """)
+    BigDecimal sumRiderPendingWithdrawAmount(@Param("riderId") Long riderId);
+
+    @Select("""
+            SELECT COALESCE(SUM(amount), 0)
+            FROM withdraw_record
+            WHERE owner_type = 'rider'
+              AND owner_id = #{riderId}
+              AND status = 'completed'
+            """)
+    BigDecimal sumRiderWithdrawnAmount(@Param("riderId") Long riderId);
 }

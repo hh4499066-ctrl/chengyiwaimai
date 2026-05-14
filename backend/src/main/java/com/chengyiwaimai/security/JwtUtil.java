@@ -15,9 +15,15 @@ import java.util.Date;
 @Component
 public class JwtUtil {
     private final SecretKey key;
+    private final long accessTokenMillis;
 
-    public JwtUtil(@Value("${chengyi.jwt-secret}") String secret) {
+    public JwtUtil(@Value("${chengyi.jwt-secret}") String secret,
+                   @Value("${chengyi.jwt-access-token-minutes:120}") long accessTokenMinutes) {
+        if (secret == null || secret.isBlank() || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be configured and contain at least 32 bytes");
+        }
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.accessTokenMillis = Math.max(5, accessTokenMinutes) * 60_000L;
     }
 
     public String createToken(Long userId, String phone, String role) {
@@ -26,7 +32,7 @@ public class JwtUtil {
                 .claim("userId", userId)
                 .claim("role", role)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 7L * 24 * 3600 * 1000))
+                .expiration(new Date(System.currentTimeMillis() + accessTokenMillis))
                 .signWith(key)
                 .compact();
     }

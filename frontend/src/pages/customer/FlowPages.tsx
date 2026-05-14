@@ -436,7 +436,7 @@ function orderStepIndex(status?: string) {
   return index >= 0 ? index : 0;
 }
 
-function socketUrl(orderId?: string) {
+function socketUrl(orderId: string, ticket: string) {
   const configured = import.meta.env.VITE_WS_BASE_URL;
   const base = configured || `${import.meta.env.VITE_API_BASE_URL || '/api'}/ws/orders`;
   const wsBase = base.startsWith('ws')
@@ -444,14 +444,9 @@ function socketUrl(orderId?: string) {
     : base.startsWith('http')
       ? base.replace(/^http/, 'ws')
       : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}${base}`;
-  const token = localStorage.getItem('chengyi_token') || '';
   const query = new URLSearchParams();
-  if (orderId) {
-    query.set('orderId', orderId);
-  }
-  if (token) {
-    query.set('token', token);
-  }
+  query.set('orderId', orderId);
+  query.set('ticket', ticket);
   return `${wsBase}?${query.toString()}`;
 }
 
@@ -496,11 +491,15 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
     refresh();
     const timer = window.setInterval(refresh, 10000);
     let socket: WebSocket | null = null;
-    try {
-      socket = new WebSocket(socketUrl(order?.id));
-      socket.onmessage = refresh;
-    } catch {
-      socket = null;
+    if (order?.id) {
+      api.createWebSocketTicket(order.id)
+        .then(({ ticket }) => {
+          socket = new WebSocket(socketUrl(order.id, ticket));
+          socket.onmessage = refresh;
+        })
+        .catch(() => {
+          socket = null;
+        });
     }
     return () => {
       window.clearInterval(timer);

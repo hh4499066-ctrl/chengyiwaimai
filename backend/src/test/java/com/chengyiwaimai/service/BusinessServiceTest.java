@@ -17,9 +17,11 @@ import com.chengyiwaimai.mapper.MerchantMapper;
 import com.chengyiwaimai.mapper.OrderItemMapper;
 import com.chengyiwaimai.mapper.ReviewMapper;
 import com.chengyiwaimai.mapper.SysUserMapper;
+import com.chengyiwaimai.mapper.UserCouponMapper;
 import com.chengyiwaimai.mapper.UserAddressMapper;
 import com.chengyiwaimai.mapper.WithdrawRecordMapper;
 import com.chengyiwaimai.security.CurrentUser;
+import com.chengyiwaimai.security.SensitiveDataCrypto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -59,6 +62,8 @@ class BusinessServiceTest {
     @Mock
     UserAddressMapper userAddressMapper;
     @Mock
+    UserCouponMapper userCouponMapper;
+    @Mock
     CouponMapper couponMapper;
     @Mock
     ReviewMapper reviewMapper;
@@ -70,6 +75,8 @@ class BusinessServiceTest {
     WithdrawRecordMapper withdrawRecordMapper;
     @Mock
     StringRedisTemplate stringRedisTemplate;
+    @Mock
+    SensitiveDataCrypto sensitiveDataCrypto;
 
     BusinessService service;
     CurrentUser merchantUser = new CurrentUser(3L, "13800000003", "merchant");
@@ -84,13 +91,17 @@ class BusinessServiceTest {
                 cartItemMapper,
                 categoryMapper,
                 userAddressMapper,
+                userCouponMapper,
                 couponMapper,
                 reviewMapper,
                 sysUserMapper,
                 marketingActivityMapper,
                 withdrawRecordMapper,
-                stringRedisTemplate
+                stringRedisTemplate,
+                sensitiveDataCrypto
         );
+        lenient().when(sensitiveDataCrypto.encrypt(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(sensitiveDataCrypto.decrypt(any())).thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test

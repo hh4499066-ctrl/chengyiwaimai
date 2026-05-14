@@ -7,6 +7,10 @@ INSERT INTO sys_user(phone, nickname, role) VALUES
 ('13800000004', '平台管理员', 'admin')
 ON DUPLICATE KEY UPDATE nickname = VALUES(nickname), role = VALUES(role), status = 1, deleted = 0;
 
+UPDATE sys_user
+SET password = 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I='
+WHERE phone IN ('13800000001', '13800000002', '13800000003', '13800000004');
+
 INSERT INTO merchant(id, user_id, name, category, phone, address, audit_status, business_status, rating) VALUES
 (1, (SELECT id FROM sys_user WHERE phone = '13800000003' LIMIT 1), '老刘家招牌牛肉面', '面食简餐', '020-88886666', '学校东门美食街 12 号', 'approved', 'open', 4.8),
 (2, NULL, '橙意轻食研究所', '轻食沙拉', '020-88887777', '校园商业中心 2 楼', 'approved', 'open', 4.9)
@@ -36,6 +40,16 @@ INSERT INTO coupon(name, threshold_amount, discount_amount, status) VALUES
 ('新人首单立减券', 20.00, 8.00, 'enabled'),
 ('校园夜宵满减券', 35.00, 6.00, 'enabled')
 ON DUPLICATE KEY UPDATE threshold_amount = VALUES(threshold_amount), discount_amount = VALUES(discount_amount), status = VALUES(status), deleted = 0;
+
+INSERT INTO user_coupon(user_id, coupon_id, merchant_id, status, valid_start, valid_end)
+SELECT u.id, c.id, 0, 'claimed', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY)
+FROM sys_user u
+JOIN coupon c ON c.name IN ('鏂颁汉棣栧崟绔嬪噺鍒?', '鏍″洯澶滃婊″噺鍒?')
+WHERE u.phone = '13800000001'
+  AND NOT EXISTS (
+    SELECT 1 FROM user_coupon uc
+    WHERE uc.user_id = u.id AND uc.coupon_id = c.id AND uc.status = 'claimed'
+  );
 
 INSERT INTO marketing_activity(merchant_id, name, type, start_time, end_time, status) VALUES
 (0, '新客首单立减', 'coupon', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 'enabled'),

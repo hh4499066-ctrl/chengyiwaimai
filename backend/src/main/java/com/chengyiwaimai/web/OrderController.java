@@ -9,6 +9,7 @@ import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.BusinessService;
 import com.chengyiwaimai.websocket.OrderSocketHandler;
+import com.chengyiwaimai.websocket.WebSocketTicketService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,10 +26,12 @@ import java.util.Map;
 public class OrderController {
     private final BusinessService store;
     private final OrderSocketHandler socketHandler;
+    private final WebSocketTicketService ticketService;
 
-    public OrderController(BusinessService store, OrderSocketHandler socketHandler) {
+    public OrderController(BusinessService store, OrderSocketHandler socketHandler, WebSocketTicketService ticketService) {
         this.store = store;
         this.socketHandler = socketHandler;
+        this.ticketService = ticketService;
     }
 
     @GetMapping
@@ -106,5 +109,12 @@ public class OrderController {
         CurrentUser user = AuthContext.currentUser(request);
         store.requireOrderSubscription(user, orderId);
         return ApiResponse.ok(store.latestRiderLocation(orderId));
+    }
+
+    @PostMapping("/{orderId}/ws-ticket")
+    public ApiResponse<Map<String, Object>> websocketTicket(HttpServletRequest request, @PathVariable String orderId) {
+        CurrentUser user = AuthContext.currentUser(request);
+        store.requireOrderSubscription(user, orderId);
+        return ApiResponse.ok(Map.of("ticket", ticketService.createTicket(user, orderId), "expiresInSeconds", 60));
     }
 }

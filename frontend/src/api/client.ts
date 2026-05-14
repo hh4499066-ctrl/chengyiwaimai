@@ -220,10 +220,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  login: (phone: string, role: string, code = '123456') =>
+  login: (phone: string, role: string, password: string) =>
     request<{ token: string; role: string; nickname?: string }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ phone, role, code }),
+      body: JSON.stringify({ phone, role, password }),
     }),
   getMerchants: () => request<Merchant[]>('/merchants'),
   getDishes: (merchantId: number) => request<Dish[]>(`/merchants/${merchantId}/dishes`),
@@ -260,6 +260,8 @@ export const api = {
     }),
   getOrders: () => request<Order[]>('/orders'),
   getOrderLocation: (orderId: string) => request<{ orderId: string; available: boolean; longitude?: number; latitude?: number }>(`/orders/${orderId}/location`),
+  createWebSocketTicket: (orderId: string) =>
+    request<{ ticket: string; expiresInSeconds: number }>(`/orders/${orderId}/ws-ticket`, { method: 'POST' }),
   getMerchantOrders: () => request<Order[]>('/merchant-center/orders'),
   merchantAction: (orderId: string, action: 'accept' | 'reject' | 'ready' | 'cancel') =>
     request<Order>(`/orders/${orderId}/merchant/${action}`, { method: 'POST' }),

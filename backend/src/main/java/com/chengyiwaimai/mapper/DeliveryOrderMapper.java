@@ -143,4 +143,14 @@ public interface DeliveryOrderMapper extends BaseMapper<DeliveryOrderEntity> {
             LIMIT 5
             """)
     List<Map<String, Object>> selectRiderCompletedTop5(@Param("completed") String completed);
+
+    @Select("""
+            SELECT COUNT(*)
+            FROM delivery_order
+            WHERE deleted = 0
+              AND rider_id = #{riderId}
+              AND status = #{completed}
+            """)
+    Long countRiderCompletedOrders(@Param("riderId") Long riderId,
+                                   @Param("completed") String completed);
 }

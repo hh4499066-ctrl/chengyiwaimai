@@ -4,7 +4,7 @@ USE chengyiwaimai;
 CREATE TABLE IF NOT EXISTS sys_user (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   phone VARCHAR(20) NOT NULL,
-  password VARCHAR(128),
+  password VARCHAR(255),
   nickname VARCHAR(50),
   role VARCHAR(20) NOT NULL COMMENT 'customer,rider,merchant,admin',
   status TINYINT DEFAULT 1,
@@ -128,6 +128,23 @@ CREATE TABLE IF NOT EXISTS coupon (
   UNIQUE KEY uk_coupon_name (name)
 );
 
+CREATE TABLE IF NOT EXISTS user_coupon (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  coupon_id BIGINT NOT NULL,
+  merchant_id BIGINT DEFAULT 0,
+  status VARCHAR(20) DEFAULT 'claimed',
+  valid_start DATETIME,
+  valid_end DATETIME,
+  used_order_id VARCHAR(36),
+  used_time DATETIME,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_user_coupon_user_status (user_id, status),
+  KEY idx_user_coupon_coupon_id (coupon_id),
+  KEY idx_user_coupon_order_id (used_order_id)
+);
+
 CREATE TABLE IF NOT EXISTS review (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   order_id VARCHAR(36) NOT NULL,
@@ -141,7 +158,9 @@ CREATE TABLE IF NOT EXISTS review (
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_review_order_id (order_id),
   KEY idx_review_user_id (user_id),
-  KEY idx_review_merchant_id (merchant_id)
+  KEY idx_review_merchant_id (merchant_id),
+  CONSTRAINT chk_review_rating CHECK (rating BETWEEN 1 AND 5),
+  CONSTRAINT chk_review_content_not_blank CHECK (content IS NOT NULL AND CHAR_LENGTH(TRIM(content)) > 0)
 );
 
 CREATE TABLE IF NOT EXISTS marketing_activity (
@@ -163,7 +182,7 @@ CREATE TABLE IF NOT EXISTS withdraw_record (
   owner_type VARCHAR(20) DEFAULT 'rider',
   owner_id BIGINT,
   amount DECIMAL(10,2) NOT NULL,
-  account_no VARCHAR(80) NOT NULL,
+  account_no VARCHAR(512) NOT NULL,
   status VARCHAR(20) DEFAULT 'submitted',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -13,6 +13,7 @@ import com.chengyiwaimai.entity.MerchantEntity;
 import com.chengyiwaimai.entity.OrderItemEntity;
 import com.chengyiwaimai.entity.ReviewEntity;
 import com.chengyiwaimai.entity.SysUserEntity;
+import com.chengyiwaimai.entity.UserCouponEntity;
 import com.chengyiwaimai.entity.UserAddressEntity;
 import com.chengyiwaimai.entity.WithdrawRecordEntity;
 import com.chengyiwaimai.mapper.CartItemMapper;
@@ -25,6 +26,7 @@ import com.chengyiwaimai.mapper.MerchantMapper;
 import com.chengyiwaimai.mapper.OrderItemMapper;
 import com.chengyiwaimai.mapper.ReviewMapper;
 import com.chengyiwaimai.mapper.SysUserMapper;
+import com.chengyiwaimai.mapper.UserCouponMapper;
 import com.chengyiwaimai.mapper.UserAddressMapper;
 import com.chengyiwaimai.mapper.WithdrawRecordMapper;
 import com.chengyiwaimai.model.Models.Address;
@@ -38,6 +40,7 @@ import com.chengyiwaimai.model.Models.Order;
 import com.chengyiwaimai.model.Models.Review;
 import com.chengyiwaimai.model.Models.RiderLocation;
 import com.chengyiwaimai.security.CurrentUser;
+import com.chengyiwaimai.security.SensitiveDataCrypto;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -84,12 +87,14 @@ public class BusinessService {
     private final CartItemMapper cartItemMapper;
     private final CategoryMapper categoryMapper;
     private final UserAddressMapper userAddressMapper;
+    private final UserCouponMapper userCouponMapper;
     private final CouponMapper couponMapper;
     private final ReviewMapper reviewMapper;
     private final SysUserMapper sysUserMapper;
     private final MarketingActivityMapper marketingActivityMapper;
     private final WithdrawRecordMapper withdrawRecordMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final SensitiveDataCrypto sensitiveDataCrypto;
 
     public BusinessService(
             MerchantMapper merchantMapper,
@@ -99,12 +104,14 @@ public class BusinessService {
             CartItemMapper cartItemMapper,
             CategoryMapper categoryMapper,
             UserAddressMapper userAddressMapper,
+            UserCouponMapper userCouponMapper,
             CouponMapper couponMapper,
             ReviewMapper reviewMapper,
             SysUserMapper sysUserMapper,
             MarketingActivityMapper marketingActivityMapper,
             WithdrawRecordMapper withdrawRecordMapper,
-            StringRedisTemplate stringRedisTemplate
+            StringRedisTemplate stringRedisTemplate,
+            SensitiveDataCrypto sensitiveDataCrypto
     ) {
         this.merchantMapper = merchantMapper;
         this.dishMapper = dishMapper;
@@ -113,12 +120,14 @@ public class BusinessService {
         this.cartItemMapper = cartItemMapper;
         this.categoryMapper = categoryMapper;
         this.userAddressMapper = userAddressMapper;
+        this.userCouponMapper = userCouponMapper;
         this.couponMapper = couponMapper;
         this.reviewMapper = reviewMapper;
         this.sysUserMapper = sysUserMapper;
         this.marketingActivityMapper = marketingActivityMapper;
         this.withdrawRecordMapper = withdrawRecordMapper;
         this.stringRedisTemplate = stringRedisTemplate;
+        this.sensitiveDataCrypto = sensitiveDataCrypto;
     }
 
     public List<Merchant> merchants() {
@@ -142,7 +151,12 @@ public class BusinessService {
     }
 
     public List<Dish> merchantDishes(CurrentUser user) {
-        return dishes(requireMerchant(user).getId());
+        return dishMapper.selectList(Wrappers.<DishEntity>lambdaQuery()
+                        .eq(DishEntity::getMerchantId, requireMerchant(user).getId())
+                        .orderByAsc(DishEntity::getId))
+                .stream()
+                .map(this::toDish)
+                .toList();
     }
 
     public Dish saveDish(CurrentUser user, Dish dish) {
@@ -317,7 +331,7 @@ public class BusinessService {
             orderItemMapper.insert(orderItem);
             total = total.add(dish.getPrice().multiply(BigDecimal.valueOf(quantity)));
         }
-        BigDecimal discount = calculateCouponDiscount(request.couponId(), total);
+        BigDecimal discount = calculateCouponDiscount(user.userId(), request.merchantId(), request.couponId(), total, orderId);
         total = total.add(new BigDecimal("1.50")).subtract(discount);
         if (total.compareTo(BigDecimal.ZERO) < 0) {
             total = BigDecimal.ZERO;
@@ -586,12 +600,15 @@ public class BusinessService {
         return toAddress(userAddressMapper.selectById(entity.getId()));
     }
 
-    public List<Coupon> coupons() {
-        return couponMapper.selectList(Wrappers.<CouponEntity>lambdaQuery()
-                        .eq(CouponEntity::getStatus, "enabled")
-                        .orderByAsc(CouponEntity::getId))
-                .stream()
-                .map(this::toCoupon)
+    public List<Coupon> coupons(CurrentUser user) {
+        return userCouponMapper.selectAvailableCoupons(user.userId()).stream()
+                .map(row -> new Coupon(
+                        Long.valueOf(String.valueOf(summaryValue(row, "userCouponId"))),
+                        String.valueOf(summaryValue(row, "name")),
+                        money(summaryValue(row, "thresholdAmount")),
+                        money(summaryValue(row, "discountAmount")),
+                        "claimed"
+                ))
                 .toList();
     }
 
@@ -646,8 +663,8 @@ public class BusinessService {
         entity.setOrderId(review.orderId());
         entity.setUserId(user.userId());
         entity.setMerchantId(order.getMerchantId());
-        entity.setRating(review.rating());
-        entity.setContent(review.content());
+        entity.setRating(validateRating(review.rating()));
+        entity.setContent(normalizeReviewContent(review.content()));
         reviewMapper.insert(entity);
         return toReview(entity);
     }
@@ -956,8 +973,15 @@ public class BusinessService {
         return Map.of("id", id, "status", update.getStatus() == 1 ? "正常" : "禁用");
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE)
     public Map<String, Object> withdraw(CurrentUser user, BigDecimal amount, String accountNo) {
-        return createWithdrawRecord("rider", user.userId(), user.userId(), amount, accountNo);
+        validateWithdrawAmount(amount);
+        String trimmedAccountNo = requireWithdrawAccount(accountNo);
+        BigDecimal availableBalance = riderAvailableBalance(user.userId());
+        if (amount.compareTo(availableBalance) > 0) {
+            throw new BizException("提现金额超过可提现余额");
+        }
+        return createWithdrawRecord("rider", user.userId(), user.userId(), amount, trimmedAccountNo);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
@@ -981,6 +1005,13 @@ public class BusinessService {
         return grossIncome.subtract(platformServiceFee).subtract(occupiedWithdrawAmount).max(BigDecimal.ZERO);
     }
 
+    private BigDecimal riderAvailableBalance(Long riderId) {
+        long completedOrders = count(deliveryOrderMapper.countRiderCompletedOrders(riderId, COMPLETED));
+        BigDecimal grossIncome = BigDecimal.valueOf(completedOrders).multiply(RIDER_ORDER_INCOME);
+        BigDecimal occupiedWithdrawAmount = money(withdrawRecordMapper.sumRiderOccupiedWithdrawAmount(riderId));
+        return grossIncome.subtract(occupiedWithdrawAmount).max(BigDecimal.ZERO);
+    }
+
     private Map<String, Object> createWithdrawRecord(String ownerType, Long ownerId, Long legacyRiderId, BigDecimal amount, String accountNo) {
         validateWithdrawAmount(amount);
         String trimmedAccountNo = requireWithdrawAccount(accountNo);
@@ -989,7 +1020,7 @@ public class BusinessService {
         record.setOwnerType(ownerType);
         record.setOwnerId(ownerId);
         record.setAmount(amount);
-        record.setAccountNo(trimmedAccountNo);
+        record.setAccountNo(sensitiveDataCrypto.encrypt(trimmedAccountNo));
         record.setStatus("submitted");
         withdrawRecordMapper.insert(record);
         return withdrawRecordMap(record);
@@ -1032,7 +1063,7 @@ public class BusinessService {
     }
 
     private Map<String, Object> withdrawRecordMap(WithdrawRecordEntity record) {
-        String accountNoMasked = maskAccountNo(record.getAccountNo());
+        String accountNoMasked = maskAccountNo(sensitiveDataCrypto.decrypt(record.getAccountNo()));
         return orderedMap(
                 "id", record.getId(),
                 "ownerType", record.getOwnerType() == null ? "rider" : record.getOwnerType(),
@@ -1194,6 +1225,45 @@ public class BusinessService {
             return 0;
         }
         throw new BizException("用户状态不合法");
+    }
+
+    private BigDecimal calculateCouponDiscount(Long userId, Long merchantId, Long userCouponId, BigDecimal goodsAmount, String orderId) {
+        if (userCouponId == null) {
+            return BigDecimal.ZERO;
+        }
+        UserCouponEntity userCoupon = userCouponMapper.selectById(userCouponId);
+        if (userCoupon == null || !userId.equals(userCoupon.getUserId()) || !"claimed".equals(userCoupon.getStatus())) {
+            throw new BizException("优惠券无效或已使用");
+        }
+        if (userCoupon.getMerchantId() != null && userCoupon.getMerchantId() > 0 && !merchantId.equals(userCoupon.getMerchantId())) {
+            throw new BizException("优惠券不适用于当前商家");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if ((userCoupon.getValidStart() != null && userCoupon.getValidStart().isAfter(now))
+                || (userCoupon.getValidEnd() != null && userCoupon.getValidEnd().isBefore(now))) {
+            throw new BizException("优惠券不在有效期内");
+        }
+        CouponEntity coupon = couponMapper.selectById(userCoupon.getCouponId());
+        if (coupon == null || !"enabled".equals(coupon.getStatus())) {
+            throw new BizException("优惠券无效或已不可用");
+        }
+        BigDecimal threshold = coupon.getThresholdAmount() == null ? BigDecimal.ZERO : coupon.getThresholdAmount();
+        if (goodsAmount.compareTo(threshold) < 0) {
+            throw new BizException("未达到优惠券使用门槛");
+        }
+        UserCouponEntity update = new UserCouponEntity();
+        update.setStatus("used");
+        update.setUsedOrderId(orderId);
+        update.setUsedTime(now);
+        int rows = userCouponMapper.update(update, Wrappers.<UserCouponEntity>lambdaUpdate()
+                .eq(UserCouponEntity::getId, userCouponId)
+                .eq(UserCouponEntity::getUserId, userId)
+                .eq(UserCouponEntity::getStatus, "claimed"));
+        if (rows != 1) {
+            throw new BizException("优惠券状态已变化，请刷新后重试");
+        }
+        BigDecimal discount = coupon.getDiscountAmount() == null ? BigDecimal.ZERO : coupon.getDiscountAmount();
+        return discount.max(BigDecimal.ZERO).min(goodsAmount.add(new BigDecimal("1.50")));
     }
 
     private BigDecimal calculateCouponDiscount(Long couponId, BigDecimal goodsAmount) {
@@ -1437,6 +1507,24 @@ public class BusinessService {
             throw new BizException("商品数量不合法");
         }
         return quantity;
+    }
+
+    private int validateRating(Integer rating) {
+        if (rating == null || rating < 1 || rating > 5) {
+            throw new BizException(400, "评分必须在 1 到 5 之间");
+        }
+        return rating;
+    }
+
+    private String normalizeReviewContent(String content) {
+        if (content == null || content.trim().isEmpty()) {
+            throw new BizException(400, "评价内容不能为空");
+        }
+        String trimmed = content.trim();
+        if (trimmed.length() > 500) {
+            throw new BizException(400, "评价内容不能超过 500 字");
+        }
+        return trimmed;
     }
 
     private List<Order> orders(LambdaQueryWrapper<DeliveryOrderEntity> query) {
