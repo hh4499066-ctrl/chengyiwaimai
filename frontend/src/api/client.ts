@@ -125,6 +125,19 @@ export type AdminDashboard = {
   activeUsers: number;
   todayExceptionOrders?: number;
   totalExceptionOrders?: number;
+  dailyTrend?: Array<{ date: string; label: string; gmv: number; orders: number; exceptionOrders: number }>;
+  merchantRanking?: Array<{ merchantId: number; name: string; orders: number; gmv: number }>;
+  riderRanking?: Array<{ riderId: number; name: string; completedOrders: number; income: number }>;
+};
+
+export type WithdrawRecord = {
+  id: number;
+  ownerType?: string;
+  ownerId?: number;
+  amount: number;
+  accountNo: string;
+  status: string;
+  createTime?: string;
 };
 
 export type AdminUser = {
@@ -147,6 +160,7 @@ export type AdminMerchant = {
 
 export type MarketingActivity = {
   id: number;
+  merchantId?: number;
   name: string;
   type: string;
   status: string;
@@ -294,6 +308,12 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+  merchantWithdraw: (amount: number, accountNo: string) =>
+    request<WithdrawRecord>('/merchant-center/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ amount, accountNo }),
+    }),
+  getMerchantWithdrawRecords: () => request<WithdrawRecord[]>('/merchant-center/withdraw-records'),
   getRiderLobby: () => request<RiderLobbyOrder[]>('/rider/lobby'),
   getRiderTasks: () => request<Order[]>('/rider/tasks'),
   getRiderHistory: () => request<Order[]>('/rider/history'),
@@ -310,7 +330,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ amount, accountNo }),
     }),
-  getWithdrawRecords: () => request<Array<{ id: number; amount: number; accountNo: string; status: string; createTime?: string }>>('/rider/withdraw-records'),
+  getWithdrawRecords: () => request<WithdrawRecord[]>('/rider/withdraw-records'),
   cancelOrder: (orderId: string) => request<Order>(`/orders/${orderId}/cancel`, { method: 'POST' }),
   submitReview: (payload: ReviewPayload) =>
     request<unknown>('/customer/reviews', {
@@ -329,7 +349,7 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
   adminCreate: (module: string, body: Record<string, unknown>) =>
-    request<{ module: string; saved: boolean; data: Record<string, unknown> }>(`/admin/${module}`, {
+    request<Record<string, unknown>>(`/admin/${module}`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),

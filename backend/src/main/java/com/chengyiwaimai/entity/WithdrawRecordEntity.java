@@ -12,6 +12,8 @@ public class WithdrawRecordEntity {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long riderId;
+    private String ownerType;
+    private Long ownerId;
     private BigDecimal amount;
     private String accountNo;
     private String status;
@@ -32,6 +34,22 @@ public class WithdrawRecordEntity {
 
     public void setRiderId(Long riderId) {
         this.riderId = riderId;
+    }
+
+    public String getOwnerType() {
+        return ownerType;
+    }
+
+    public void setOwnerType(String ownerType) {
+        this.ownerType = ownerType;
+    }
+
+    public Long getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(Long ownerId) {
+        this.ownerId = ownerId;
     }
 
     public BigDecimal getAmount() {

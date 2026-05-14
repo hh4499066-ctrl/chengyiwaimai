@@ -1,23 +1,23 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api, type AdminUser, type MarketingActivity, type Order, type Review } from '../../api/client';
+import { api, type AdminUser, type MarketingActivity, type MerchantStats, type Order, type Review, type WithdrawRecord } from '../../api/client';
 
 type Column<T> = {
   key: keyof T;
   label: string;
 };
 
-type LocalActivity = { id: number; name: string; type: string; status: string };
 type SettingRow = { id: number; name: string; value: string; module: string };
+type ActivityFormState = { id?: number; name: string; type: string; status: string; startTime: string; endTime: string };
 
 function PageShell({ title, desc, action, onAction, children }: { title: string; desc: string; action?: string; onAction?: () => void; children: React.ReactNode }) {
   return (
     <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface">
-      <header className="flex items-center justify-between mb-lg">
+      <header className="flex items-center justify-between mb-lg gap-md">
         <div>
           <h2 className="font-headline-md text-headline-md font-bold text-on-surface">{title}</h2>
           <p className="font-body-md text-body-md text-on-surface-variant mt-xs">{desc}</p>
         </div>
-        {action && <button onClick={onAction} className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold shadow-sm hover:opacity-90">{action}</button>}
+        {action && <button onClick={onAction} className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold shadow-sm hover:opacity-90 whitespace-nowrap">{action}</button>}
       </header>
       {children}
     </div>
@@ -36,7 +36,96 @@ function SimpleModal({ title, body, onClose }: { title: string; body: React.Reac
   );
 }
 
-function DataTable<T extends { id?: number | string }>({ columns, rows, onView, onEdit }: { columns: Column<T>[]; rows: T[]; onView: (row: T) => void; onEdit: (row: T) => void }) {
+function toDateTimeInput(value?: string) {
+  if (!value) {
+    return '';
+  }
+  return String(value).replace(' ', 'T').slice(0, 16);
+}
+
+function activityToForm(activity?: MarketingActivity): ActivityFormState {
+  return {
+    id: activity?.id,
+    name: activity?.name || '',
+    type: activity?.type || 'coupon',
+    status: activity?.status || 'enabled',
+    startTime: toDateTimeInput(activity?.startTime),
+    endTime: toDateTimeInput(activity?.endTime),
+  };
+}
+
+function activityPayload(form: ActivityFormState) {
+  return {
+    name: form.name.trim(),
+    type: form.type,
+    status: form.status,
+    startTime: form.startTime,
+    endTime: form.endTime,
+  };
+}
+
+function isDisabledStatus(status: string) {
+  return status === '禁用' || status === 'disabled' || status === '0' || status === 'rejected';
+}
+
+function money(value: unknown) {
+  return `¥${Number(value ?? 0).toFixed(2)}`;
+}
+
+function ActivityFormModal({
+  title,
+  form,
+  saving,
+  onChange,
+  onSave,
+  onClose,
+}: {
+  title: string;
+  form: ActivityFormState;
+  saving: boolean;
+  onChange: React.Dispatch<React.SetStateAction<ActivityFormState | null>>;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const update = (key: keyof ActivityFormState, value: string) => onChange((prev) => prev ? { ...prev, [key]: value } : prev);
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg">
+      <div className="bg-surface rounded-2xl p-lg w-full max-w-xl space-y-md">
+        <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
+        <input value={form.name} onChange={(event) => update('name', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="活动名称" />
+        <select value={form.type} onChange={(event) => update('type', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm">
+          <option value="coupon">优惠券</option>
+          <option value="discount">满减</option>
+          <option value="delivery_fee">免配送费</option>
+        </select>
+        <select value={form.status} onChange={(event) => update('status', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm">
+          <option value="enabled">启用</option>
+          <option value="disabled">停用</option>
+        </select>
+        <input type="datetime-local" value={form.startTime} onChange={(event) => update('startTime', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" />
+        <input type="datetime-local" value={form.endTime} onChange={(event) => update('endTime', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" />
+        <div className="flex justify-end gap-sm">
+          <button onClick={onClose} className="px-md py-sm rounded-lg border border-outline-variant">取消</button>
+          <button disabled={saving || !form.name.trim()} onClick={onSave} className="px-md py-sm rounded-lg bg-primary text-on-primary disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DataTable<T extends { id?: number | string }>({
+  columns,
+  rows,
+  onView,
+  onEdit,
+  renderActions,
+}: {
+  columns: Column<T>[];
+  rows: T[];
+  onView: (row: T) => void;
+  onEdit?: (row: T) => void;
+  renderActions?: (row: T) => React.ReactNode;
+}) {
   return (
     <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-auto">
       <table className="w-full text-left border-collapse">
@@ -51,8 +140,12 @@ function DataTable<T extends { id?: number | string }>({ columns, rows, onView, 
             <tr key={String(row.id ?? index)} className="hover:bg-surface-variant/20 transition-colors">
               {columns.map((column) => <td key={String(column.key)} className="p-md">{String(row[column.key] ?? '')}</td>)}
               <td className="p-md text-right whitespace-nowrap">
-                <button onClick={() => onView(row)} className="text-primary font-medium hover:underline mr-md">查看</button>
-                <button onClick={() => onEdit(row)} className="text-on-surface-variant font-medium hover:underline">编辑</button>
+                {renderActions ? renderActions(row) : (
+                  <>
+                    <button onClick={() => onView(row)} className="text-primary font-medium hover:underline mr-md">查看</button>
+                    {onEdit && <button onClick={() => onEdit(row)} className="text-on-surface-variant font-medium hover:underline">编辑</button>}
+                  </>
+                )}
               </td>
             </tr>
           ))}
@@ -65,13 +158,46 @@ function DataTable<T extends { id?: number | string }>({ columns, rows, onView, 
 
 export function MerchantModule({ type }: { type: string }) {
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [stats, setStats] = useState<MerchantStats | null>(null);
+  const [withdrawRecords, setWithdrawRecords] = useState<WithdrawRecord[]>([]);
+  const [marketing, setMarketing] = useState<MarketingActivity[]>([]);
+  const [activityForm, setActivityForm] = useState<ActivityFormState | null>(null);
+  const [savingActivity, setSavingActivity] = useState(false);
   const [modal, setModal] = useState<{ title: string; body: React.ReactNode } | null>(null);
+
+  const refreshMarketing = () => api.getMerchantMarketing().then(setMarketing).catch(() => setMarketing([]));
+  const refreshWithdrawRecords = () => api.getMerchantWithdrawRecords().then(setWithdrawRecords).catch(() => setWithdrawRecords([]));
 
   useEffect(() => {
     if (type === 'reviews') {
       api.getMerchantReviews().then(setReviews).catch(() => setReviews([]));
     }
+    if (type === 'finance') {
+      api.getMerchantStats().then(setStats).catch(() => setStats(null));
+      refreshWithdrawRecords();
+    }
+    if (type === 'marketing') {
+      refreshMarketing();
+    }
   }, [type]);
+
+  const saveMerchantActivity = () => {
+    if (!activityForm) {
+      return;
+    }
+    setSavingActivity(true);
+    const request = activityForm.id
+      ? api.updateMerchantMarketing(activityForm.id, activityPayload(activityForm))
+      : api.saveMerchantMarketing(activityPayload(activityForm));
+    request
+      .then(() => refreshMarketing())
+      .then(() => {
+        setActivityForm(null);
+        setModal({ title: '活动已保存', body: '营销活动已保存并刷新列表。' });
+      })
+      .catch((err) => setModal({ title: '保存失败', body: err instanceof Error ? err.message : '营销活动保存失败' }))
+      .finally(() => setSavingActivity(false));
+  };
 
   if (type === 'reviews') {
     const reply = (review: Review) => {
@@ -94,26 +220,74 @@ export function MerchantModule({ type }: { type: string }) {
   }
 
   if (type === 'finance') {
+    const todayIncome = Number(stats?.todayIncome ?? 0);
+    const totalIncome = Number(stats?.totalIncome ?? todayIncome);
+    const serviceFee = Number((todayIncome * 0.06).toFixed(2));
+    const financeCards = [
+      { label: '今日收入', value: money(todayIncome) },
+      { label: '可提现余额', value: money(Math.max(totalIncome - serviceFee, 0)) },
+      { label: '平台服务费', value: money(serviceFee) },
+      { label: '退款订单', value: `${Number(stats?.refundOrders ?? 0)} 单` },
+    ];
+    const submitWithdraw = () => {
+      const amount = Number(window.prompt('提现金额', String(Math.max(totalIncome - serviceFee, 0).toFixed(2))));
+      if (!Number.isFinite(amount) || amount <= 0) {
+        setModal({ title: '提现失败', body: '提现金额必须大于 0。' });
+        return;
+      }
+      const accountNo = window.prompt('提现账户', '对公账户 6222****8888') || '';
+      api.merchantWithdraw(amount, accountNo)
+        .then(() => refreshWithdrawRecords())
+        .then(() => setModal({ title: '提现申请已提交', body: '提现申请已写入数据库并刷新记录。' }))
+        .catch((err) => setModal({ title: '提现失败', body: err instanceof Error ? err.message : '提现申请提交失败' }));
+    };
     return (
-      <PageShell title="财务结算" desc="统计营业收入和提现申请。" action="申请提现" onAction={() => setModal({ title: '提现申请', body: '提现申请已提交，演示模式不产生真实资金流。' })}>
+      <PageShell title="财务结算" desc="统计真实营业收入、订单和退款数据。" action="申请提现" onAction={submitWithdraw}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-md">
-          {['今日收入', '可提现余额', '平台服务费', '退款订单'].map((label, index) => (
-            <div key={label} className="bg-surface-container-lowest rounded-xl p-md border border-outline-variant/30 shadow-sm"><p className="text-body-md text-on-surface-variant">{label}</p><p className="text-headline-md font-bold text-primary mt-sm">{index === 3 ? '0 单' : `¥${(2840 - index * 320).toFixed(2)}`}</p></div>
+          {financeCards.map((item) => (
+            <div key={item.label} className="bg-surface-container-lowest rounded-xl p-md border border-outline-variant/30 shadow-sm">
+              <p className="text-body-md text-on-surface-variant">{item.label}</p>
+              <p className="text-headline-md font-bold text-primary mt-sm">{item.value}</p>
+            </div>
           ))}
         </div>
+        <section className="mt-lg bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden">
+          <div className="p-md border-b border-outline-variant/20 flex justify-between items-center">
+            <h3 className="font-headline-sm text-headline-sm font-bold">提现记录</h3>
+            <button onClick={refreshWithdrawRecords} className="text-primary text-body-md">刷新</button>
+          </div>
+          {withdrawRecords.length === 0 ? (
+            <p className="p-lg text-center text-on-surface-variant">暂无提现记录</p>
+          ) : (
+            <table className="w-full text-left">
+              <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">金额</th><th className="p-md">账户</th><th className="p-md">状态</th><th className="p-md">时间</th></tr></thead>
+              <tbody className="divide-y divide-outline-variant/20">
+                {withdrawRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td className="p-md font-bold text-primary">{money(record.amount)}</td>
+                    <td className="p-md">{record.accountNo}</td>
+                    <td className="p-md">{record.status}</td>
+                    <td className="p-md">{record.createTime || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
       </PageShell>
     );
   }
 
   return (
-    <PageShell title="营销中心" desc="配置满减、优惠券和新客活动。" action="新建活动" onAction={() => setModal({ title: '新建活动', body: '演示活动已创建，可在后台营销管理中查看。' })}>
-      <DataTable<LocalActivity>
+    <PageShell title="营销中心" desc="配置并保存本商家的满减、优惠券和新客活动。" action="新建活动" onAction={() => setActivityForm(activityToForm())}>
+      <DataTable<MarketingActivity>
         columns={[{ key: 'name', label: '活动名称' }, { key: 'type', label: '类型' }, { key: 'status', label: '状态' }]}
-        rows={[{ id: 1, name: '新客首单立减', type: '优惠券', status: '进行中' }, { id: 2, name: '午餐满30减5', type: '满减', status: '进行中' }]}
+        rows={marketing}
         onView={(row) => setModal({ title: '活动详情', body: <pre className="whitespace-pre-wrap">{JSON.stringify(row, null, 2)}</pre> })}
-        onEdit={(row) => setModal({ title: '编辑活动', body: `${row.name} 已进入演示编辑模式。` })}
+        onEdit={(row) => setActivityForm(activityToForm(row))}
       />
+      {activityForm && <ActivityFormModal title={activityForm.id ? '编辑活动' : '新建活动'} form={activityForm} saving={savingActivity} onChange={setActivityForm} onSave={saveMerchantActivity} onClose={() => setActivityForm(null)} />}
       {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
     </PageShell>
   );
@@ -124,19 +298,24 @@ export function AdminModule({ type }: { type: string }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [marketing, setMarketing] = useState<MarketingActivity[]>([]);
   const [statusFilter, setStatusFilter] = useState('全部');
+  const [activityForm, setActivityForm] = useState<ActivityFormState | null>(null);
+  const [savingActivity, setSavingActivity] = useState(false);
   const [modal, setModal] = useState<{ title: string; body: React.ReactNode } | null>(null);
   const shownOrders = useMemo(() => statusFilter === '全部' ? orders : orders.filter((order) => order.status === statusFilter), [orders, statusFilter]);
   const statuses = useMemo(() => ['全部', ...Array.from(new Set(orders.map((order) => order.status)))], [orders]);
 
+  const refreshUsers = () => api.getAdminUsers().then(setUsers).catch(() => setUsers([]));
+  const refreshMarketing = () => api.getAdminMarketing().then(setMarketing).catch(() => setMarketing([]));
+
   useEffect(() => {
     if (type === 'users') {
-      api.getAdminUsers().then(setUsers).catch(() => setUsers([]));
+      refreshUsers();
     }
     if (type === 'orders') {
       api.getAdminOrders().then(setOrders).catch(() => setOrders([]));
     }
     if (type === 'marketing') {
-      api.getAdminMarketing().then(setMarketing).catch(() => setMarketing([]));
+      refreshMarketing();
     }
   }, [type]);
 
@@ -150,10 +329,56 @@ export function AdminModule({ type }: { type: string }) {
     URL.revokeObjectURL(url);
   };
 
+  const toggleUserStatus = (user: AdminUser) => {
+    const nextStatus = isDisabledStatus(user.status) ? 'enabled' : 'disabled';
+    api.updateAdminUserStatus(user.id, nextStatus)
+      .then(() => refreshUsers())
+      .then(() => setModal({ title: '状态已更新', body: `${user.name || user.phone} 已${nextStatus === 'enabled' ? '启用' : '禁用'}。` }))
+      .catch((err) => setModal({ title: '状态更新失败', body: err instanceof Error ? err.message : '用户状态更新失败' }));
+  };
+
+  const saveAdminActivity = () => {
+    if (!activityForm) {
+      return;
+    }
+    setSavingActivity(true);
+    const request = activityForm.id
+      ? api.adminUpdate('marketing', activityForm.id, activityPayload(activityForm))
+      : api.adminCreate('marketing', activityPayload(activityForm));
+    request
+      .then(() => refreshMarketing())
+      .then(() => {
+        setActivityForm(null);
+        setModal({ title: '活动已保存', body: '活动已保存并刷新列表。' });
+      })
+      .catch((err) => setModal({ title: '保存失败', body: err instanceof Error ? err.message : '营销活动保存失败' }))
+      .finally(() => setSavingActivity(false));
+  };
+
+  const deleteAdminActivity = (activity: MarketingActivity) => {
+    if (!window.confirm(`确认删除活动：${activity.name}？`)) {
+      return;
+    }
+    api.adminDelete('marketing', activity.id)
+      .then(() => refreshMarketing())
+      .then(() => setModal({ title: '活动已删除', body: '活动已删除并刷新列表。' }))
+      .catch((err) => setModal({ title: '删除失败', body: err instanceof Error ? err.message : '营销活动删除失败' }));
+  };
+
   if (type === 'users') {
     return (
       <PageShell title="用户管理" desc="查看真实用户账号、角色和状态。" action="新增用户" onAction={() => setModal({ title: '新增用户', body: '演示版暂不支持新增用户。' })}>
-        <DataTable<AdminUser> columns={[{ key: 'name', label: '用户' }, { key: 'phone', label: '手机号' }, { key: 'role', label: '角色' }, { key: 'status', label: '状态' }]} rows={users} onView={(row) => setModal({ title: '用户详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })} onEdit={(row) => setModal({ title: '编辑用户', body: `${row.name} 的编辑能力为演示模式。` })} />
+        <DataTable<AdminUser>
+          columns={[{ key: 'name', label: '用户' }, { key: 'phone', label: '手机号' }, { key: 'role', label: '角色' }, { key: 'status', label: '状态' }]}
+          rows={users}
+          onView={(row) => setModal({ title: '用户详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })}
+          renderActions={(row) => (
+            <>
+              <button onClick={() => setModal({ title: '用户详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })} className="text-primary font-medium hover:underline mr-md">查看</button>
+              <button onClick={() => toggleUserStatus(row)} className={isDisabledStatus(row.status) ? 'text-tertiary font-medium hover:underline' : 'text-error font-medium hover:underline'}>{isDisabledStatus(row.status) ? '启用' : '禁用'}</button>
+            </>
+          )}
+        />
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
       </PageShell>
     );
@@ -171,8 +396,20 @@ export function AdminModule({ type }: { type: string }) {
 
   if (type === 'marketing') {
     return (
-      <PageShell title="营销活动配置" desc="读取后台营销活动列表。" action="新建活动" onAction={() => api.adminCreate('marketing', { name: '演示活动', type: 'coupon', status: 'enabled' }).then(() => setModal({ title: '新建活动', body: '演示活动已创建。' }))}>
-        <DataTable<MarketingActivity> columns={[{ key: 'name', label: '活动' }, { key: 'type', label: '类型' }, { key: 'status', label: '状态' }]} rows={marketing} onView={(row) => setModal({ title: '活动详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })} onEdit={(row) => setModal({ title: '编辑活动', body: `${row.name} 已进入演示编辑模式。` })} />
+      <PageShell title="营销活动配置" desc="读取并维护后台平台营销活动列表。" action="新建活动" onAction={() => setActivityForm(activityToForm())}>
+        <DataTable<MarketingActivity>
+          columns={[{ key: 'name', label: '活动' }, { key: 'type', label: '类型' }, { key: 'status', label: '状态' }]}
+          rows={marketing}
+          onView={(row) => setModal({ title: '活动详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })}
+          renderActions={(row) => (
+            <>
+              <button onClick={() => setModal({ title: '活动详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })} className="text-primary font-medium hover:underline mr-md">查看</button>
+              <button onClick={() => setActivityForm(activityToForm(row))} className="text-on-surface-variant font-medium hover:underline mr-md">编辑</button>
+              <button onClick={() => deleteAdminActivity(row)} className="text-error font-medium hover:underline">删除</button>
+            </>
+          )}
+        />
+        {activityForm && <ActivityFormModal title={activityForm.id ? '编辑活动' : '新建活动'} form={activityForm} saving={savingActivity} onChange={setActivityForm} onSave={saveAdminActivity} onClose={() => setActivityForm(null)} />}
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
       </PageShell>
     );

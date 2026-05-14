@@ -199,81 +199,6 @@ function MerchantOrders() {
 
 }
 
-function MerchantMenu() {
-  return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
-      <header className="px-lg py-md border-b border-outline-variant/30 flex justify-between items-center bg-surface z-10 shrink-0">
-          <div>
-              <h2 className="font-headline-md text-headline-md font-bold text-on-surface">商品管理</h2>
-              <p className="font-label-md text-label-md text-on-surface-variant">管理菜单、价格及库存状态</p>
-          </div>
-          <button className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold flex items-center gap-xs shadow-sm hover:opacity-90 transition-opacity"><span className="material-symbols-outlined text-[20px]">add</span>新建商品</button>
-      </header>
-      <div className="flex-1 flex overflow-hidden">
-          <div className="w-[120px] md:w-[200px] border-r border-outline-variant/30 bg-surface-container-low overflow-y-auto">
-              {['招牌推荐', '热销套餐', '经典炒菜', '凉菜系列', '酒水饮料', '主食'].map((c, i) => (
-                  <button key={i} className={`w-full text-left px-md py-md font-body-md font-medium transition-colors relative ${i===0 ? 'bg-surface text-primary border-r-2 border-primary' : 'text-on-surface hover:bg-surface-variant'}`}>{c}</button>
-              ))}
-              <button className="w-full text-left px-md py-md font-body-md text-on-surface-variant hover:bg-surface-variant flex items-center gap-xs"><span className="material-symbols-outlined text-[18px]">add</span>新建分类</button>
-          </div>
-          <div className="flex-1 bg-surface overflow-y-auto p-md md:p-lg space-y-md">
-              <div className="flex justify-between items-center bg-surface-container-lowest p-sm border border-outline-variant/30 rounded-lg">
-                  <div className="flex items-center gap-sm px-sm"><span className="material-symbols-outlined text-on-surface-variant">search</span><input type="text" placeholder="搜索商品名称..." className="bg-transparent border-none outline-none font-body-md text-on-surface w-[200px] md:w-[300px]"/></div>
-                  <div className="flex gap-sm">
-                      <select className="bg-surface border border-outline-variant rounded p-1 text-sm outline-none"><option>全部状态</option><option>售卖中</option><option>已售罄</option></select>
-                  </div>
-              </div>
-              <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
-                  <table className="w-full text-left border-collapse">
-                      <thead>
-                          <tr className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md">
-                              <th className="p-md font-medium">商品信息</th><th className="p-md font-medium hidden md:table-cell">价格</th><th className="p-md font-medium">库存</th><th className="p-md font-medium text-right">操作</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-outline-variant/20 font-body-md">
-                          <tr className="hover:bg-surface-variant/20 transition-colors">
-                              <td className="p-md flex items-center gap-md">
-                                  <div className="w-16 h-16 rounded bg-surface-variant overflow-hidden flex-shrink-0"><img src="https://images.unsplash.com/photo-1541614101331-1a5a3a194e92?fit=crop&w=150&h=150" className="w-full h-full object-cover" alt="food"/></div>
-                                  <div>
-                                      <p className="font-bold text-on-surface line-clamp-1">招牌麻婆豆腐</p>
-                                      <p className="font-label-md text-on-surface-variant mt-1">销量: 1240 | 赞: 98%</p>
-                                  </div>
-                              </td>
-                              <td className="p-md font-bold text-on-surface hidden md:table-cell">¥18.00</td>
-                              <td className="p-md">
-                                  <div className="flex items-center gap-xs text-secondary-fixed-dim font-medium"><span className="w-2 h-2 rounded-full bg-secondary-fixed-dim"></span>售卖中</div>
-                              </td>
-                              <td className="p-md text-right whitespace-nowrap">
-                                  <button className="text-primary font-medium hover:underline mr-md">编辑</button>
-                                  <button className="text-on-surface-variant font-medium hover:underline">下架</button>
-                              </td>
-                          </tr>
-                          <tr className="hover:bg-surface-variant/20 transition-colors opacity-60">
-                              <td className="p-md flex items-center gap-md">
-                                  <div className="w-16 h-16 rounded bg-surface-variant overflow-hidden flex-shrink-0 grayscale"><img src="https://images.unsplash.com/photo-1512058564366-18510be2db19?fit=crop&w=150&h=150" className="w-full h-full object-cover" alt="food"/></div>
-                                  <div>
-                                      <p className="font-bold text-on-surface line-clamp-1">秘制烤鱼 (大份)</p>
-                                      <p className="font-label-md text-on-surface-variant mt-1">销量: 890 | 赞: 95%</p>
-                                  </div>
-                              </td>
-                              <td className="p-md font-bold text-on-surface hidden md:table-cell">¥98.00</td>
-                              <td className="p-md">
-                                  <div className="flex items-center gap-xs text-error font-medium"><span className="w-2 h-2 rounded-full bg-error"></span>已售罄</div>
-                              </td>
-                              <td className="p-md text-right whitespace-nowrap">
-                                  <button className="text-primary font-medium hover:underline mr-md">编辑</button>
-                                  <button className="text-primary font-medium hover:underline">补库存</button>
-                              </td>
-                          </tr>
-                      </tbody>
-                  </table>
-              </div>
-          </div>
-      </div>
-    </div>
-  );
-}
-
 function MerchantMenuLive() {
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [editing, setEditing] = useState<Dish | null>(null);
@@ -429,16 +354,26 @@ function MerchantMenuLive() {
 function MerchantSettings() {
   const [settings, setSettings] = useState({ status: 'open', deliveryFee: '1.5', minOrder: '20', announcement: '欢迎光临橙意外卖' });
   const [message, setMessage] = useState('');
+  useEffect(() => {
+    api.getBusinessSettings()
+      .then((data) => setSettings((prev) => ({ ...prev, status: String(data.businessStatus || 'open') })))
+      .catch((err) => setMessage(err instanceof Error ? err.message : '营业设置加载失败'));
+  }, []);
   const save = () => {
-    api.saveBusinessSettings(settings).then(() => setMessage('营业设置已保存')).catch((err) => setMessage(err instanceof Error ? err.message : '保存失败'));
+    api.saveBusinessSettings({ ...settings, businessStatus: settings.status })
+      .then((data) => {
+        setSettings((prev) => ({ ...prev, status: String(data.businessStatus || prev.status) }));
+        setMessage('营业设置已保存');
+      })
+      .catch((err) => setMessage(err instanceof Error ? err.message : '保存失败'));
   };
   return (
     <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface space-y-md">
-      <header><h2 className="font-headline-md text-headline-md font-bold">营业设置</h2><p className="text-on-surface-variant">营业状态、配送费、起送价和公告支持本地编辑并保存。</p></header>
+      <header><h2 className="font-headline-md text-headline-md font-bold">营业设置</h2><p className="text-on-surface-variant">读取当前营业状态后再保存配置。</p></header>
       {message && <div className="rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
       <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-lg space-y-md max-w-2xl">
         <select value={settings.status} onChange={(event) => setSettings((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm">
-          <option value="open">营业中</option><option value="resting">休息中</option><option value="paused">暂停接单</option>
+          <option value="open">营业中</option><option value="closed">休息中</option><option value="paused">暂停接单</option>
         </select>
         <input value={settings.deliveryFee} onChange={(event) => setSettings((prev) => ({ ...prev, deliveryFee: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="配送费" />
         <input value={settings.minOrder} onChange={(event) => setSettings((prev) => ({ ...prev, minOrder: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="起送价" />

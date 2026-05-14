@@ -5,6 +5,7 @@ import com.chengyiwaimai.model.Models.Category;
 import com.chengyiwaimai.model.Models.Dish;
 import com.chengyiwaimai.model.Models.DishStatusRequest;
 import com.chengyiwaimai.model.Models.DishStockRequest;
+import com.chengyiwaimai.model.Models.WithdrawRequest;
 import com.chengyiwaimai.security.AuthContext;
 import com.chengyiwaimai.security.CurrentUser;
 import com.chengyiwaimai.service.BusinessService;
@@ -141,6 +142,18 @@ public class MerchantCenterController {
     public ApiResponse<Map<String, Object>> stats(HttpServletRequest request) {
         CurrentUser user = AuthContext.requireRole(request, "merchant");
         return ApiResponse.ok(store.merchantStats(user));
+    }
+
+    @PostMapping("/withdraw")
+    public ApiResponse<Map<String, Object>> withdraw(HttpServletRequest request, @RequestBody WithdrawRequest body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantWithdraw(user, body.amount(), body.accountNo()));
+    }
+
+    @GetMapping("/withdraw-records")
+    public ApiResponse<?> withdrawRecords(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantWithdrawRecords(user));
     }
 
     @GetMapping("/reviews")

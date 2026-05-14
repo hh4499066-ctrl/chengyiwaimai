@@ -57,7 +57,8 @@ public class AdminController {
 
     @PostMapping("/{module}/{id}/audit")
     public ApiResponse<Map<String, Object>> audit(@PathVariable String module, @PathVariable Long id, @RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(store.adminAudit(module, id, String.valueOf(body.getOrDefault("status", "approved"))));
+        Object status = body.get("status");
+        return ApiResponse.ok(store.adminAudit(module, id, status == null ? "approved" : String.valueOf(status)));
     }
 
     @PostMapping("/{module}")

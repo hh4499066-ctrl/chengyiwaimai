@@ -143,23 +143,27 @@ CREATE TABLE IF NOT EXISTS review (
 
 CREATE TABLE IF NOT EXISTS marketing_activity (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  merchant_id BIGINT,
+  merchant_id BIGINT NOT NULL DEFAULT 0,
   name VARCHAR(80) NOT NULL,
   type VARCHAR(30) NOT NULL,
   start_time DATETIME,
   end_time DATETIME,
   status VARCHAR(20) DEFAULT 'enabled',
   deleted TINYINT DEFAULT 0,
+  UNIQUE KEY uk_marketing_merchant_name (merchant_id, name),
   KEY idx_marketing_activity_merchant_id (merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS withdraw_record (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rider_id BIGINT NOT NULL,
+  owner_type VARCHAR(20) DEFAULT 'rider',
+  owner_id BIGINT,
   amount DECIMAL(10,2) NOT NULL,
   account_no VARCHAR(80) NOT NULL,
   status VARCHAR(20) DEFAULT 'submitted',
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_withdraw_record_rider_id (rider_id)
+  KEY idx_withdraw_record_rider_id (rider_id),
+  KEY idx_withdraw_record_owner (owner_type, owner_id)
 );

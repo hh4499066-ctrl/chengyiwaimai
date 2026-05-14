@@ -37,7 +37,7 @@ INSERT INTO coupon(name, threshold_amount, discount_amount, status) VALUES
 ('校园夜宵满减券', 35.00, 6.00, 'enabled')
 ON DUPLICATE KEY UPDATE threshold_amount = VALUES(threshold_amount), discount_amount = VALUES(discount_amount), status = VALUES(status), deleted = 0;
 
-INSERT INTO marketing_activity(name, type, start_time, end_time, status) VALUES
-('新客首单立减', 'coupon', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 'enabled'),
-('午餐高峰免配送费', 'delivery_fee', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 'enabled')
+INSERT INTO marketing_activity(merchant_id, name, type, start_time, end_time, status) VALUES
+(0, '新客首单立减', 'coupon', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 'enabled'),
+(0, '午餐高峰免配送费', 'delivery_fee', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 'enabled')
 ON DUPLICATE KEY UPDATE type = VALUES(type), start_time = VALUES(start_time), end_time = VALUES(end_time), status = VALUES(status), deleted = 0;

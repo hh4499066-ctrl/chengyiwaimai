@@ -105,8 +105,22 @@ JOIN coupon c2 ON c1.name = c2.name AND c1.id > c2.id;
 SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'coupon' AND INDEX_NAME = 'uk_coupon_name') = 0, 'ALTER TABLE coupon ADD UNIQUE KEY uk_coupon_name (name)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-DELETE a1 FROM marketing_activity a1
-JOIN marketing_activity a2 ON a1.name = a2.name AND a1.id > a2.id;
+SET @sql = IF(
+  (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketing_activity' AND COLUMN_NAME = 'merchant_id') = 0,
+  'ALTER TABLE marketing_activity ADD COLUMN merchant_id BIGINT NOT NULL DEFAULT 0 AFTER id',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketing_activity' AND INDEX_NAME = 'uk_marketing_activity_name') = 0, 'ALTER TABLE marketing_activity ADD UNIQUE KEY uk_marketing_activity_name (name)', 'SELECT 1');
+UPDATE marketing_activity SET merchant_id = 0 WHERE merchant_id IS NULL;
+
+DELETE a1 FROM marketing_activity a1
+JOIN marketing_activity a2 ON a1.merchant_id = a2.merchant_id AND a1.name = a2.name AND a1.id > a2.id;
+
+ALTER TABLE marketing_activity MODIFY COLUMN merchant_id BIGINT NOT NULL DEFAULT 0;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketing_activity' AND INDEX_NAME = 'uk_marketing_activity_name') > 0, 'ALTER TABLE marketing_activity DROP INDEX uk_marketing_activity_name', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @sql = IF((SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'marketing_activity' AND INDEX_NAME = 'uk_marketing_merchant_name') = 0, 'ALTER TABLE marketing_activity ADD UNIQUE KEY uk_marketing_merchant_name (merchant_id, name)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

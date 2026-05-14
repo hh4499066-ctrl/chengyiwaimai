@@ -46,14 +46,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class BusinessService {
@@ -789,10 +792,14 @@ public class BusinessService {
     public Map<String, Object> adminDashboard() {
         LocalDateTime start = todayStart();
         LocalDateTime end = tomorrowStart();
+        LocalDate trendStart = LocalDate.now().minusDays(29);
         List<DeliveryOrderEntity> todayOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
                 .ge(DeliveryOrderEntity::getCreateTime, start)
                 .lt(DeliveryOrderEntity::getCreateTime, end));
         List<DeliveryOrderEntity> totalOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery());
+        List<DeliveryOrderEntity> trendOrders = deliveryOrderMapper.selectList(Wrappers.<DeliveryOrderEntity>lambdaQuery()
+                .ge(DeliveryOrderEntity::getCreateTime, trendStart.atStartOfDay())
+                .lt(DeliveryOrderEntity::getCreateTime, end));
         return Map.of(
                 "todayGmv", sumPaid(todayOrders),
                 "todayOrders", todayOrders.size(),
@@ -800,8 +807,83 @@ public class BusinessService {
                 "totalOrders", totalOrders.size(),
                 "activeUsers", sysUserMapper.selectCount(Wrappers.<SysUserEntity>lambdaQuery().eq(SysUserEntity::getStatus, 1)),
                 "todayExceptionOrders", todayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count(),
-                "totalExceptionOrders", totalOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count()
+                "totalExceptionOrders", totalOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count(),
+                "dailyTrend", dailyTrend(trendStart, trendOrders),
+                "merchantRanking", merchantRanking(totalOrders),
+                "riderRanking", riderRanking(totalOrders)
         );
+    }
+
+    private List<Map<String, Object>> dailyTrend(LocalDate startDate, List<DeliveryOrderEntity> orders) {
+        return IntStream.range(0, 30)
+                .mapToObj(offset -> {
+                    LocalDate date = startDate.plusDays(offset);
+                    List<DeliveryOrderEntity> dayOrders = orders.stream()
+                            .filter(order -> order.getCreateTime() != null)
+                            .filter(order -> order.getCreateTime().toLocalDate().equals(date))
+                            .toList();
+                    return Map.<String, Object>of(
+                            "date", date.toString(),
+                            "label", date.format(DateTimeFormatter.ofPattern("MM/dd")),
+                            "gmv", sumPaid(dayOrders),
+                            "orders", dayOrders.size(),
+                            "exceptionOrders", dayOrders.stream().filter(order -> CANCELED.equals(order.getStatus())).count()
+                    );
+                })
+                .toList();
+    }
+
+    private List<Map<String, Object>> merchantRanking(List<DeliveryOrderEntity> orders) {
+        Map<Long, MerchantEntity> merchantById = merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery())
+                .stream()
+                .collect(Collectors.toMap(MerchantEntity::getId, Function.identity(), (left, right) -> left));
+        return orders.stream()
+                .filter(this::isEffectivePaidOrder)
+                .filter(order -> order.getMerchantId() != null)
+                .collect(Collectors.groupingBy(DeliveryOrderEntity::getMerchantId))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    MerchantEntity merchant = merchantById.get(entry.getKey());
+                    return Map.<String, Object>of(
+                            "merchantId", entry.getKey(),
+                            "name", merchant == null || merchant.getName() == null ? "商家 " + entry.getKey() : merchant.getName(),
+                            "orders", entry.getValue().size(),
+                            "gmv", sumPaid(entry.getValue())
+                    );
+                })
+                .sorted(Comparator.comparing(item -> (BigDecimal) item.get("gmv"), Comparator.reverseOrder()))
+                .limit(5)
+                .toList();
+    }
+
+    private List<Map<String, Object>> riderRanking(List<DeliveryOrderEntity> orders) {
+        Map<Long, SysUserEntity> userById = sysUserMapper.selectList(Wrappers.<SysUserEntity>lambdaQuery()
+                        .eq(SysUserEntity::getRole, "rider"))
+                .stream()
+                .collect(Collectors.toMap(SysUserEntity::getId, Function.identity(), (left, right) -> left));
+        return orders.stream()
+                .filter(order -> COMPLETED.equals(order.getStatus()))
+                .filter(order -> order.getRiderId() != null)
+                .collect(Collectors.groupingBy(DeliveryOrderEntity::getRiderId))
+                .entrySet()
+                .stream()
+                .map(entry -> {
+                    SysUserEntity rider = userById.get(entry.getKey());
+                    return Map.<String, Object>of(
+                            "riderId", entry.getKey(),
+                            "name", rider == null || rider.getNickname() == null ? "骑手 " + entry.getKey() : rider.getNickname(),
+                            "completedOrders", entry.getValue().size(),
+                            "income", BigDecimal.valueOf(entry.getValue().size()).multiply(new BigDecimal("4.50"))
+                    );
+                })
+                .sorted(Comparator.comparing(item -> (Integer) item.get("completedOrders"), Comparator.reverseOrder()))
+                .limit(5)
+                .toList();
+    }
+
+    private boolean isEffectivePaidOrder(DeliveryOrderEntity order) {
+        return !WAIT_PAY.equals(order.getStatus()) && !CANCELED.equals(order.getStatus());
     }
 
     public List<Map<String, Object>> adminUsers() {
@@ -853,6 +935,7 @@ public class BusinessService {
 
     public Map<String, Object> createAdminMarketing(Map<String, Object> body) {
         MarketingActivityEntity activity = toMarketingActivity(body);
+        activity.setMerchantId(parseLongValue(body.get("merchantId"), 0L));
         marketingActivityMapper.insert(activity);
         return marketingActivityMap(activity);
     }
@@ -885,6 +968,15 @@ public class BusinessService {
     }
 
     public Map<String, Object> withdraw(CurrentUser user, BigDecimal amount, String accountNo) {
+        return createWithdrawRecord("rider", user.userId(), user.userId(), amount, accountNo);
+    }
+
+    public Map<String, Object> merchantWithdraw(CurrentUser user, BigDecimal amount, String accountNo) {
+        MerchantEntity merchant = requireMerchant(user);
+        return createWithdrawRecord("merchant", merchant.getId(), user.userId(), amount, accountNo);
+    }
+
+    private Map<String, Object> createWithdrawRecord(String ownerType, Long ownerId, Long legacyRiderId, BigDecimal amount, String accountNo) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BizException("提现金额必须大于 0");
         }
@@ -892,49 +984,96 @@ public class BusinessService {
             throw new BizException("提现账户不能为空");
         }
         WithdrawRecordEntity record = new WithdrawRecordEntity();
-        record.setRiderId(user.userId());
+        record.setRiderId(legacyRiderId);
+        record.setOwnerType(ownerType);
+        record.setOwnerId(ownerId);
         record.setAmount(amount);
         record.setAccountNo(accountNo.trim());
         record.setStatus("submitted");
         withdrawRecordMapper.insert(record);
-        return Map.of("id", record.getId(), "status", record.getStatus(), "amount", record.getAmount(), "accountNo", record.getAccountNo());
+        return withdrawRecordMap(record);
     }
 
     public List<Map<String, Object>> withdrawRecords(CurrentUser user) {
         return withdrawRecordMapper.selectList(Wrappers.<WithdrawRecordEntity>lambdaQuery()
                         .eq(WithdrawRecordEntity::getRiderId, user.userId())
+                        .and(wrapper -> wrapper.isNull(WithdrawRecordEntity::getOwnerType)
+                                .or()
+                                .eq(WithdrawRecordEntity::getOwnerType, "rider"))
                         .orderByDesc(WithdrawRecordEntity::getCreateTime))
                 .stream()
-                .map(record -> Map.<String, Object>of(
-                        "id", record.getId(),
-                        "amount", record.getAmount(),
-                        "accountNo", record.getAccountNo(),
-                        "status", record.getStatus(),
-                        "createTime", record.getCreateTime() == null ? "" : record.getCreateTime()
-                ))
+                .map(this::withdrawRecordMap)
                 .toList();
+    }
+
+    public List<Map<String, Object>> merchantWithdrawRecords(CurrentUser user) {
+        MerchantEntity merchant = requireMerchant(user);
+        return withdrawRecordMapper.selectList(Wrappers.<WithdrawRecordEntity>lambdaQuery()
+                        .eq(WithdrawRecordEntity::getOwnerType, "merchant")
+                        .eq(WithdrawRecordEntity::getOwnerId, merchant.getId())
+                        .orderByDesc(WithdrawRecordEntity::getCreateTime))
+                .stream()
+                .map(this::withdrawRecordMap)
+                .toList();
+    }
+
+    private Map<String, Object> withdrawRecordMap(WithdrawRecordEntity record) {
+        return Map.of(
+                "id", record.getId(),
+                "ownerType", record.getOwnerType() == null ? "rider" : record.getOwnerType(),
+                "ownerId", record.getOwnerId() == null ? record.getRiderId() : record.getOwnerId(),
+                "amount", record.getAmount(),
+                "accountNo", record.getAccountNo(),
+                "status", record.getStatus(),
+                "createTime", record.getCreateTime() == null ? "" : record.getCreateTime()
+        );
     }
 
     public Map<String, Object> adminAudit(String module, Long id, String status) {
         if ("merchants".equals(module) || "merchant".equals(module)) {
+            String auditStatus = normalizeAuditStatus(status);
             MerchantEntity merchant = new MerchantEntity();
-            merchant.setAuditStatus(status == null ? "approved" : status);
+            merchant.setAuditStatus(auditStatus);
             int rows = merchantMapper.update(merchant, Wrappers.<MerchantEntity>lambdaUpdate().eq(MerchantEntity::getId, id));
             if (rows != 1) {
                 throw new BizException("商家不存在");
             }
-            return Map.of("module", module, "id", id, "result", merchant.getAuditStatus());
+            return Map.of("module", module, "id", id, "result", auditStatus, "auditStatus", auditStatus);
         }
         if ("riders".equals(module) || "users".equals(module)) {
+            Integer nextStatus = normalizeUserStatus(status);
             SysUserEntity user = new SysUserEntity();
-            user.setStatus("disabled".equals(status) || "rejected".equals(status) ? 0 : 1);
-            int rows = sysUserMapper.update(user, Wrappers.<SysUserEntity>lambdaUpdate().eq(SysUserEntity::getId, id));
+            user.setStatus(nextStatus);
+            var wrapper = Wrappers.<SysUserEntity>lambdaUpdate().eq(SysUserEntity::getId, id);
+            if ("riders".equals(module)) {
+                wrapper.eq(SysUserEntity::getRole, "rider");
+            }
+            int rows = sysUserMapper.update(user, wrapper);
             if (rows != 1) {
                 throw new BizException("用户不存在");
             }
-            return Map.of("module", module, "id", id, "result", user.getStatus() == 1 ? "approved" : "disabled");
+            return Map.of("module", module, "id", id, "result", nextStatus == 1 ? "approved" : "rejected", "status", nextStatus == 1 ? "正常" : "禁用");
         }
-        return Map.of("module", module, "id", id, "result", status == null ? "approved" : status);
+        throw new BizException("审核模块不支持");
+    }
+
+    private String normalizeAuditStatus(String status) {
+        String value = status == null || status.isBlank() ? "approved" : status;
+        if ("approved".equals(value) || "rejected".equals(value)) {
+            return value;
+        }
+        throw new BizException("审核状态不合法");
+    }
+
+    private Integer normalizeUserStatus(String status) {
+        String value = status == null || status.isBlank() ? "approved" : status;
+        if ("approved".equals(value) || "enabled".equals(value) || "1".equals(value)) {
+            return 1;
+        }
+        if ("rejected".equals(value) || "disabled".equals(value) || "0".equals(value)) {
+            return 0;
+        }
+        throw new BizException("用户状态不合法");
     }
 
     private BigDecimal calculateCouponDiscount(Long couponId, BigDecimal goodsAmount) {
@@ -1015,7 +1154,9 @@ public class BusinessService {
         LambdaQueryWrapper<MarketingActivityEntity> query = Wrappers.<MarketingActivityEntity>lambdaQuery()
                 .orderByDesc(MarketingActivityEntity::getStartTime);
         if (merchantId == null) {
-            query.isNull(MarketingActivityEntity::getMerchantId);
+            query.and(wrapper -> wrapper.isNull(MarketingActivityEntity::getMerchantId)
+                    .or()
+                    .eq(MarketingActivityEntity::getMerchantId, 0L));
         } else {
             query.eq(MarketingActivityEntity::getMerchantId, merchantId);
         }
@@ -1036,6 +1177,17 @@ public class BusinessService {
         return activity;
     }
 
+    private Long parseLongValue(Object value, Long defaultValue) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            throw new BizException("商家编号不合法");
+        }
+    }
+
     private LocalDateTime parseTime(Object value) {
         if (value == null || String.valueOf(value).isBlank()) {
             return null;
@@ -1050,6 +1202,7 @@ public class BusinessService {
     private Map<String, Object> marketingActivityMap(MarketingActivityEntity activity) {
         return Map.of(
                 "id", activity.getId(),
+                "merchantId", activity.getMerchantId() == null ? 0L : activity.getMerchantId(),
                 "name", activity.getName(),
                 "type", activity.getType(),
                 "status", activity.getStatus(),

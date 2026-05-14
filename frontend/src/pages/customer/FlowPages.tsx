@@ -360,6 +360,22 @@ export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder
       .finally(() => setLoading(false));
   };
 
+  const cancel = () => {
+    if (!order) {
+      setError('请先创建订单');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    api.cancelOrder(order.id)
+      .then((canceledOrder) => {
+        setOrder(canceledOrder);
+        go('orders');
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : '取消订单失败'))
+      .finally(() => setLoading(false));
+  };
+
   return (
     <div className="bg-surface min-h-full">
       <PhoneHeader title="模拟支付" onBack={() => go('checkout')} />
@@ -380,6 +396,7 @@ export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder
           </button>
         ))}
         <button disabled={loading || !order} onClick={pay} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">{loading ? '支付中...' : '确认支付'}</button>
+        {order?.status === '待支付' && <button disabled={loading} onClick={cancel} className="w-full border border-error text-error rounded-full py-md font-headline-sm disabled:opacity-50">取消订单</button>}
       </main>
     </div>
   );
@@ -462,6 +479,19 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
     }
   };
 
+  const cancelCurrent = () => {
+    if (!current) {
+      return;
+    }
+    setError('');
+    api.cancelOrder(current.id)
+      .then((canceledOrder) => {
+        setCurrent(canceledOrder);
+        setOrder(canceledOrder);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : '取消订单失败'));
+  };
+
   useEffect(() => {
     refresh();
     const timer = window.setInterval(refresh, 10000);
@@ -509,6 +539,7 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
             </div>
           ))}
         </section>
+        {current?.status === '待支付' && <button onClick={cancelCurrent} className="w-full border border-error text-error rounded-full py-md font-headline-sm">取消订单</button>}
         <button disabled={current?.status !== '已完成'} onClick={() => go('review')} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md disabled:opacity-50">评价订单</button>
       </main>
     </div>

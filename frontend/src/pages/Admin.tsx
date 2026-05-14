@@ -4,6 +4,26 @@ import { api, type AdminDashboard as AdminDashboardData, type AdminMerchant, typ
 
 // === SUBCOMPONENTS (Matching Admin HTMLs) ===
 
+function formatShortMoney(value: number) {
+  if (value >= 10000) {
+    return `¥${(value / 10000).toFixed(1)}万`;
+  }
+  return `¥${value.toFixed(0)}`;
+}
+
+function buildLinePoints(values: number[], maxValue: number) {
+  if (values.length <= 1) {
+    return values.length === 1 ? `0,${100 - (values[0] / maxValue) * 90}` : '';
+  }
+  return values
+    .map((value, index) => {
+      const x = (index / (values.length - 1)) * 100;
+      const y = 100 - (value / maxValue) * 90;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
+}
+
 function AdminDashboard() {
   const [dashboard, setDashboard] = useState<AdminDashboardData>({ todayGmv: 0, todayOrders: 0, activeUsers: 0, todayExceptionOrders: 0, totalGmv: 0, totalOrders: 0, totalExceptionOrders: 0 });
   const [scope, setScope] = useState<'today' | 'total'>('today');
@@ -28,6 +48,15 @@ function AdminDashboard() {
     link.click();
     URL.revokeObjectURL(url);
   };
+  const trend = chartRange === 'week' ? (dashboard.dailyTrend || []).slice(-7) : dashboard.dailyTrend || [];
+  const trendValues = trend.map((item) => Number(item.gmv || 0));
+  const maxGmv = Math.max(1, ...trendValues);
+  const linePoints = buildLinePoints(trendValues, maxGmv);
+  const areaPoints = linePoints ? `0,100 ${linePoints} 100,100` : '';
+  const yLabels = [maxGmv, maxGmv * 2 / 3, maxGmv / 3, 0].map(formatShortMoney);
+  const xLabels = trend.filter((_, index) => trend.length <= 7 || index % Math.max(1, Math.floor(trend.length / 4)) === 0 || index === trend.length - 1);
+  const merchantRanking = dashboard.merchantRanking || [];
+  const riderRanking = dashboard.riderRanking || [];
 
   return (
     <div className="flex-1 overflow-y-auto p-md md:p-lg pt-[80px] md:pt-lg bg-surface">
@@ -93,7 +122,7 @@ function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-xl mb-xl">
         <div className="lg:col-span-2 bg-surface-container-lowest rounded-xl p-lg shadow-[0_4px_16px_rgba(31,41,55,0.04)] border border-outline-variant/30 flex flex-col">
           <div className="flex justify-between items-center mb-md border-b border-outline-variant pb-sm">
-            <h3 className="font-headline-sm text-headline-sm text-on-surface">平台近一个月交易额增长曲线</h3>
+            <h3 className="font-headline-sm text-headline-sm text-on-surface">平台交易额趋势</h3>
             <div className="flex gap-sm">
               <button onClick={() => setChartRange('month')} className={`font-label-md text-label-md px-sm py-xs rounded ${chartRange === 'month' ? 'bg-surface-variant text-on-surface' : 'text-on-surface-variant hover:bg-surface-variant'}`}>近30天</button>
               <button onClick={() => setChartRange('week')} className={`font-label-md text-label-md px-sm py-xs rounded ${chartRange === 'week' ? 'bg-surface-variant text-on-surface' : 'text-on-surface-variant hover:bg-surface-variant'}`}>本周</button>
@@ -101,19 +130,28 @@ function AdminDashboard() {
           </div>
           <div className="flex-1 min-h-[300px] relative mt-md flex items-end">
             <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-between text-on-surface-variant font-label-md text-label-md pb-[30px]">
-              <span>1.5M</span><span>1.0M</span><span>0.5M</span><span>0</span>
+              {yLabels.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
             </div>
             <div className="absolute left-[40px] right-0 top-0 bottom-[30px] flex flex-col justify-between">
               {[...Array(4)].map((_,i)=><div key={i} className="border-b border-outline-variant/30 w-full h-[1px]"></div>)}
             </div>
             <div className="absolute left-[40px] right-0 bottom-[30px] top-[20px] overflow-hidden">
-              <div className="w-full h-full bg-gradient-to-t from-primary/20 to-transparent" style={{ clipPath: "polygon(0 100%, 0 80%, 10% 70%, 20% 75%, 30% 60%, 40% 50%, 50% 55%, 60% 40%, 70% 45%, 80% 30%, 90% 20%, 100% 10%, 100% 100%)"}}></div>
-              <svg className="absolute top-0 left-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-                <path d="M0,80 L10,70 L20,75 L30,60 L40,50 L50,55 L60,40 L70,45 L80,30 L90,20 L100,10" fill="none" stroke="#ab3500" strokeWidth="2" vectorEffect="non-scaling-stroke"></path>
-              </svg>
+              {linePoints ? (
+                <svg className="absolute top-0 left-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+                  <polygon points={areaPoints} fill="rgba(171,53,0,0.16)" />
+                  <polyline points={linePoints} fill="none" stroke="#ab3500" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                  {trendValues.map((value, index) => {
+                    const x = trendValues.length <= 1 ? 0 : (index / (trendValues.length - 1)) * 100;
+                    const y = 100 - (value / maxGmv) * 90;
+                    return <circle key={`${trend[index]?.date}-${index}`} cx={x} cy={y} r="1.8" fill="#ab3500" />;
+                  })}
+                </svg>
+              ) : (
+                <div className="h-full flex items-center justify-center text-on-surface-variant">暂无交易数据</div>
+              )}
             </div>
             <div className="absolute bottom-0 left-[40px] right-0 flex justify-between text-on-surface-variant font-label-md text-label-md pt-sm">
-              <span>10/01</span><span>10/07</span><span>10/14</span><span>10/21</span><span>10/28</span>
+              {xLabels.map((item, index) => <span key={`${item.date}-${index}`}>{item.label}</span>)}
             </div>
           </div>
         </div>
@@ -126,20 +164,17 @@ function AdminDashboard() {
               <h3 className="font-headline-sm text-headline-sm text-on-surface">成交额最高商家榜</h3>
             </div>
             <div className="flex flex-col gap-sm flex-1">
-              {[
-                { n: "金牌烤鸭店", o: "1,204", v: "¥ 45,890", c: "primary" },
-                { n: "川香人家", o: "980", v: "¥ 38,200", c: "secondary-container" },
-                { n: "绿叶轻食", o: "856", v: "¥ 29,450", c: "outline" }
-              ].map((item, idx) => (
+              {merchantRanking.length === 0 && <p className="text-on-surface-variant text-body-md">暂无成交数据</p>}
+              {merchantRanking.map((item, idx) => (
                 <div key={idx} className="flex items-center justify-between py-sm group hover:bg-surface-variant/50 rounded-lg px-sm -mx-sm transition-colors">
                   <div className="flex items-center gap-sm">
-                    <span className={`font-headline-sm text-headline-sm text-${item.c} w-[24px]`}>{idx+1}</span>
+                    <span className="font-headline-sm text-headline-sm text-primary w-[24px]">{idx+1}</span>
                     <div>
-                      <p className="font-body-md text-body-md text-on-surface font-semibold">{item.n}</p>
-                      <p className="font-label-md text-label-md text-on-surface-variant">订单量: {item.o}</p>
+                      <p className="font-body-md text-body-md text-on-surface font-semibold">{item.name}</p>
+                      <p className="font-label-md text-label-md text-on-surface-variant">订单量: {item.orders}</p>
                     </div>
                   </div>
-                  <span className="font-body-md text-body-md text-on-surface font-semibold">{item.v}</span>
+                  <span className="font-body-md text-body-md text-on-surface font-semibold">¥ {Number(item.gmv).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -151,21 +186,19 @@ function AdminDashboard() {
               <h3 className="font-headline-sm text-headline-sm text-on-surface">派单效率最高骑手榜</h3>
             </div>
             <div className="flex flex-col gap-sm flex-1">
-              {[
-                { name: "王师傅", r: "99.8%", val: "128单", char:"王" },
-                { name: "李师傅", r: "99.5%", val: "115单", char:"李" }
-              ].map((r, i) => (
+              {riderRanking.length === 0 && <p className="text-on-surface-variant text-body-md">暂无完成订单数据</p>}
+              {riderRanking.map((r, i) => (
                 <div key={i} className="flex items-center justify-between py-sm group hover:bg-surface-variant/50 rounded-lg px-sm -mx-sm transition-colors">
                   <div className="flex items-center gap-sm">
-                    <div className="w-8 h-8 rounded-full bg-tertiary-container/30 flex items-center justify-center text-on-surface font-semibold">{r.char}</div>
+                    <div className="w-8 h-8 rounded-full bg-tertiary-container/30 flex items-center justify-center text-on-surface font-semibold">{r.name.slice(0, 1)}</div>
                     <div>
                       <p className="font-body-md text-body-md text-on-surface font-semibold">{r.name}</p>
-                      <p className="font-label-md text-label-md text-on-surface-variant">准时率: {r.r}</p>
+                      <p className="font-label-md text-label-md text-on-surface-variant">配送收入: ¥ {Number(r.income).toFixed(2)}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="font-body-md text-body-md text-on-surface font-semibold">{r.val}</span>
-                    <p className="font-label-md text-label-md text-tertiary">日均</p>
+                    <span className="font-body-md text-body-md text-on-surface font-semibold">{r.completedOrders}单</span>
+                    <p className="font-label-md text-label-md text-tertiary">已完成</p>
                   </div>
                 </div>
               ))}
