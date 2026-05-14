@@ -11,13 +11,13 @@ type ActivityFormState = { id?: number; name: string; type: string; status: stri
 
 function PageShell({ title, desc, action, onAction, children }: { title: string; desc: string; action?: string; onAction?: () => void; children: React.ReactNode }) {
   return (
-    <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface">
-      <header className="flex items-center justify-between mb-lg gap-md">
+    <div className="liquid-stage flex-1 overflow-y-auto p-md md:p-lg bg-surface relative">
+      <header className="flex items-center justify-between mb-lg gap-md motion-enter">
         <div>
           <h2 className="font-headline-md text-headline-md font-bold text-on-surface">{title}</h2>
           <p className="font-body-md text-body-md text-on-surface-variant mt-xs">{desc}</p>
         </div>
-        {action && <button onClick={onAction} className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold shadow-sm hover:opacity-90 whitespace-nowrap">{action}</button>}
+        {action && <button onClick={onAction} className="liquid-button bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold shadow-sm hover:opacity-90 whitespace-nowrap">{action}</button>}
       </header>
       {children}
     </div>
@@ -26,11 +26,11 @@ function PageShell({ title, desc, action, onAction, children }: { title: string;
 
 function SimpleModal({ title, body, onClose }: { title: string; body: React.ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg">
-      <div className="bg-surface rounded-2xl p-lg w-full max-w-lg space-y-md">
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
         <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
         <div className="text-body-md text-on-surface-variant">{body}</div>
-        <button onClick={onClose} className="w-full bg-primary text-on-primary rounded-lg py-sm font-bold">关闭</button>
+        <button onClick={onClose} className="liquid-button w-full bg-primary text-on-primary rounded-lg py-sm font-bold">关闭</button>
       </div>
     </div>
   );
@@ -89,8 +89,8 @@ function ActivityFormModal({
 }) {
   const update = (key: keyof ActivityFormState, value: string) => onChange((prev) => prev ? { ...prev, [key]: value } : prev);
   return (
-    <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg">
-      <div className="bg-surface rounded-2xl p-lg w-full max-w-xl space-y-md">
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
         <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
         <input value={form.name} onChange={(event) => update('name', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="活动名称" />
         <select value={form.type} onChange={(event) => update('type', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm">
@@ -105,8 +105,8 @@ function ActivityFormModal({
         <input type="datetime-local" value={form.startTime} onChange={(event) => update('startTime', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" />
         <input type="datetime-local" value={form.endTime} onChange={(event) => update('endTime', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" />
         <div className="flex justify-end gap-sm">
-          <button onClick={onClose} className="px-md py-sm rounded-lg border border-outline-variant">取消</button>
-          <button disabled={saving || !form.name.trim()} onClick={onSave} className="px-md py-sm rounded-lg bg-primary text-on-primary disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
+          <button onClick={onClose} className="liquid-button px-md py-sm rounded-lg border border-outline-variant">取消</button>
+          <button disabled={saving || !form.name.trim()} onClick={onSave} className="liquid-button px-md py-sm rounded-lg bg-primary text-on-primary disabled:opacity-50">{saving ? '保存中...' : '保存'}</button>
         </div>
       </div>
     </div>
@@ -127,7 +127,7 @@ function DataTable<T extends { id?: number | string }>({
   renderActions?: (row: T) => React.ReactNode;
 }) {
   return (
-    <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-auto">
+    <div className="liquid-card motion-border-glow rounded-xl overflow-auto">
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md">
@@ -135,9 +135,9 @@ function DataTable<T extends { id?: number | string }>({
             <th className="p-md font-medium text-right">操作</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-outline-variant/20 font-body-md">
+        <tbody className="divide-y divide-outline-variant/20 font-body-md stagger-children">
           {rows.map((row, index) => (
-            <tr key={String(row.id ?? index)} className="hover:bg-surface-variant/20 transition-colors">
+          <tr key={String(row.id ?? index)} className="hover:bg-surface-variant/20 transition-colors motion-enter">
               {columns.map((column) => <td key={String(column.key)} className="p-md">{String(row[column.key] ?? '')}</td>)}
               <td className="p-md text-right whitespace-nowrap">
                 {renderActions ? renderActions(row) : (
@@ -246,15 +246,15 @@ export function MerchantModule({ type }: { type: string }) {
     };
     return (
       <PageShell title="财务结算" desc="统计真实营业收入、订单和退款数据。" action="申请提现" onAction={submitWithdraw}>
-        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-md">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-md stagger-children">
           {financeCards.map((item) => (
-            <div key={item.label} className="bg-surface-container-lowest rounded-xl p-md border border-outline-variant/30 shadow-sm">
+            <div key={item.label} className="liquid-card motion-border-glow rounded-xl p-md">
               <p className="text-body-md text-on-surface-variant">{item.label}</p>
               <p className="text-headline-md font-bold text-primary mt-sm">{item.value}</p>
             </div>
           ))}
         </div>
-        <section className="mt-lg bg-surface-container-lowest rounded-xl border border-outline-variant/30 overflow-hidden">
+        <section className="liquid-card motion-border-glow mt-lg rounded-xl overflow-hidden">
           <div className="p-md border-b border-outline-variant/20 flex justify-between items-center">
             <h3 className="font-headline-sm text-headline-sm font-bold">提现记录</h3>
             <button onClick={refreshWithdrawRecords} className="text-primary text-body-md">刷新</button>
@@ -264,7 +264,7 @@ export function MerchantModule({ type }: { type: string }) {
           ) : (
             <table className="w-full text-left">
               <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">金额</th><th className="p-md">账户</th><th className="p-md">状态</th><th className="p-md">时间</th></tr></thead>
-              <tbody className="divide-y divide-outline-variant/20">
+              <tbody className="divide-y divide-outline-variant/20 stagger-children">
                 {withdrawRecords.map((record) => (
                   <tr key={record.id}>
                     <td className="p-md font-bold text-primary">{money(record.amount)}</td>
@@ -390,7 +390,7 @@ export function AdminModule({ type }: { type: string }) {
   if (type === 'orders') {
     return (
       <PageShell title="订单管理" desc="展示真实订单并支持状态筛选。" action="导出订单" onAction={exportOrders}>
-        <div className="flex gap-sm mb-md overflow-x-auto">{statuses.map((status) => <button key={status} onClick={() => setStatusFilter(status)} className={`px-md py-xs rounded-full ${statusFilter === status ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>{status}</button>)}</div>
+        <div className="flex gap-sm mb-md overflow-x-auto stagger-children">{statuses.map((status) => <button key={status} onClick={() => setStatusFilter(status)} className={`liquid-button px-md py-xs rounded-full ${statusFilter === status ? 'bg-primary text-on-primary motion-pulse-ring' : 'bg-surface-container-high text-on-surface-variant'}`}>{status}</button>)}</div>
         <DataTable<Order> columns={[{ key: 'id', label: '订单号' }, { key: 'merchantName', label: '商家' }, { key: 'totalAmount', label: '金额' }, { key: 'status', label: '状态' }]} rows={shownOrders} onView={(row) => setModal({ title: '订单详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })} onEdit={(row) => setModal({ title: '异常处理', body: `${row.id} 已进入演示处理弹窗。` })} />
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
       </PageShell>

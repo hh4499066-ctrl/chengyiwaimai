@@ -25,7 +25,7 @@ function statusTone(status: string) {
 function MerchantOrderCard({ order, onAction, loadingId }: { key?: React.Key; order: Order; onAction: (orderId: string, action: 'accept' | 'reject' | 'ready') => void; loadingId: string }) {
   const loading = loadingId === order.id;
   return (
-    <div className={`bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 ${statusTone(order.status)}`}>
+    <div className={`liquid-card motion-border-glow rounded-2xl p-md border border-outline-variant/30 shadow-sm relative border-l-4 ${statusTone(order.status)}`}>
       <div className="flex justify-between items-start gap-md mb-md border-b border-outline-variant/30 pb-sm">
         <div>
           <span className="bg-primary/10 text-primary font-bold font-label-md text-label-md px-2 py-0.5 rounded">{order.status}</span>
@@ -43,7 +43,7 @@ function MerchantOrderCard({ order, onAction, loadingId }: { key?: React.Key; or
         {order.status === '待商家接单' && (
           <>
             <button disabled={loading} onClick={() => onAction(order.id, 'reject')} className="flex-1 py-2 rounded-xl text-on-surface-variant border border-outline-variant hover:bg-surface-variant font-body-md font-medium transition-colors disabled:opacity-50">拒单</button>
-            <button disabled={loading} onClick={() => onAction(order.id, 'accept')} className="flex-[2] py-2 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50">接单并打印</button>
+            <button disabled={loading} onClick={() => onAction(order.id, 'accept')} className="liquid-button flex-[2] py-2 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50">接单并打印</button>
           </>
         )}
         {order.status === '商家已接单' && (
@@ -99,8 +99,8 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface">
-      <div className="flex justify-between items-center mb-xl bg-surface-container-lowest p-md rounded-2xl shadow-sm border border-outline-variant/30">
+    <div className="liquid-stage flex-1 overflow-y-auto p-md md:p-lg bg-surface relative">
+      <div className="liquid-glass motion-border-glow flex justify-between items-center mb-xl p-md rounded-2xl motion-enter">
         <div className="flex items-center gap-md">
           <div className="w-16 h-16 rounded-xl bg-surface-variant flex-shrink-0 overflow-hidden border border-outline-variant/50">
              <img src="https://images.unsplash.com/photo-1555126634-323283e090f1?auto=format&fit=crop&w=150&h=150" alt="logo" className="w-full h-full object-cover"/>
@@ -110,7 +110,7 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
             <p className="font-body-md text-body-md text-on-surface-variant mt-xs">ID: 80921102 · 普通外卖商家</p>
           </div>
         </div>
-        <button onClick={toggleBusinessStatus} className="flex items-center gap-sm bg-primary/10 px-md py-sm rounded-full border border-primary/20">
+        <button onClick={toggleBusinessStatus} className="liquid-button motion-pulse-ring flex items-center gap-sm bg-primary/10 px-md py-sm rounded-full border border-primary/20">
             <span className="relative flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
@@ -123,14 +123,14 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
       </div>
 
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold">今日营业数据</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-xl">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-xl stagger-children">
         {[
           { title: "今日预计收入", value: `¥ ${stats.todayIncome.toFixed(2)}`, m: "实时订单汇总", c: "primary", icon: "account_balance_wallet" },
           { title: "今日有效订单", value: String(stats.todayOrders), m: "来自真实订单", c: "secondary", icon: "receipt_long" },
           { title: "待接订单", value: String(stats.pending), m: "需尽快处理", c: "tertiary", icon: "storefront" },
           { title: "待骑手取餐", value: String(stats.ready), m: "已进入骑手大厅", c: "error", icon: "warning" },
         ].map((item, idx) => (
-          <div key={idx} className={`bg-surface-container-lowest rounded-xl p-md shadow-sm border border-outline-variant/30 flex flex-col relative overflow-hidden group ${item.c === 'error' ? 'border-error/30 bg-error-container/10' : ''}`}>
+          <div key={idx} className={`liquid-card motion-border-glow rounded-xl p-md flex flex-col relative overflow-hidden group ${item.c === 'error' ? 'border-error/30 bg-error-container/30' : ''}`}>
             <div className="flex justify-between items-start z-10 mb-sm">
                 <p className="font-body-md text-body-md text-on-surface-variant">{item.title}</p>
                 <div className={`bg-${item.c}/10 p-1.5 rounded-lg text-${item.c}`}>
@@ -145,7 +145,7 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
 
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold flex items-center justify-between">实时单况 <button onClick={onViewAllOrders} className="text-primary font-body-md text-body-md font-medium hover:underline flex items-center">查看全部 <span className="material-symbols-outlined text-[18px]">chevron_right</span></button></h3>
       <MerchantError message={error} />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md stagger-children">
          {pendingOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无待处理订单</p>}
          {pendingOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
       </div>
@@ -180,16 +180,16 @@ function MerchantOrders() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
-      <header className="px-lg py-md border-b border-outline-variant/30 bg-surface z-10 shrink-0">
+    <div className="liquid-stage flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
+      <header className="liquid-glass px-lg py-md border-b border-outline-variant/30 z-10 shrink-0 motion-enter">
          <h2 className="font-headline-md text-headline-md font-bold text-on-surface mb-md">订单管理</h2>
-         <div className="flex gap-md overflow-x-auto no-scrollbar">
+         <div className="flex gap-md overflow-x-auto no-scrollbar stagger-children">
              {statuses.map((status) => (
                  <button key={status} onClick={() => setActiveStatus(status)} className={`whitespace-nowrap font-body-md text-body-md font-medium pb-sm border-b-2 transition-colors ${activeStatus === status ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'}`}>{status}</button>
              ))}
          </div>
       </header>
-      <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md bg-surface-container-low">
+      <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md bg-surface-container-low stagger-children">
           <MerchantError message={error} />
           {shownOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
           {shownOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
@@ -302,29 +302,29 @@ function MerchantMenuLive() {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
-      <header className="px-lg py-md border-b border-outline-variant/30 flex justify-between items-center bg-surface z-10 shrink-0">
+    <div className="liquid-stage flex-1 flex flex-col h-screen overflow-hidden bg-surface relative">
+      <header className="liquid-glass px-lg py-md border-b border-outline-variant/30 flex justify-between items-center z-10 shrink-0 motion-enter">
         <div>
           <h2 className="font-headline-md text-headline-md font-bold text-on-surface">商品管理</h2>
           <p className="font-label-md text-label-md text-on-surface-variant">真实联动菜品、价格、库存和上下架状态。</p>
         </div>
-        <button onClick={() => openForm()} className="bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold flex items-center gap-xs shadow-sm"><span className="material-symbols-outlined text-[20px]">add</span>新建商品</button>
+        <button onClick={() => openForm()} className="liquid-button bg-primary text-on-primary px-lg py-2 rounded-lg font-body-md font-bold flex items-center gap-xs shadow-sm"><span className="material-symbols-outlined text-[20px]">add</span>新建商品</button>
       </header>
       <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md">
         <MerchantError message={error} />
         {message && <div className="rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
-        <div className="flex flex-wrap gap-sm items-center">
-          {categories.map((category) => <button key={category} onClick={() => setActiveCategory(category)} className={`px-md py-xs rounded-full ${activeCategory === category ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>{category}</button>)}
-          <button onClick={addCategory} className="px-md py-xs rounded-full border border-primary text-primary">新增分类</button>
-          <button onClick={editCategory} className="px-md py-xs rounded-full border border-outline-variant">编辑分类</button>
-          <button onClick={deleteCategory} className="px-md py-xs rounded-full border border-error text-error">删除分类</button>
+        <div className="flex flex-wrap gap-sm items-center stagger-children">
+          {categories.map((category) => <button key={category} onClick={() => setActiveCategory(category)} className={`liquid-button px-md py-xs rounded-full ${activeCategory === category ? 'bg-primary text-on-primary motion-pulse-ring' : 'liquid-card text-on-surface-variant'}`}>{category}</button>)}
+          <button onClick={addCategory} className="liquid-button px-md py-xs rounded-full border border-primary text-primary">新增分类</button>
+          <button onClick={editCategory} className="liquid-button px-md py-xs rounded-full border border-outline-variant">编辑分类</button>
+          <button onClick={deleteCategory} className="liquid-button px-md py-xs rounded-full border border-error text-error">删除分类</button>
         </div>
-        <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-outline-variant/30 overflow-hidden">
+        <div className="liquid-card motion-border-glow rounded-xl overflow-hidden">
           <table className="w-full text-left border-collapse">
             <thead><tr className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md"><th className="p-md">商品信息</th><th className="p-md">价格</th><th className="p-md">库存/状态</th><th className="p-md text-right">操作</th></tr></thead>
-            <tbody className="divide-y divide-outline-variant/20 font-body-md">
+            <tbody className="divide-y divide-outline-variant/20 font-body-md stagger-children">
               {shownDishes.map((dish) => (
-                <tr key={dish.id} className="hover:bg-surface-variant/20">
+                <tr key={dish.id} className="hover:bg-surface-variant/20 transition-colors">
                   <td className="p-md"><p className="font-bold">{dish.name}</p><p className="text-on-surface-variant">{dish.categoryName || dish.category}</p></td>
                   <td className="p-md font-bold">¥{Number(dish.price).toFixed(2)}</td>
                   <td className="p-md">{dish.status === 'on_sale' ? '售卖中' : '已下架'} · {dish.sales ?? 0}</td>
@@ -336,14 +336,14 @@ function MerchantMenuLive() {
         </div>
       </div>
       {formOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/30 flex items-center justify-center p-lg">
-          <div className="bg-surface rounded-2xl p-lg w-full max-w-xl space-y-md">
+        <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+          <div className="liquid-glass rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
             <h3 className="font-headline-sm text-headline-sm font-bold">{editing ? '编辑商品' : '新建商品'}</h3>
             {(['name', 'description', 'price', 'sales', 'categoryName'] as const).map((key) => (
               <input key={key} value={form[key]} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder={key} />
             ))}
             <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm"><option value="on_sale">上架</option><option value="off_sale">下架</option></select>
-            <div className="flex justify-end gap-sm"><button onClick={() => setFormOpen(false)} className="px-md py-sm rounded-lg border">取消</button><button onClick={save} className="px-md py-sm rounded-lg bg-primary text-on-primary">保存</button></div>
+            <div className="flex justify-end gap-sm"><button onClick={() => setFormOpen(false)} className="liquid-button px-md py-sm rounded-lg border">取消</button><button onClick={save} className="liquid-button px-md py-sm rounded-lg bg-primary text-on-primary">保存</button></div>
           </div>
         </div>
       )}
@@ -368,17 +368,17 @@ function MerchantSettings() {
       .catch((err) => setMessage(err instanceof Error ? err.message : '保存失败'));
   };
   return (
-    <div className="flex-1 overflow-y-auto p-md md:p-lg bg-surface space-y-md">
-      <header><h2 className="font-headline-md text-headline-md font-bold">营业设置</h2><p className="text-on-surface-variant">读取当前营业状态后再保存配置。</p></header>
+    <div className="liquid-stage flex-1 overflow-y-auto p-md md:p-lg bg-surface space-y-md relative">
+      <header className="motion-enter"><h2 className="font-headline-md text-headline-md font-bold">营业设置</h2><p className="text-on-surface-variant">读取当前营业状态后再保存配置。</p></header>
       {message && <div className="rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
-      <div className="bg-surface-container-lowest rounded-xl border border-outline-variant/30 p-lg space-y-md max-w-2xl">
+      <div className="liquid-card motion-border-glow rounded-xl p-lg space-y-md max-w-2xl">
         <select value={settings.status} onChange={(event) => setSettings((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm">
           <option value="open">营业中</option><option value="closed">休息中</option><option value="paused">暂停接单</option>
         </select>
         <input value={settings.deliveryFee} onChange={(event) => setSettings((prev) => ({ ...prev, deliveryFee: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="配送费" />
         <input value={settings.minOrder} onChange={(event) => setSettings((prev) => ({ ...prev, minOrder: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="起送价" />
         <textarea value={settings.announcement} onChange={(event) => setSettings((prev) => ({ ...prev, announcement: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm min-h-28" placeholder="店铺公告" />
-        <button onClick={save} className="bg-primary text-on-primary px-lg py-sm rounded-lg font-bold">保存配置</button>
+        <button onClick={save} className="liquid-button bg-primary text-on-primary px-lg py-sm rounded-lg font-bold">保存配置</button>
       </div>
     </div>
   );
@@ -393,9 +393,9 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
   };
 
   return (
-    <div className="bg-surface text-on-surface h-screen flex overflow-hidden w-full">
+    <div className="liquid-stage bg-surface text-on-surface h-screen flex overflow-hidden w-full relative">
       {/* Desktop Sidebar */}
-      <nav className="hidden md:flex flex-col h-screen sticky top-0 p-md bg-surface-container-low w-[240px] flex-shrink-0 border-r border-outline-variant">
+      <nav className="liquid-glass hidden md:flex flex-col h-screen sticky top-0 p-md w-[240px] flex-shrink-0 border-r border-outline-variant/60 shadow-[8px_0_30px_rgba(15,23,42,0.04)]">
         <div className="mb-lg px-sm">
           <h1 className="font-headline-sm text-headline-sm text-primary font-bold">商家中心</h1>
           <p className="font-body-md text-body-md text-on-surface-variant mt-sm">川香小厨</p>
@@ -414,7 +414,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
               key={t.id}
               onClick={() => setActiveTab(t.id)}
               className={`flex items-center gap-md px-md py-sm rounded-lg font-body-md text-body-md transition-all ${
-                activeTab === t.id ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'
+                activeTab === t.id ? 'bg-primary text-on-primary shadow-md motion-pulse-ring' : 'text-on-surface-variant hover:bg-primary/10 hover:text-primary'
               }`}
             >
               <span className={`material-symbols-outlined ${activeTab === t.id ? 'fill' : ''}`}>{t.icon}</span>
@@ -423,7 +423,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
           ))}
         </div>
         <div className="mt-auto pt-md border-t border-outline-variant">
-          <button onClick={logout} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-all rounded-lg font-body-md text-body-md">
+          <button onClick={logout} className="w-full flex items-center gap-md px-md py-sm text-on-surface-variant hover:bg-primary/10 hover:text-primary transition-all rounded-lg font-body-md text-body-md">
             <span className="material-symbols-outlined">logout</span>
             退出登录
           </button>
@@ -434,7 +434,7 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         <header className="md:hidden sticky top-0 w-full z-50 flex justify-between items-center px-md py-sm bg-surface shadow-sm pt-safe">
           <span className="text-headline-md font-headline-md font-bold text-primary">商家中心</span>
-          <button onClick={logout} className="material-symbols-outlined text-primary">logout</button>
+          <button onClick={logout} aria-label="退出登录" className="material-symbols-outlined text-primary">logout</button>
         </header>
 
         {activeTab === 'workbench' && <MerchantWorkbench onViewAllOrders={() => setActiveTab('orders')} />}
@@ -444,23 +444,20 @@ export default function Merchant({ setRole }: { setRole: () => void }) {
         {['reviews', 'finance', 'marketing'].includes(activeTab) && <MerchantModule type={activeTab} />}
 
         {/* Mobile Bottom Navigation */}
-        <nav className="md:hidden absolute bottom-0 w-full bg-surface/90 backdrop-blur-xl border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">
+        <nav className="liquid-glass md:hidden absolute bottom-0 w-full border-t border-outline-variant/50 pb-safe pt-xs px-md flex justify-around items-center z-50 shadow-[0_-8px_24px_rgba(15,23,42,0.05)]">
           {[
             { id: 'workbench', icon: 'dashboard', label: '首页' },
             { id: 'orders', icon: 'receipt_long', label: '订单' },
             { id: 'menu', icon: 'restaurant_menu', label: '菜单' },
             { id: 'finance', icon: 'account_balance_wallet', label: '财务' }
           ].map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === t.id ? 'text-primary' : 'text-on-surface-variant'}`}>
+            <button key={t.id} onClick={() => setActiveTab(t.id)} className={`liquid-button flex flex-col items-center gap-0.5 px-sm py-xs rounded-lg transition-all ${activeTab === t.id ? 'text-primary bg-primary/10' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high'}`}>
               <span className={`material-symbols-outlined ${activeTab === t.id ? 'fill' : ''}`}>{t.icon}</span>
               <span className="text-[10px] font-label-md font-medium">{t.label}</span>
             </button>
           ))}
         </nav>
       </div>
-      
-      {/* Dev Switcher tool (Desktop) */}
-      {import.meta.env.DEV && <button onClick={logout} className="hidden md:block absolute top-4 right-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur font-mono border border-white/20 hover:bg-black/70 transition-colors">← Switch Role</button>}
     </div>
   );
 }

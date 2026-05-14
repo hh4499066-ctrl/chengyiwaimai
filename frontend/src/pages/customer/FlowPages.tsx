@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, type Address, type CartItem, type Coupon, type Dish, type Merchant, type Order } from '../../api/client';
 import { dishes as mockDishes, merchants as mockMerchants } from '../../mock/data';
+import { notify } from '../../utils/toast';
 
 type Navigate = (screen: string) => void;
 
@@ -8,9 +9,9 @@ const address = '学校东门 3 号宿舍楼 502';
 
 function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
-    <header className="sticky top-0 z-50 bg-surface/90 backdrop-blur-md px-md py-sm pt-safe border-b border-outline-variant/30 flex items-center gap-sm">
+    <header className="liquid-glass sticky top-0 z-50 px-md py-sm pt-safe border-b border-outline-variant/30 flex items-center gap-sm">
       {onBack && (
-        <button onClick={onBack} className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary active:scale-95 transition-transform">
+        <button onClick={onBack} aria-label="返回" className="liquid-button w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-primary active:scale-95 transition-transform">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
       )}
@@ -92,24 +93,24 @@ export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerch
     });
 
   return (
-    <div className="bg-surface min-h-full pb-[100px]">
+    <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
       <PhoneHeader title="搜索与筛选" onBack={onBack} />
-      <main className="p-md space-y-md">
+      <main className="p-md space-y-md motion-enter">
         <ErrorBanner message={error} />
-        <div className="bg-surface-container-lowest rounded-full px-md py-sm border border-outline-variant/40 flex items-center gap-sm shadow-sm">
+        <div className="liquid-card rounded-full px-md py-sm border border-outline-variant/40 flex items-center gap-sm shadow-sm">
           <span className="material-symbols-outlined text-on-surface-variant">search</span>
           <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="bg-transparent outline-none flex-1 text-body-md" placeholder="输入商家或品类" />
-          <button onClick={() => setKeyword(keyword.trim())} className="bg-primary text-on-primary px-md py-xs rounded-full text-label-md font-bold">搜索</button>
+          <button onClick={() => setKeyword(keyword.trim())} className="liquid-button bg-primary text-on-primary px-md py-xs rounded-full text-label-md font-bold">搜索</button>
         </div>
-        <div className="flex gap-sm overflow-x-auto no-scrollbar">
+        <div className="flex gap-sm overflow-x-auto no-scrollbar stagger-children">
           {['综合排序', '销量优先', '距离最近', '免配送费'].map((item) => (
-            <button key={item} onClick={() => setFilter(item)} className={`px-md py-xs rounded-full text-label-md font-label-md whitespace-nowrap ${filter === item ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}>{item}</button>
+            <button key={item} onClick={() => setFilter(item)} className={`liquid-button px-md py-xs rounded-full text-label-md font-label-md whitespace-nowrap ${filter === item ? 'bg-primary text-on-primary motion-pulse-ring' : 'liquid-card text-on-surface-variant'}`}>{item}</button>
           ))}
         </div>
-        <div className="space-y-md">
+        <div className="space-y-md stagger-children">
           {shownMerchants.length === 0 && <p className="text-center py-xl text-on-surface-variant">没有找到匹配商家</p>}
           {shownMerchants.map((merchant) => (
-            <button key={merchant.id} onClick={() => onMerchant(merchant.id)} className="w-full text-left bg-surface-container-lowest rounded-xl p-sm border border-outline-variant/30 shadow-sm flex gap-sm active:scale-[0.98] transition-transform">
+            <button key={merchant.id} onClick={() => onMerchant(merchant.id)} className="liquid-card w-full text-left rounded-xl p-sm flex gap-sm active:scale-[0.98] transition-transform">
               <img src={merchant.image} alt={merchant.name} className="w-24 h-24 object-cover rounded-lg" />
               <div className="flex-1 min-w-0">
                 <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface truncate">{merchant.name}</h2>
@@ -173,30 +174,30 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
   const heroImage = merchant?.image || mockMerchants[0].image;
 
   return (
-    <div className="bg-surface min-h-full pb-[112px]">
+    <div className="liquid-stage bg-surface min-h-full pb-[112px] relative overflow-hidden">
       <div className="relative h-[220px]">
         <img src={heroImage} alt={merchant?.name || '商家'} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-surface"></div>
-        <button onClick={() => go('home')} className="absolute top-4 left-4 w-10 h-10 rounded-full bg-black/40 text-white backdrop-blur flex items-center justify-center">
+        <button onClick={() => go('home')} aria-label="返回首页" className="liquid-button absolute top-4 left-4 w-10 h-10 rounded-full bg-black/40 text-white backdrop-blur flex items-center justify-center">
           <span className="material-symbols-outlined">arrow_back</span>
         </button>
       </div>
-      <main className="px-md -mt-xl relative z-10 space-y-md">
+      <main className="px-md -mt-xl relative z-10 space-y-md motion-enter">
         <ErrorBanner message={error} />
-        <section className="bg-surface-container-lowest rounded-2xl p-md shadow-[0_8px_28px_rgba(38,24,20,0.08)] border border-outline-variant/30">
+        <section className="liquid-glass rounded-2xl p-md">
           <h1 className="font-display-lg text-display-lg text-on-surface">{merchant?.name || '商家详情'}</h1>
           <p className="text-body-md text-on-surface-variant mt-xs">{merchant ? `${merchant.rating} 分 · 月售 ${merchant.monthlySales} · ${merchant.deliveryTime}` : '加载中'}</p>
           <div className="flex gap-xs mt-sm">{merchant?.tags.map((tag) => <span key={tag} className="bg-error-container/50 text-on-error-container text-label-md px-xs py-[2px] rounded">{tag}</span>)}</div>
         </section>
         <section className="grid grid-cols-[92px_1fr] gap-md">
-          <aside className="space-y-xs">
+          <aside className="space-y-xs stagger-children">
             {categories.map((item) => (
-              <button key={item} onClick={() => setSelectedCategory(item)} className={`w-full text-left px-sm py-sm rounded-lg text-body-md ${selectedCategory === item ? 'bg-primary text-on-primary font-bold' : 'bg-surface-container-high text-on-surface-variant'}`}>{item}</button>
+              <button key={item} onClick={() => setSelectedCategory(item)} className={`liquid-button w-full text-left px-sm py-sm rounded-lg text-body-md ${selectedCategory === item ? 'bg-primary text-on-primary font-bold' : 'liquid-card text-on-surface-variant'}`}>{item}</button>
             ))}
           </aside>
-          <div className="space-y-md">
+          <div className="space-y-md stagger-children">
             {visibleDishes.map((dish) => (
-              <article key={dish.id} onClick={() => setSelectedDish(dish)} className="bg-surface-container-lowest rounded-xl p-sm border border-outline-variant/30 shadow-sm flex gap-sm active:scale-[0.99] transition-transform">
+              <article key={dish.id} onClick={() => setSelectedDish(dish)} className="liquid-card rounded-xl p-sm flex gap-sm active:scale-[0.99] transition-transform">
                 <img src={dish.image} alt={dish.name} className="w-24 h-24 object-cover rounded-lg" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-headline-sm text-headline-sm font-bold truncate">{dish.name}</h3>
@@ -204,7 +205,7 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
                   <p className="text-label-md text-on-surface-variant mt-xs">库存 {dish.sales}</p>
                   <div className="flex items-center justify-between mt-sm">
                     <span className="text-headline-sm font-bold text-primary">¥{dish.price}</span>
-                    <button onClick={(event) => { event.stopPropagation(); addToCart(dish); }} className="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95"><span className="material-symbols-outlined text-[20px]">add</span></button>
+                    <button onClick={(event) => { event.stopPropagation(); addToCart(dish); }} aria-label={`加入${dish.name}到购物车`} className="liquid-button w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center active:scale-95"><span className="material-symbols-outlined text-[20px]">add</span></button>
                   </div>
                 </div>
               </article>
@@ -212,13 +213,13 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
           </div>
         </section>
       </main>
-      <div className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between shadow-[0_-8px_24px_rgba(38,24,20,0.08)]">
+      <div className="liquid-glass absolute bottom-0 left-0 right-0 border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between shadow-[0_-8px_24px_rgba(38,24,20,0.08)]">
         <button onClick={() => go('cart')} className="text-left"><p className="text-label-md text-on-surface-variant">已选 {cartCount} 件</p><p className="font-headline-md text-headline-md text-primary">¥{cartTotal.toFixed(1)}</p></button>
-        <button disabled={cartCount === 0} onClick={() => go('checkout')} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">去结算</button>
+        <button disabled={cartCount === 0} onClick={() => go('checkout')} className="liquid-button bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">去结算</button>
       </div>
       {selectedDish && (
-        <div className="fixed inset-0 z-[90] bg-black/30 flex items-end" onClick={() => setSelectedDish(null)}>
-          <div className="w-full bg-surface rounded-t-3xl p-md space-y-md" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setSelectedDish(null)}>
+          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
             <img src={selectedDish.image} alt={selectedDish.name} className="w-full h-44 object-cover rounded-2xl" />
             <div>
               <h2 className="font-headline-sm text-headline-sm font-bold">{selectedDish.name}</h2>
@@ -227,7 +228,7 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
             </div>
             <div className="flex items-center justify-between">
               <span className="text-headline-md font-bold text-primary">¥{selectedDish.price}</span>
-              <button onClick={() => { addToCart(selectedDish); setSelectedDish(null); }} className="bg-primary text-on-primary rounded-full px-lg py-sm font-bold">加入购物车</button>
+              <button onClick={() => { addToCart(selectedDish); setSelectedDish(null); }} className="liquid-button bg-primary text-on-primary rounded-full px-lg py-sm font-bold">加入购物车</button>
             </div>
           </div>
         </div>
@@ -283,21 +284,21 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
   };
 
   return (
-    <div className="bg-background min-h-full pb-[104px]">
+    <div className="liquid-stage bg-background min-h-full pb-[104px] relative overflow-hidden">
       <PhoneHeader title="确认订单" onBack={() => go('merchant')} />
-      <main className="p-md space-y-md">
+      <main className="p-md space-y-md motion-enter">
         <ErrorBanner message={error} />
-        <button onClick={() => setAddressOpen(true)} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+        <button onClick={() => setAddressOpen(true)} className="liquid-card w-full text-left rounded-2xl p-md">
           <p className="text-label-md text-primary font-bold">送达地址</p>
           <h2 className="font-headline-sm text-headline-sm mt-xs">{selectedAddress?.detail || address}</h2>
           <p className="text-body-md text-on-surface-variant mt-xs">{selectedAddress ? `${selectedAddress.receiver} ${selectedAddress.phone}` : '点击选择地址'}</p>
         </button>
-        <button onClick={() => setCouponOpen(true)} className="w-full flex items-center justify-between bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+        <button onClick={() => setCouponOpen(true)} className="liquid-card w-full flex items-center justify-between rounded-2xl p-md">
           <span className="font-headline-sm text-headline-sm font-bold">优惠券</span>
           <span className="text-primary">{selectedCoupon ? `${selectedCoupon.name} -¥${selectedCoupon.discountAmount}` : '选择优惠券'}</span>
         </button>
-        <textarea value={remark} onChange={(event) => setRemark(event.target.value)} className="w-full min-h-24 rounded-2xl p-md bg-surface-container-lowest border border-outline-variant/30 outline-none focus:border-primary" placeholder="订单备注，如少辣、不要香菜" />
-        <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+        <textarea value={remark} onChange={(event) => setRemark(event.target.value)} className="liquid-card w-full min-h-24 rounded-2xl p-md outline-none focus:border-primary" placeholder="订单备注，如少辣、不要香菜" />
+        <section className="liquid-card rounded-2xl p-md">
           <h2 className="font-headline-sm text-headline-sm font-bold mb-sm">订单商品</h2>
           {items.length === 0 && <p className="text-body-md text-on-surface-variant py-sm">购物车为空</p>}
           {items.map((item) => (
@@ -311,25 +312,25 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
           <div className="flex justify-between pt-sm text-body-md text-primary"><span>优惠券抵扣</span><span>-¥{discountAmount.toFixed(1)}</span></div>
         </section>
       </main>
-      <div className="absolute bottom-0 left-0 right-0 bg-surface-container-lowest border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between">
+      <div className="liquid-glass absolute bottom-0 left-0 right-0 border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between">
         <div><span className="text-label-md text-on-surface-variant">合计</span><span className="ml-xs text-display-lg font-bold text-primary">¥{total.toFixed(1)}</span></div>
-        <button disabled={loading || items.length === 0} onClick={submit} className="bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md disabled:opacity-50">{loading ? '提交中...' : '提交订单'}</button>
+        <button disabled={loading || items.length === 0} onClick={submit} className="liquid-button bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md disabled:opacity-50">{loading ? '提交中...' : '提交订单'}</button>
       </div>
       {addressOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/30 flex items-end" onClick={() => setAddressOpen(false)}>
-          <div className="w-full bg-surface rounded-t-3xl p-md space-y-sm" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setAddressOpen(false)}>
+          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
             {addresses.map((item, index) => (
-              <button key={`${item.detail}-${index}`} onClick={() => { setSelectedAddress(item); setAddressOpen(false); }} className="w-full text-left p-md rounded-xl bg-surface-container-high">{item.detail}<br /><span className="text-on-surface-variant">{item.receiver} {item.phone}</span></button>
+              <button key={`${item.detail}-${index}`} onClick={() => { setSelectedAddress(item); setAddressOpen(false); }} className="liquid-button w-full text-left p-md rounded-xl bg-surface-container-high">{item.detail}<br /><span className="text-on-surface-variant">{item.receiver} {item.phone}</span></button>
             ))}
           </div>
         </div>
       )}
       {couponOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/30 flex items-end" onClick={() => setCouponOpen(false)}>
-          <div className="w-full bg-surface rounded-t-3xl p-md space-y-sm" onClick={(event) => event.stopPropagation()}>
-            <button onClick={() => { setSelectedCoupon(null); setCouponOpen(false); }} className="w-full text-left p-md rounded-xl bg-surface-container-high">不使用优惠券</button>
+        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setCouponOpen(false)}>
+          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
+            <button onClick={() => { setSelectedCoupon(null); setCouponOpen(false); }} className="liquid-button w-full text-left p-md rounded-xl bg-surface-container-high">不使用优惠券</button>
             {coupons.map((item) => (
-              <button key={item.id} disabled={goodsAmount < Number(item.thresholdAmount)} onClick={() => { setSelectedCoupon(item); setCouponOpen(false); }} className="w-full text-left p-md rounded-xl bg-surface-container-high disabled:opacity-50">{item.name}<br /><span className="text-primary">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</span>{goodsAmount < Number(item.thresholdAmount) && <span className="block text-error text-label-md">未达到使用门槛</span>}</button>
+              <button key={item.id} disabled={goodsAmount < Number(item.thresholdAmount)} onClick={() => { setSelectedCoupon(item); setCouponOpen(false); }} className="liquid-button w-full text-left p-md rounded-xl bg-surface-container-high disabled:opacity-50">{item.name}<br /><span className="text-primary">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</span>{goodsAmount < Number(item.thresholdAmount) && <span className="block text-error text-label-md">未达到使用门槛</span>}</button>
             ))}
           </div>
         </div>
@@ -377,11 +378,11 @@ export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder
   };
 
   return (
-    <div className="bg-surface min-h-full">
+    <div className="liquid-stage bg-surface min-h-full relative overflow-hidden">
       <PhoneHeader title="模拟支付" onBack={() => go('checkout')} />
-      <main className="p-md space-y-lg text-center">
+      <main className="p-md space-y-lg text-center motion-enter">
         <ErrorBanner message={error} />
-        <section className="bg-gradient-to-br from-primary-container to-primary-fixed rounded-3xl p-xl shadow-sm">
+        <section className="liquid-glass bg-gradient-to-br from-primary-container to-primary-fixed rounded-3xl p-xl motion-float">
           <p className="text-on-primary-container text-body-md">订单金额</p>
           <div className="text-[56px] leading-none font-bold text-on-primary-container mt-sm">¥{Number(order?.totalAmount ?? 0).toFixed(2)}</div>
         </section>
@@ -390,13 +391,13 @@ export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder
           { key: 'alipay', label: '支付宝（模拟）' },
           { key: 'campus_card', label: '校园一卡通（模拟）' },
         ].map((item) => (
-          <button key={item.key} onClick={() => setPayMethod(item.key)} className={`w-full p-md rounded-2xl border flex items-center justify-between ${payMethod === item.key ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-surface-container-lowest'}`}>
+          <button key={item.key} onClick={() => setPayMethod(item.key)} className={`liquid-button w-full p-md rounded-2xl border flex items-center justify-between ${payMethod === item.key ? 'border-primary bg-primary/10 text-primary motion-pulse-ring' : 'liquid-card'}`}>
             <span className="font-body-lg">{item.label}</span>
             <span className="material-symbols-outlined">{payMethod === item.key ? 'radio_button_checked' : 'radio_button_unchecked'}</span>
           </button>
         ))}
-        <button disabled={loading || !order} onClick={pay} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">{loading ? '支付中...' : '确认支付'}</button>
-        {order?.status === '待支付' && <button disabled={loading} onClick={cancel} className="w-full border border-error text-error rounded-full py-md font-headline-sm disabled:opacity-50">取消订单</button>}
+        <button disabled={loading || !order} onClick={pay} className="liquid-button w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">{loading ? '支付中...' : '确认支付'}</button>
+        {order?.status === '待支付' && <button disabled={loading} onClick={cancel} className="liquid-button w-full border border-error text-error rounded-full py-md font-headline-sm disabled:opacity-50">取消订单</button>}
       </main>
     </div>
   );
@@ -404,14 +405,14 @@ export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder
 
 export function PayResultPage({ go }: { go: Navigate }) {
   return (
-    <div className="bg-surface min-h-full flex flex-col items-center justify-center p-xl text-center">
-      <div className="w-24 h-24 rounded-full bg-[#22C55E]/10 text-[#137333] flex items-center justify-center mb-lg">
+    <div className="liquid-stage bg-surface min-h-full flex flex-col items-center justify-center p-xl text-center relative overflow-hidden">
+      <div className="w-24 h-24 rounded-full bg-[#22C55E]/10 text-[#137333] flex items-center justify-center mb-lg motion-pulse-ring motion-enter">
         <span className="material-symbols-outlined text-[56px] fill">check_circle</span>
       </div>
       <h1 className="font-display-lg text-display-lg text-on-surface">支付成功</h1>
       <p className="text-body-md text-on-surface-variant mt-sm">商家已收到订单，正在确认备餐。</p>
-      <button onClick={() => go('tracking')} className="mt-xl w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">查看订单状态</button>
-      <button onClick={() => go('home')} className="mt-sm w-full bg-surface-container-high text-primary rounded-full py-md font-body-lg">返回首页</button>
+      <button onClick={() => go('tracking')} className="liquid-button mt-xl w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">查看订单状态</button>
+      <button onClick={() => go('home')} className="liquid-button mt-sm w-full liquid-card text-primary rounded-full py-md font-body-lg">返回首页</button>
     </div>
   );
 }
@@ -508,29 +509,29 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
   }, [order?.id]);
 
   return (
-    <div className="bg-surface min-h-full pb-[100px]">
+    <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
       <PhoneHeader title="配送跟踪" onBack={() => go('home')} />
       <div className="h-[260px] bg-[#e3f2fd] relative overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_25%,transparent_25%),linear-gradient(225deg,#ffffff_25%,transparent_25%)] bg-[length:48px_48px] opacity-40"></div>
         <div className="absolute left-20 top-24 text-primary"><span className="material-symbols-outlined text-[44px] fill">location_on</span></div>
         <div className="absolute right-24 bottom-20 text-tertiary"><span className="material-symbols-outlined text-[40px] fill">electric_moped</span></div>
       </div>
-      <main className="p-md -mt-lg relative z-10 space-y-md">
+      <main className="p-md -mt-lg relative z-10 space-y-md motion-enter">
         <ErrorBanner message={error} />
-        <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+        <section className="liquid-glass rounded-2xl p-md">
           <h2 className="font-headline-sm text-headline-sm font-bold">{current?.status || '暂无订单'}</h2>
           <p className="text-body-md text-on-surface-variant mt-xs">{current ? `${current.merchantName} · ${current.address}` : '请先创建并支付订单'}</p>
           <p className="text-label-md text-primary mt-xs">{locationText}</p>
         </section>
-        <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+        <section className="liquid-card rounded-2xl p-md">
           <h2 className="font-headline-sm text-headline-sm font-bold">骑手信息</h2>
           <p className="text-body-md text-on-surface-variant mt-xs">王师傅 · 138****2468 · 评分 4.8 · 预计 25 分钟送达</p>
           <div className="grid grid-cols-2 gap-sm mt-md">
-            <button onClick={() => window.alert('模拟拨打骑手：138****2468')} className="rounded-full border border-primary text-primary py-sm">联系骑手</button>
-            <button onClick={() => window.alert(`模拟联系商家：${current?.merchantName || '商家'}`)} className="rounded-full bg-primary text-on-primary py-sm">联系商家</button>
+            <button onClick={() => notify('模拟拨打骑手：138****2468')} className="liquid-button rounded-full border border-primary text-primary py-sm">联系骑手</button>
+            <button onClick={() => notify(`模拟联系商家：${current?.merchantName || '商家'}`)} className="liquid-button rounded-full bg-primary text-on-primary py-sm">联系商家</button>
           </div>
         </section>
-        <section className="bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30 space-y-md">
+        <section className="liquid-card rounded-2xl p-md space-y-md stagger-children">
           {trackingSteps.map((step, index) => (
             <div key={step.status} className="flex gap-sm">
               <div className={`w-6 h-6 rounded-full flex items-center justify-center ${index <= activeStep ? 'bg-primary text-on-primary' : 'bg-surface-container-high text-on-surface-variant'}`}><span className="material-symbols-outlined text-[16px]">{index <= activeStep ? 'check' : 'radio_button_unchecked'}</span></div>
@@ -538,8 +539,8 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
             </div>
           ))}
         </section>
-        {current?.status === '待支付' && <button onClick={cancelCurrent} className="w-full border border-error text-error rounded-full py-md font-headline-sm">取消订单</button>}
-        <button disabled={current?.status !== '已完成'} onClick={() => go('review')} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md disabled:opacity-50">评价订单</button>
+        {current?.status === '待支付' && <button onClick={cancelCurrent} className="liquid-button w-full border border-error text-error rounded-full py-md font-headline-sm">取消订单</button>}
+        <button disabled={current?.status !== '已完成'} onClick={() => go('review')} className="liquid-button w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md disabled:opacity-50">评价订单</button>
       </main>
     </div>
   );
@@ -561,18 +562,18 @@ export function ReviewPage({ orderId, go }: { orderId: string | null; go: Naviga
   };
 
   return (
-    <div className="bg-surface min-h-full">
+    <div className="liquid-stage bg-surface min-h-full relative overflow-hidden">
       <PhoneHeader title="评价订单" onBack={() => go('tracking')} />
-      <main className="p-md space-y-md">
+      <main className="p-md space-y-md motion-enter">
         <ErrorBanner message={error} />
-        <section className="bg-surface-container-lowest rounded-2xl p-lg shadow-sm border border-outline-variant/30 text-center">
+        <section className="liquid-card rounded-2xl p-lg text-center">
           <h2 className="font-headline-sm text-headline-sm font-bold">这次用餐体验如何？</h2>
           <div className="flex justify-center gap-xs my-lg text-secondary-container">
-            {[1, 2, 3, 4, 5].map((star) => <button key={star} onClick={() => setRating(star)} className={`material-symbols-outlined text-[36px] ${star <= rating ? 'fill text-secondary-container' : 'text-outline'}`}>star</button>)}
+            {[1, 2, 3, 4, 5].map((star) => <button key={star} onClick={() => setRating(star)} aria-label={`评分 ${star} 星`} className={`liquid-button material-symbols-outlined text-[36px] rounded-lg ${star <= rating ? 'fill text-secondary-container motion-pulse-ring' : 'text-outline'}`}>star</button>)}
           </div>
-          <textarea value={content} onChange={(event) => setContent(event.target.value)} className="w-full min-h-32 rounded-xl border border-outline-variant bg-surface p-md outline-none focus:border-primary" placeholder="写下真实评价..." />
+          <textarea value={content} onChange={(event) => setContent(event.target.value)} className="w-full min-h-32 rounded-xl border border-outline-variant bg-white/70 p-md outline-none focus:border-primary" placeholder="写下真实评价..." />
         </section>
-        <button onClick={submit} className="w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">提交评价</button>
+        <button onClick={submit} className="liquid-button w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">提交评价</button>
       </main>
     </div>
   );
@@ -593,18 +594,18 @@ export function OrdersPage({ go, setOrder }: { go: Navigate; setOrder: (order: O
   }, []);
 
   return (
-    <div className="bg-surface min-h-full pb-[100px]">
+    <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
       <PhoneHeader title="历史订单" />
-      <main className="p-md space-y-md">
+      <main className="p-md space-y-md stagger-children">
         <ErrorBanner message={error} />
         {orders.length === 0 && !error && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
         {orders.map((order) => (
-          <button key={order.id} onClick={() => { setOrder(order); go('tracking'); }} className="w-full text-left bg-surface-container-lowest rounded-2xl p-md shadow-sm border border-outline-variant/30">
+          <button key={order.id} onClick={() => { setOrder(order); go('tracking'); }} className="liquid-card w-full text-left rounded-2xl p-md">
             <div className="flex justify-between"><h2 className="font-headline-sm text-headline-sm font-bold">{order.merchantName}</h2><span className="text-primary text-label-md">{order.status}</span></div>
             <p className="text-body-md text-on-surface-variant mt-xs">订单号：{order.id}</p>
             <p className="font-headline-sm text-headline-sm text-primary mt-sm">¥{Number(order.totalAmount).toFixed(1)}</p>
             {order.remark && <p className="text-body-md text-on-surface-variant mt-xs">备注：{order.remark}</p>}
-            {order.status === '待支付' && <span onClick={(event) => { event.stopPropagation(); cancel(order); }} className="inline-block mt-sm rounded-full border border-error text-error px-md py-xs text-label-md">取消订单</span>}
+            {order.status === '待支付' && <span onClick={(event) => { event.stopPropagation(); cancel(order); }} className="liquid-button inline-block mt-sm rounded-full border border-error text-error px-md py-xs text-label-md">取消订单</span>}
           </button>
         ))}
       </main>
@@ -626,13 +627,13 @@ export function AddressPage({ go }: { go: Navigate }) {
       .catch((err) => setError(err instanceof Error ? err.message : '地址保存失败'));
   };
   return (
-    <div className="bg-surface min-h-full pb-[100px]">
+    <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
       <PhoneHeader title="我的地址" onBack={() => go('profile')} />
-      <main className="p-md space-y-md">
+      <main className="p-md space-y-md stagger-children">
         <ErrorBanner message={error} />
-        <button onClick={add} className="w-full rounded-full bg-primary text-on-primary py-sm font-bold">新增地址</button>
+        <button onClick={add} className="liquid-button w-full rounded-full bg-primary text-on-primary py-sm font-bold">新增地址</button>
         {addresses.length === 0 && <p className="text-center text-on-surface-variant py-xl">暂无地址</p>}
-        {addresses.map((item, index) => <div key={item.id ?? index} className="bg-surface-container-lowest rounded-2xl p-md border border-outline-variant/30"><h3 className="font-headline-sm font-bold">{item.receiver} {item.phone}</h3><p className="text-on-surface-variant mt-xs">{item.detail}</p></div>)}
+        {addresses.map((item, index) => <div key={item.id ?? index} className="liquid-card rounded-2xl p-md"><h3 className="font-headline-sm font-bold">{item.receiver} {item.phone}</h3><p className="text-on-surface-variant mt-xs">{item.detail}</p></div>)}
       </main>
     </div>
   );
@@ -645,12 +646,12 @@ export function CouponPage({ go }: { go: Navigate }) {
     api.getCoupons().then(setCoupons).catch((err) => setError(err instanceof Error ? err.message : '优惠券加载失败'));
   }, []);
   return (
-    <div className="bg-surface min-h-full pb-[100px]">
+    <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
       <PhoneHeader title="我的优惠券" onBack={() => go('profile')} />
-      <main className="p-md space-y-md">
+      <main className="p-md space-y-md stagger-children">
         <ErrorBanner message={error} />
         {coupons.length === 0 && <p className="text-center text-on-surface-variant py-xl">暂无可用优惠券</p>}
-        {coupons.map((item) => <div key={item.id} className="bg-primary-container rounded-2xl p-md text-on-primary-container"><h3 className="font-headline-sm font-bold">{item.name}</h3><p className="mt-xs">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</p><p className="text-label-md mt-sm">{item.status}</p></div>)}
+        {coupons.map((item) => <div key={item.id} className="liquid-glass bg-primary-container rounded-2xl p-md text-on-primary-container motion-float"><h3 className="font-headline-sm font-bold">{item.name}</h3><p className="mt-xs">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</p><p className="text-label-md mt-sm">{item.status}</p></div>)}
       </main>
     </div>
   );

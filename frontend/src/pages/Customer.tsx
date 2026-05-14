@@ -31,7 +31,7 @@ export default function Customer({ setRole }: { setRole: () => void }) {
   };
 
   return (
-    <div className="max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_0_40px_rgba(0,0,0,0.1)] overflow-hidden bg-surface flex flex-col">
+    <div className="liquid-stage max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_24px_70px_rgba(15,23,42,0.16)] overflow-hidden bg-surface flex flex-col md:my-0 md:border-x md:border-outline-variant/50">
       <div className="flex-1 overflow-y-auto w-full relative pb-safe">
         {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMessage={() => go('message')} onMerchantClick={openMerchant} />}
         {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} onSearch={() => go('search')} onMessage={() => go('message')} onMerchant={(merchantId) => merchantId ? openMerchant(merchantId) : go('merchant')} />}
@@ -49,38 +49,36 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         {screen === 'coupons' && <CouponPage go={go} />}
       </div>
 
-      <nav className="shrink-0 w-full bg-surface border-t border-outline-variant/30 pb-safe pt-xs px-md flex justify-around items-center z-50">
+      <nav className="liquid-glass shrink-0 w-full border-t border-outline-variant/50 pb-safe pt-xs px-md flex justify-around items-center z-50 shadow-[0_-8px_24px_rgba(15,23,42,0.05)]">
         <button
           onClick={() => go('home')}
-          className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'home' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
+          className={`liquid-button flex flex-col items-center gap-0.5 px-sm py-xs rounded-lg transition-all ${activeTab === 'home' ? 'text-primary bg-primary/10' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'home' ? { fontVariationSettings: "'FILL' 1" } : {}}>home</span>
           <span className="text-[10px] font-label-md font-medium">首页</span>
         </button>
         <button
           onClick={() => go('cart')}
-          className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'cart' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
+          className={`liquid-button flex flex-col items-center gap-0.5 px-sm py-xs rounded-lg transition-all ${activeTab === 'cart' ? 'text-primary bg-primary/10' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'cart' ? { fontVariationSettings: "'FILL' 1" } : {}}>shopping_cart</span>
           <span className="text-[10px] font-label-md font-medium">购物车</span>
         </button>
         <button
           onClick={() => go('message')}
-          className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'message' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
+          className={`liquid-button flex flex-col items-center gap-0.5 px-sm py-xs rounded-lg transition-all ${activeTab === 'message' ? 'text-primary bg-primary/10' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'message' ? { fontVariationSettings: "'FILL' 1" } : {}}>chat</span>
           <span className="text-[10px] font-label-md font-medium">消息中心</span>
         </button>
         <button
           onClick={() => go('profile')}
-          className={`flex flex-col items-center gap-0.5 p-sm rounded-xl transition-all ${activeTab === 'profile' ? 'text-primary' : 'text-on-surface-variant hover:text-primary/70'}`}
+          className={`liquid-button flex flex-col items-center gap-0.5 px-sm py-xs rounded-lg transition-all ${activeTab === 'profile' ? 'text-primary bg-primary/10' : 'text-on-surface-variant hover:text-primary hover:bg-surface-container-high'}`}
         >
           <span className="material-symbols-outlined" style={activeTab === 'profile' ? { fontVariationSettings: "'FILL' 1" } : {}}>person</span>
           <span className="text-[10px] font-label-md font-medium">个人中心</span>
         </button>
       </nav>
-
-      {import.meta.env.DEV && <button onClick={logout} className="absolute top-4 left-4 z-[99] bg-black/50 text-white rounded p-2 text-xs backdrop-blur">→ Role</button>}
     </div>
   );
 }
