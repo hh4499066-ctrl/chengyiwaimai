@@ -235,7 +235,7 @@ export const api = {
     }),
   updateCart: (dishId: number, quantity: number) =>
     request<CartItem>(`/customer/cart/${dishId}`, {
-      method: 'PATCH',
+      method: 'PUT',
       body: JSON.stringify({ dishId, quantity }),
     }),
   deleteCartItem: (dishId: number) => request<{ deleted: boolean }>(`/customer/cart/${dishId}`, { method: 'DELETE' }),

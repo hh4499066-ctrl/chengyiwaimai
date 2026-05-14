@@ -339,6 +339,14 @@ textarea:focus-visible {
   animation: liquid-sheen 900ms ease;
 }
 
+.modal-surface::after,
+.modal-surface:hover::after {
+  content: none;
+  display: none;
+  opacity: 0;
+  animation: none;
+}
+
 .liquid-card {
   position: relative;
   overflow: hidden;
@@ -357,9 +365,12 @@ textarea:focus-visible {
 }
 
 .liquid-button {
-  position: relative;
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+
+.liquid-button:not(.absolute):not(.fixed):not(.sticky) {
+  position: relative;
 }
 
 .liquid-button:hover {
@@ -434,6 +445,11 @@ textarea:focus-visible {
 .app-toast.is-visible {
   opacity: 1;
   transform: translate3d(-50%, 0, 0) scale(1);
+}
+
+.app-toast--phone {
+  position: absolute;
+  max-width: calc(100% - 32px);
 }
 
 .stagger-children > * {

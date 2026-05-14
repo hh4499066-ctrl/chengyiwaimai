@@ -8,7 +8,14 @@ export function notify(message: string) {
   toast.setAttribute('role', 'status');
   toast.setAttribute('aria-live', 'polite');
   toast.textContent = message;
-  document.body.appendChild(toast);
+
+  const phoneShell = document.querySelector<HTMLElement>('.app-phone-shell');
+  if (phoneShell) {
+    toast.classList.add('app-toast--phone');
+    phoneShell.appendChild(toast);
+  } else {
+    document.body.appendChild(toast);
+  }
 
   window.requestAnimationFrame(() => toast.classList.add('is-visible'));
   window.setTimeout(() => toast.classList.remove('is-visible'), 2200);

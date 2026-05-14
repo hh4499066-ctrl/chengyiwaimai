@@ -337,7 +337,7 @@ function MerchantMenuLive() {
       </div>
       {formOpen && (
         <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
-          <div className="liquid-glass rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
+          <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
             <h3 className="font-headline-sm text-headline-sm font-bold">{editing ? '编辑商品' : '新建商品'}</h3>
             {(['name', 'description', 'price', 'sales', 'categoryName'] as const).map((key) => (
               <input key={key} value={form[key]} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder={key} />

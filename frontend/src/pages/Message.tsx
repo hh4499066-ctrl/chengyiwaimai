@@ -32,8 +32,8 @@ export default function Message({ onCart, onTracking }: { onCart?: () => void; o
   };
 
   return (
-    <div className="liquid-stage bg-background min-h-screen text-on-background pb-[90px] pt-[64px] relative overflow-hidden">
-      <header className="liquid-glass fixed top-0 w-full z-50 flex justify-between items-center px-md py-sm">
+    <div className="liquid-stage bg-background h-full text-on-background pb-xl relative overflow-y-auto no-scrollbar">
+      <header className="liquid-glass sticky top-0 w-full z-50 flex justify-between items-center px-md py-sm">
         <div className="text-headline-md font-headline-md font-bold text-primary">橙意外卖</div>
         <div className="flex gap-md items-center">
           <button onClick={() => setMessages((items) => [...items])} aria-label="刷新消息" className="liquid-button w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors scale-98 active:opacity-80">
@@ -88,8 +88,8 @@ export default function Message({ onCart, onTracking }: { onCart?: () => void; o
       </main>
 
       {selected && (
-        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setSelected(null)}>
-          <div className="liquid-glass w-full rounded-t-3xl p-lg space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setSelected(null)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-lg space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
             <h2 className="font-headline-sm text-headline-sm font-bold">{selected.title}</h2>
             <p className="text-body-md text-on-surface-variant">{selected.content}</p>
             {selected.type === 'order' && <button onClick={() => { setSelected(null); onTracking?.(); }} className="liquid-button w-full mt-md bg-primary text-on-primary rounded-full py-sm font-bold">查看订单状态</button>}

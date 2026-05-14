@@ -27,7 +27,7 @@ function PageShell({ title, desc, action, onAction, children }: { title: string;
 function SimpleModal({ title, body, onClose }: { title: string; body: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
-      <div className="liquid-glass rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
         <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
         <div className="text-body-md text-on-surface-variant">{body}</div>
         <button onClick={onClose} className="liquid-button w-full bg-primary text-on-primary rounded-lg py-sm font-bold">关闭</button>
@@ -90,7 +90,7 @@ function ActivityFormModal({
   const update = (key: keyof ActivityFormState, value: string) => onChange((prev) => prev ? { ...prev, [key]: value } : prev);
   return (
     <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
-      <div className="liquid-glass rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
         <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
         <input value={form.name} onChange={(event) => update('name', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="活动名称" />
         <select value={form.type} onChange={(event) => update('type', event.target.value)} className="w-full rounded-lg border border-outline-variant p-sm">

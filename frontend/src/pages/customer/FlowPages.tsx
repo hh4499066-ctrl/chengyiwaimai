@@ -59,6 +59,12 @@ function enrichDish(dish: Dish, index: number): Required<Dish> {
   };
 }
 
+function fallbackDishesForMerchant(merchantId: number) {
+  const matched = mockDishes.filter((dish) => dish.merchantId === merchantId);
+  const source = matched.length > 0 ? matched : mockDishes.map((dish) => ({ ...dish, merchantId }));
+  return source.map(enrichDish);
+}
+
 function ErrorBanner({ message }: { message: string }) {
   if (!message) {
     return null;
@@ -149,11 +155,16 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
     api
       .getDishes(merchantId)
       .then((items) => {
-        const next = items.map(enrichDish);
+        const next = items.length > 0 ? items.map(enrichDish) : fallbackDishesForMerchant(merchantId);
         setDishList(next);
         setSelectedCategory(next[0]?.category || '');
       })
-      .catch((err) => setError(err instanceof Error ? err.message : '菜品加载失败'));
+      .catch((err) => {
+        const next = fallbackDishesForMerchant(merchantId);
+        setDishList(next);
+        setSelectedCategory(next[0]?.category || '');
+        setError(err instanceof Error ? err.message : '菜品加载失败');
+      });
     api.getCart().then(setCartItems).catch(() => setCartItems([]));
   }, [merchantId]);
 
@@ -174,15 +185,15 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
   const heroImage = merchant?.image || mockMerchants[0].image;
 
   return (
-    <div className="liquid-stage bg-surface min-h-full pb-[112px] relative overflow-hidden">
-      <div className="relative h-[220px]">
+    <div className="liquid-stage bg-surface absolute inset-0 overflow-hidden flex flex-col">
+      <button onClick={() => go('home')} aria-label="返回首页" className="liquid-button absolute left-4 top-4 z-[80] w-11 h-11 rounded-full bg-white/90 text-primary backdrop-blur flex items-center justify-center shadow-[0_12px_30px_rgba(15,23,42,0.18)] border border-white/70">
+        <span className="material-symbols-outlined">arrow_back</span>
+      </button>
+      <div className="relative h-[248px] shrink-0 -mt-px">
         <img src={heroImage} alt={merchant?.name || '商家'} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-surface"></div>
-        <button onClick={() => go('home')} aria-label="返回首页" className="liquid-button absolute top-4 left-4 w-10 h-10 rounded-full bg-black/40 text-white backdrop-blur flex items-center justify-center">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </button>
       </div>
-      <main className="px-md -mt-xl relative z-10 space-y-md motion-enter">
+      <main className="px-md -mt-xl relative z-10 space-y-md motion-enter flex-1 overflow-y-auto no-scrollbar pb-[96px]">
         <ErrorBanner message={error} />
         <section className="liquid-glass rounded-2xl p-md">
           <h1 className="font-display-lg text-display-lg text-on-surface">{merchant?.name || '商家详情'}</h1>
@@ -196,6 +207,7 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
             ))}
           </aside>
           <div className="space-y-md stagger-children">
+            {visibleDishes.length === 0 && <p className="liquid-card rounded-xl p-md text-center text-on-surface-variant">暂无菜品，稍后再来看看。</p>}
             {visibleDishes.map((dish) => (
               <article key={dish.id} onClick={() => setSelectedDish(dish)} className="liquid-card rounded-xl p-sm flex gap-sm active:scale-[0.99] transition-transform">
                 <img src={dish.image} alt={dish.name} className="w-24 h-24 object-cover rounded-lg" />
@@ -213,13 +225,13 @@ export function MerchantDetailPage({ merchantId, go }: { merchantId: number; go:
           </div>
         </section>
       </main>
-      <div className="liquid-glass absolute bottom-0 left-0 right-0 border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between shadow-[0_-8px_24px_rgba(38,24,20,0.08)]">
+      <div className="liquid-glass absolute bottom-0 left-0 right-0 z-40 border-t border-outline-variant/30 px-md py-sm pb-safe flex items-center justify-between shadow-[0_-8px_24px_rgba(38,24,20,0.08)]">
         <button onClick={() => go('cart')} className="text-left"><p className="text-label-md text-on-surface-variant">已选 {cartCount} 件</p><p className="font-headline-md text-headline-md text-primary">¥{cartTotal.toFixed(1)}</p></button>
         <button disabled={cartCount === 0} onClick={() => go('checkout')} className="liquid-button bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md active:scale-[0.98] disabled:opacity-50">去结算</button>
       </div>
       {selectedDish && (
-        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setSelectedDish(null)}>
-          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setSelectedDish(null)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-md space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
             <img src={selectedDish.image} alt={selectedDish.name} className="w-full h-44 object-cover rounded-2xl" />
             <div>
               <h2 className="font-headline-sm text-headline-sm font-bold">{selectedDish.name}</h2>
@@ -317,8 +329,8 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
         <button disabled={loading || items.length === 0} onClick={submit} className="liquid-button bg-primary text-on-primary px-xl py-sm rounded-full font-headline-sm shadow-md disabled:opacity-50">{loading ? '提交中...' : '提交订单'}</button>
       </div>
       {addressOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setAddressOpen(false)}>
-          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setAddressOpen(false)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
             {addresses.map((item, index) => (
               <button key={`${item.detail}-${index}`} onClick={() => { setSelectedAddress(item); setAddressOpen(false); }} className="liquid-button w-full text-left p-md rounded-xl bg-surface-container-high">{item.detail}<br /><span className="text-on-surface-variant">{item.receiver} {item.phone}</span></button>
             ))}
@@ -326,8 +338,8 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
         </div>
       )}
       {couponOpen && (
-        <div className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setCouponOpen(false)}>
-          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute inset-0 z-[90] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setCouponOpen(false)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
             <button onClick={() => { setSelectedCoupon(null); setCouponOpen(false); }} className="liquid-button w-full text-left p-md rounded-xl bg-surface-container-high">不使用优惠券</button>
             {coupons.map((item) => (
               <button key={item.id} disabled={goodsAmount < Number(item.thresholdAmount)} onClick={() => { setSelectedCoupon(item); setCouponOpen(false); }} className="liquid-button w-full text-left p-md rounded-xl bg-surface-container-high disabled:opacity-50">{item.name}<br /><span className="text-primary">满 ¥{item.thresholdAmount} 减 ¥{item.discountAmount}</span>{goodsAmount < Number(item.thresholdAmount) && <span className="block text-error text-label-md">未达到使用门槛</span>}</button>

@@ -31,7 +31,7 @@ export default function Customer({ setRole }: { setRole: () => void }) {
   };
 
   return (
-    <div className="liquid-stage max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_24px_70px_rgba(15,23,42,0.16)] overflow-hidden bg-surface flex flex-col md:my-0 md:border-x md:border-outline-variant/50">
+    <div className="app-phone-shell liquid-stage max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_24px_70px_rgba(15,23,42,0.16)] overflow-hidden bg-surface flex flex-col md:my-0 md:border-x md:border-outline-variant/50">
       <div className="flex-1 overflow-y-auto w-full relative pb-safe">
         {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMessage={() => go('message')} onMerchantClick={openMerchant} />}
         {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} onSearch={() => go('search')} onMessage={() => go('message')} onMerchant={(merchantId) => merchantId ? openMerchant(merchantId) : go('merchant')} />}

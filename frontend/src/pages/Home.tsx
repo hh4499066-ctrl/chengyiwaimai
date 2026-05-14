@@ -186,8 +186,8 @@ export default function Home({
         </section>
       </main>
       {addressOpen && (
-        <div className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setAddressOpen(false)}>
-          <div className="liquid-glass w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute inset-0 z-[80] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setAddressOpen(false)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-md space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
             {['学校东门', '学生公寓 3 号楼', '图书馆北门'].map((item) => (
               <button key={item} onClick={() => { setAddress(item); setAddressOpen(false); }} className={`liquid-button w-full text-left p-md rounded-xl ${address === item ? 'bg-primary text-on-primary motion-pulse-ring' : 'bg-white/60 text-on-surface hover:bg-primary/10'}`}>{item}</button>
             ))}

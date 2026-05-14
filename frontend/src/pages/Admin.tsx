@@ -233,7 +233,7 @@ function AdminMerchantAuditLive() {
           <tbody className="stagger-children">{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.category}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.auditStatus}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看资料</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过</button><button onClick={() => audit(item, 'rejected')} className="text-error">驳回</button></td></tr>)}</tbody>
         </table>
       </div>
-      {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
+      {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass modal-surface rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
     </div>
   );
 }
@@ -259,7 +259,7 @@ function AdminRiderAuditLive() {
           <tbody className="stagger-children">{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.role}</td><td className="p-md">{item.status}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看原件</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过审核</button><button onClick={() => audit(item, 'disabled')} className="text-error">标记违规</button></td></tr>)}</tbody>
         </table>
       </div>
-      {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
+      {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass modal-surface rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
     </div>
   );
 }

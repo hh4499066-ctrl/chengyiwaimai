@@ -94,6 +94,36 @@ export const dishes: Dish[] = [
     image: 'https://images.unsplash.com/photo-1497534446932-c925b458314e?auto=format&fit=crop&w=640&q=80',
     category: '饮品',
   },
+  {
+    id: 201,
+    merchantId: 2,
+    name: '牛油果鸡胸能量碗',
+    desc: '低温鸡胸、牛油果、溏心蛋和藜麦，清爽高蛋白。',
+    price: 32.8,
+    sales: 536,
+    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=640&q=80',
+    category: '招牌轻食',
+  },
+  {
+    id: 202,
+    merchantId: 2,
+    name: '烟熏三文鱼沙拉',
+    desc: '烟熏三文鱼搭配混合生菜、鹰嘴豆和柠檬油醋汁。',
+    price: 36.5,
+    sales: 428,
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=640&q=80',
+    category: '高蛋白沙拉',
+  },
+  {
+    id: 203,
+    merchantId: 2,
+    name: '羽衣甘蓝鲜果汁',
+    desc: '羽衣甘蓝、青苹果和奇亚籽现榨，少糖更清爽。',
+    price: 16,
+    sales: 712,
+    image: 'https://images.unsplash.com/photo-1610970881699-44a5587cabec?auto=format&fit=crop&w=640&q=80',
+    category: '轻饮',
+  },
 ];
 
 export const demoOrder: DemoOrder = {

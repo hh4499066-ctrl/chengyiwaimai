@@ -258,8 +258,8 @@ function RiderEarnings() {
         </div>
       </div>
       {detail && (
-        <div className="fixed inset-0 z-[100] bg-black/30 flex items-end" onClick={() => setDetail(null)}>
-          <div className="liquid-glass w-full rounded-t-3xl p-lg space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
+        <div className="absolute inset-0 z-[100] bg-black/30 flex items-end" onClick={() => setDetail(null)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-lg space-y-sm motion-enter" onClick={(event) => event.stopPropagation()}>
             <h3 className="font-headline-sm font-bold">{detail.n}</h3>
             <p className="text-on-surface-variant">订单/来源：{detail.a}</p>
             <p className="text-on-surface-variant">时间：{detail.t}</p>
@@ -325,7 +325,7 @@ export default function Rider({ setRole }: { setRole: () => void }) {
   };
 
   return (
-    <div className="liquid-stage max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_24px_70px_rgba(15,23,42,0.16)] overflow-hidden bg-surface flex flex-col md:my-0 md:border-x md:border-outline-variant/50">
+    <div className="app-phone-shell liquid-stage max-w-[448px] mx-auto w-full h-[100dvh] relative shadow-[0_24px_70px_rgba(15,23,42,0.16)] overflow-hidden bg-surface flex flex-col md:my-0 md:border-x md:border-outline-variant/50">
       <div className="flex-1 overflow-hidden w-full relative">
         {view === 'lobby' && <RiderLobby onAccepted={() => setView('task')} />}
         {view === 'task' && <RiderTask />}
