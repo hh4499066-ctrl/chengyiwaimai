@@ -29,7 +29,7 @@ public class JwtInterceptor implements HandlerInterceptor {
             return true;
         }
         String path = normalizedPath(request);
-        if (path.equals("/auth/login") || path.startsWith("/merchants")) {
+        if (path.equals("/auth/login") || path.startsWith("/merchants") || path.startsWith("/uploads/")) {
             return true;
         }
 

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
   phone VARCHAR(20) NOT NULL,
   password VARCHAR(255),
   nickname VARCHAR(50),
+  avatar_url VARCHAR(500),
   role VARCHAR(20) NOT NULL COMMENT 'customer,rider,merchant,admin',
   status TINYINT DEFAULT 1,
   deleted TINYINT DEFAULT 0,
@@ -173,6 +174,17 @@ CREATE TABLE IF NOT EXISTS user_address (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_user_address_user_id (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_favorite_merchant (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  merchant_id BIGINT NOT NULL,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_favorite_merchant (user_id, merchant_id),
+  KEY idx_user_favorite_user_id (user_id),
+  KEY idx_user_favorite_merchant_id (merchant_id)
 );
 
 CREATE TABLE IF NOT EXISTS coupon (

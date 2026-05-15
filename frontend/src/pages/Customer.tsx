@@ -3,7 +3,7 @@ import Home from './Home';
 import Cart from './Cart';
 import Message from './Message';
 import Profile from './Profile';
-import { AddressPage, CheckoutPage, CouponPage, MerchantDetailPage, OrdersPage, PayPage, PayResultPage, ReviewPage, ReviewsPage, SearchPage, TrackingPage } from './customer/FlowPages';
+import { AddressPage, CheckoutPage, CouponPage, FavoritesPage, MerchantDetailPage, OrdersPage, PayPage, PayResultPage, ReviewPage, ReviewsPage, SearchPage, TrackingPage } from './customer/FlowPages';
 import type { Order } from '../api/client';
 
 export default function Customer({ setRole }: { setRole: () => void }) {
@@ -36,7 +36,7 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         {screen === 'home' && activeTab === 'home' && <Home onSearch={() => go('search')} onMessage={() => go('message')} onMerchantClick={openMerchant} />}
         {screen === 'cart' && activeTab === 'cart' && <Cart onCheckout={() => go('checkout')} onSearch={() => go('search')} onMessage={() => go('message')} onMerchant={(merchantId) => merchantId ? openMerchant(merchantId) : go('merchant')} />}
         {screen === 'message' && activeTab === 'message' && <Message onCart={() => go('cart')} onTracking={() => go('tracking')} />}
-        {screen === 'profile' && activeTab === 'profile' && <Profile onLogout={logout} goOrders={() => go('orders')} goAddress={() => go('address')} goCoupons={() => go('coupons')} goReviews={() => go('reviews')} onSearch={() => go('search')} onMessage={() => go('message')} onCart={() => go('cart')} />}
+        {screen === 'profile' && activeTab === 'profile' && <Profile onLogout={logout} goOrders={() => go('orders')} goAddress={() => go('address')} goCoupons={() => go('coupons')} goReviews={() => go('reviews')} goFavorites={() => go('favorites')} onSearch={() => go('search')} onMessage={() => go('message')} onCart={() => go('cart')} />}
         {screen === 'search' && <SearchPage onBack={() => go('home')} onMerchant={openMerchant} />}
         {screen === 'merchant' && <MerchantDetailPage merchantId={selectedMerchantId} go={go} />}
         {screen === 'checkout' && <CheckoutPage merchantId={selectedMerchantId} setOrder={setCurrentOrder} go={go} />}
@@ -45,6 +45,7 @@ export default function Customer({ setRole }: { setRole: () => void }) {
         {screen === 'tracking' && <TrackingPage order={currentOrder} setOrder={setCurrentOrder} go={go} />}
         {screen === 'review' && <ReviewPage orderId={currentOrder?.id ?? null} go={go} />}
         {screen === 'reviews' && <ReviewsPage go={go} />}
+        {screen === 'favorites' && <FavoritesPage go={go} onMerchant={openMerchant} />}
         {screen === 'orders' && <OrdersPage go={go} setOrder={setCurrentOrder} />}
         {screen === 'address' && <AddressPage go={go} />}
         {screen === 'coupons' && <CouponPage go={go} />}

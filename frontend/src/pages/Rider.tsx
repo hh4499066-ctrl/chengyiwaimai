@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { api, type Order, type RiderLobbyOrder, type RiderStats } from '../api/client';
+import { api, type Order, type RiderLobbyOrder, type RiderProfile as RiderProfileData, type RiderStats } from '../api/client';
 import DeliveryMap from '../components/DeliveryMap';
-import { campusMapPoints, type LngLat } from '../utils/amap';
+import { campusMapPoints, readableCustomerAddress, type LngLat } from '../utils/amap';
 import { notify } from '../utils/toast';
+
+const defaultRiderAvatar = '/rider-avatar.png';
 
 function RiderCardSkeleton() {
   return (
@@ -21,8 +23,8 @@ function WithdrawModal({ onCancel, onSubmit }: { onCancel: () => void; onSubmit:
   const parsedAmount = Number(amount);
   const canSubmit = Number.isFinite(parsedAmount) && parsedAmount > 0 && accountNo.trim().length > 0;
   return (
-    <div className="absolute inset-0 z-[100] bg-black/30 flex items-end" onClick={onCancel}>
-      <div className="liquid-glass modal-surface w-full rounded-t-3xl p-lg space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] bg-black/30 flex items-start justify-center px-md pt-[18dvh] pb-[96px] overflow-y-auto" onClick={onCancel}>
+      <div className="liquid-glass modal-surface w-full max-w-[432px] rounded-3xl p-lg space-y-md motion-enter max-h-[calc(100dvh-140px)] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
         <h3 className="font-headline-sm text-headline-sm font-bold">申请提现</h3>
         <label className="block">
           <span className="text-label-md font-label-md text-on-surface-variant">提现金额</span>
@@ -35,6 +37,51 @@ function WithdrawModal({ onCancel, onSubmit }: { onCancel: () => void; onSubmit:
         <div className="flex gap-sm">
           <button onClick={onCancel} className="liquid-button flex-1 rounded-full border border-outline-variant py-sm">取消</button>
           <button disabled={!canSubmit} onClick={() => onSubmit(parsedAmount, accountNo.trim())} className="liquid-button flex-1 rounded-full bg-primary text-on-primary py-sm disabled:opacity-50">提交</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RiderProfileEditModal({
+  profile,
+  onCancel,
+  onSubmit,
+}: {
+  profile: RiderProfileData;
+  onCancel: () => void;
+  onSubmit: (payload: { nickname: string; avatarFile?: File }) => void;
+}) {
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [avatarFile, setAvatarFile] = useState<File | undefined>();
+  const [previewUrl, setPreviewUrl] = useState(profile.avatarUrl || defaultRiderAvatar);
+  const canSubmit = nickname.trim().length > 0;
+  const chooseAvatar = (file?: File) => {
+    if (!file) {
+      return;
+    }
+    setAvatarFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+  return (
+    <div className="absolute inset-0 z-[100] bg-black/30 flex items-end" onClick={onCancel}>
+      <div className="liquid-glass modal-surface w-full rounded-t-3xl p-lg space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
+        <h3 className="font-headline-sm text-headline-sm font-bold">编辑骑手资料</h3>
+        <div className="flex items-center gap-md">
+          <img src={previewUrl} alt="骑手头像预览" className="w-16 h-16 rounded-full border border-outline-variant bg-primary-container object-cover" />
+          <label className="liquid-button rounded-full bg-primary text-on-primary px-md py-sm text-label-md font-bold cursor-pointer">
+            选择头像
+            <input type="file" accept="image/*" className="sr-only" onChange={(event) => chooseAvatar(event.target.files?.[0])} />
+          </label>
+        </div>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">用户名</span>
+          <input value={nickname} onChange={(event) => setNickname(event.target.value)} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" maxLength={30} />
+        </label>
+        <p className="text-label-md text-on-surface-variant">{avatarFile ? `已选择：${avatarFile.name}` : '支持 JPG、PNG、WebP、GIF，最大 2MB。'}</p>
+        <div className="flex gap-sm">
+          <button onClick={onCancel} className="liquid-button flex-1 rounded-full border border-outline-variant bg-white text-on-surface py-sm shadow-sm">取消</button>
+          <button disabled={!canSubmit} onClick={() => onSubmit({ nickname: nickname.trim(), avatarFile })} className="liquid-button flex-1 rounded-full bg-primary text-on-primary py-sm disabled:opacity-50">保存</button>
         </div>
       </div>
     </div>
@@ -109,7 +156,7 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
                 </div>
                 <div className="relative">
                   <span className="absolute left-[-23px] top-1 w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/20"></span>
-                  <p className="text-body-md font-body-md text-on-surface line-clamp-1">{order.address}</p>
+                  <p className="text-body-md font-body-md text-on-surface line-clamp-1">{readableCustomerAddress(order.address)}</p>
                 </div>
               </div>
               <button disabled={!online || loadingId === order.orderId} onClick={() => accept(order.orderId)} className="liquid-button w-full py-sm rounded-xl bg-primary text-on-primary text-body-lg font-body-lg font-medium shadow-[0_2px_8px_rgba(37,99,235,0.25)] hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-xs relative overflow-hidden disabled:opacity-50">抢单</button>
@@ -156,13 +203,6 @@ function RiderTask() {
       return '确认送达';
     }
     return '已完成';
-  };
-
-  const displayAddress = (value?: string) => {
-    if (!value || value.includes('?')) {
-      return '学校东门 3 号宿舍楼 502';
-    }
-    return value;
   };
 
   const submit = (order: Order) => {
@@ -228,7 +268,7 @@ function RiderTask() {
                     <div className="flex gap-sm items-center"><div className="w-10 h-10 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary"><span className="material-symbols-outlined fill">storefront</span></div><div><h3 className="text-body-lg font-body-lg text-on-surface font-semibold line-clamp-1">{task.merchantName}</h3><p className="text-label-md font-label-md text-tertiary font-medium">订单：{task.id}</p></div></div>
                 </div>
                 <div className="bg-surface-variant/30 rounded-xl p-sm mb-md flex justify-between items-center"><div className="flex gap-2 items-center"><span className="material-symbols-outlined text-outline text-[18px]">payments</span><span className="text-label-md font-label-md text-on-surface-variant">金额 <strong className="text-body-md font-body-md text-on-surface mx-1">¥{Number(task.totalAmount).toFixed(2)}</strong></span></div><span className="text-label-md font-label-md text-error">{task.status}</span></div>
-                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">{displayAddress(task.address)}</p></div></div>
+                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">{readableCustomerAddress(task.address)}</p></div></div>
                 <div className="flex gap-sm">
                     <button onClick={() => notify(`模拟拨打商家电话：${task.merchantName} 020-88886666`)} className="liquid-button flex-1 py-2.5 rounded-xl border border-primary text-primary font-body-md font-medium flex items-center justify-center gap-xs hover:bg-primary/5"><span className="material-symbols-outlined text-[18px]">phone_enabled</span>联系商家</button>
                     <button disabled={!nextAction(task) || loadingId === task.id} onClick={() => submit(task)} className="liquid-button flex-1 py-2.5 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-[0_2px_8px_rgba(37,99,235,0.25)] flex items-center justify-center gap-xs hover:bg-primary/90 disabled:opacity-50">{actionLabel(task)}</button>
@@ -347,24 +387,69 @@ function RiderEarnings() {
 
 function RiderProfile({ onLogout }: { onLogout: () => void }) {
   const tip = notify;
+  const fallbackProfile: RiderProfileData = {
+    userId: 0,
+    nickname: '王师傅',
+    phone: '13800000002',
+    avatarUrl: defaultRiderAvatar,
+    level: '新手骑手',
+    score: null,
+    completedOrders: 0,
+    nextLevelNeed: 10,
+    progressPercent: 0,
+  };
+  const [profile, setProfile] = useState<RiderProfileData>(fallbackProfile);
+  const [editOpen, setEditOpen] = useState(false);
+
+  useEffect(() => {
+    api.getRiderProfile().then((data) => setProfile({ ...fallbackProfile, ...data })).catch(() => undefined);
+  }, []);
+
+  const saveProfile = (payload: { nickname: string; avatarFile?: File }) => {
+    const action = payload.avatarFile
+      ? api.uploadRiderAvatar(payload.avatarFile, payload.nickname)
+      : api.updateRiderProfile({ nickname: payload.nickname });
+    action
+      .then((data) => {
+        setProfile((prev) => ({ ...prev, ...data }));
+        setEditOpen(false);
+        tip('骑手资料已保存');
+      })
+      .catch((err) => tip(err instanceof Error ? err.message : '骑手资料保存失败'));
+  };
+  const completedOrdersText = Number(profile.completedOrders || 0).toLocaleString('zh-CN');
+  const nextLevelText = profile.nextLevelNeed > 0 ? `距下一级还差 ${profile.nextLevelNeed} 单` : '已达最高等级';
+  const hasCompletedOrders = Number(profile.completedOrders || 0) > 0;
+  const scoreText = hasCompletedOrders && profile.score ? String(profile.score) : '暂无';
+  const onTimeRateText = hasCompletedOrders ? '99.8%' : '暂无';
+
   return (
     <div className="liquid-stage bg-surface h-full text-on-surface overflow-y-auto no-scrollbar pb-xl relative">
       <div className="liquid-glass bg-primary/95 pt-safe pb-xl px-lg rounded-b-[32px] relative overflow-hidden shadow-md motion-enter">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.22),transparent_42%,rgba(255,255,255,0.12))] opacity-70"></div>
-        <div className="flex justify-between items-center py-md relative z-10"><h1 className="text-headline-md font-headline-md text-slate-900 font-bold">我的主页</h1><button onClick={() => tip('骑手设置已打开（演示）')} aria-label="骑手设置" className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-primary backdrop-blur-md hover:bg-white transition-colors shadow-sm"><span className="material-symbols-outlined">settings</span></button></div>
+        <div className="flex justify-between items-center py-md relative z-10"><h1 className="text-headline-md font-headline-md text-slate-900 font-bold">我的主页</h1><button onClick={() => setEditOpen(true)} aria-label="编辑骑手资料" className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-primary backdrop-blur-md hover:bg-white transition-colors shadow-sm"><span className="material-symbols-outlined">edit</span></button></div>
         <div className="flex items-center gap-md mt-sm relative z-10">
-            <div className="relative"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=rider" alt="avatar" className="w-[80px] h-[80px] rounded-full border-[3px] border-white/50 bg-primary-container object-cover shadow-sm"/><div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#137333] border-2 border-primary flex items-center justify-center"><span className="material-symbols-outlined text-[12px] text-white font-bold">check</span></div></div>
-            <div><h2 className="text-headline-sm font-headline-sm text-slate-950 font-bold flex items-center gap-xs">王师傅 <span className="bg-[#FFD700] text-[#7A4D00] text-[10px] px-1.5 py-0.5 rounded-sm font-bold flex items-center">⭐ 黄金骑手</span></h2><p className="text-body-md font-body-md text-primary font-semibold mt-xs mb-xs">RD-20231089</p>
-                <div className="flex items-center gap-sm mt-1 px-3 py-1 bg-slate-900/20 rounded-full w-fit"><span className="text-[12px] text-slate-900 font-semibold">综合评分: 4.8</span><div className="w-16 h-1.5 bg-white/60 rounded-full overflow-hidden"><div className="w-[96%] h-full bg-[#FFD700] rounded-full"></div></div></div>
+            <button onClick={() => setEditOpen(true)} aria-label="编辑头像" className="relative active:scale-95 transition-transform"><img src={profile.avatarUrl || fallbackProfile.avatarUrl} alt="骑手头像" className="w-[80px] h-[80px] rounded-full border-[3px] border-white/50 bg-primary-container object-cover shadow-sm"/><div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#137333] border-2 border-primary flex items-center justify-center"><span className="material-symbols-outlined text-[12px] text-white font-bold">check</span></div></button>
+            <div><h2 className="text-headline-sm font-headline-sm text-slate-950 font-bold flex items-center gap-xs">{profile.nickname} <span className="bg-[#FFD700] text-[#7A4D00] text-[10px] px-1.5 py-0.5 rounded-sm font-bold flex items-center">{profile.level}</span></h2><p className="text-body-md font-body-md text-primary font-semibold mt-xs mb-xs">RD-{String(profile.userId || 20231089).padStart(8, '0')}</p>
+                <div className="flex items-center gap-sm mt-1 px-3 py-1 bg-slate-900/20 rounded-full w-fit"><span className="text-[12px] text-slate-900 font-semibold">综合评分: {scoreText}</span><div className="w-16 h-1.5 bg-white/60 rounded-full overflow-hidden"><div className="h-full bg-[#FFD700] rounded-full" style={{ width: `${hasCompletedOrders ? Math.max(0, Math.min(100, Number(profile.progressPercent || 0))) : 0}%` }}></div></div></div>
             </div>
         </div>
       </div>
       <div className="px-md -mt-lg relative z-20 space-y-md">
+        <div className="liquid-card rounded-2xl p-md border border-outline-variant/30 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-body-md font-bold text-on-surface">等级进度</span>
+            <span className="text-label-md text-primary font-bold">{nextLevelText}</span>
+          </div>
+          <div className="mt-sm h-2.5 rounded-full bg-surface-variant overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.max(0, Math.min(100, Number(profile.progressPercent || 0)))}%` }} />
+          </div>
+        </div>
         <div className="liquid-card motion-border-glow rounded-2xl p-md shadow-sm border border-outline-variant/30 flex justify-around stagger-children">
             {[
-                { l: "累计接单", v: "8,942", i: "task_alt", c: "text-primary" },
-                { l: "准时率", v: "99.8%", i: "verified", c: "text-tertiary" },
-                { l: "顾客好评", v: "4.9", i: "thumb_up", c: "text-secondary" }
+                { l: "累计接单", v: completedOrdersText, i: "task_alt", c: "text-primary" },
+                { l: "准时率", v: onTimeRateText, i: "verified", c: "text-tertiary" },
+                { l: "顾客好评", v: scoreText, i: "thumb_up", c: "text-secondary" }
             ].map((x, i) => (
                 <div key={i} className="flex flex-col items-center gap-xs"><div className={`w-12 h-12 rounded-full bg-surface-variant/50 flex items-center justify-center ${x.c} border border-outline-variant/20`}><span className="material-symbols-outlined">{x.i}</span></div><span className="text-headline-sm font-headline-sm font-bold mt-1">{x.v}</span><span className="text-label-md font-label-md text-on-surface-variant">{x.l}</span></div>
             ))}
@@ -374,7 +459,7 @@ function RiderProfile({ onLogout }: { onLogout: () => void }) {
                 { i: "electric_moped", t: "我的车辆", d: "已绑定 (粤A 83**)", c: "text-primary", action: () => tip('车辆信息：电动车 粤A 83**，电池健康 92%。') },
                 { i: "security", t: "资质认证", d: "身份证、健康证已认证", c: "text-tertiary", action: () => tip('资质认证：实名认证、健康证、骑手培训均已通过。') },
                 { i: "payments", t: "提现记录", d: "查看最近申请", c: "text-primary", action: () => tip('最近提现申请已提交，等待平台审核。') },
-                { i: "star", t: "评分评价", d: "综合评分 4.8", c: "text-tertiary", action: () => tip('暂无新的差评，继续保持准时配送。') },
+                { i: "star", t: "评分评价", d: hasCompletedOrders ? `综合评分 ${scoreText}` : "暂无评分", c: "text-tertiary", action: () => tip(hasCompletedOrders ? '暂无新的差评，继续保持准时配送。' : '完成订单后会生成准时率和顾客好评。') },
                 { i: "headset_mic", t: "联系客服", d: "", c: "text-secondary", action: () => tip('骑手客服：400-800-2026') },
                 { i: "logout", t: "退出登录", d: "", c: "text-error", action: onLogout }
             ].map((x, i) => (
@@ -385,6 +470,7 @@ function RiderProfile({ onLogout }: { onLogout: () => void }) {
             ))}
         </div>
       </div>
+      {editOpen && <RiderProfileEditModal profile={profile} onCancel={() => setEditOpen(false)} onSubmit={saveProfile} />}
     </div>
   );
 }

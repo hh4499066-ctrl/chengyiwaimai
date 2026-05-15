@@ -19,6 +19,26 @@ export const campusMapPoints = {
   riderFallback: [106.672979, 26.442886] as LngLat,
 };
 
+export const campusPointAddresses = {
+  merchant: '贵州省贵阳市花溪区花溪公园附近',
+  customer: '贵州省贵阳市花溪区贵州大学花溪校区',
+  riderFallback: '贵州省贵阳市花溪区贵州大学附近',
+};
+
+export const legacyCustomerAddress = '学校东门 3 号宿舍楼 502';
+
+export function shouldUseMappedCustomerAddress(value?: string) {
+  const text = (value || '').trim();
+  return !text || text.includes('?') || text === legacyCustomerAddress;
+}
+
+export function readableCustomerAddress(value?: string, mappedAddress = campusPointAddresses.customer) {
+  if (shouldUseMappedCustomerAddress(value)) {
+    return mappedAddress;
+  }
+  return value!.trim();
+}
+
 export function loadAMap() {
   if (window.AMap) {
     return Promise.resolve(window.AMap);
@@ -34,7 +54,7 @@ export function loadAMap() {
     const params = new URLSearchParams({
       v: '2.0',
       key: AMAP_KEY,
-      plugin: 'AMap.Geolocation,AMap.GeometryUtil',
+      plugin: 'AMap.Geolocation,AMap.GeometryUtil,AMap.Geocoder',
     });
     script.src = `https://webapi.amap.com/maps?${params.toString()}`;
     script.async = true;
@@ -52,6 +72,20 @@ export function loadAMap() {
     document.head.appendChild(script);
   });
   return window.__chengyiAmapPromise;
+}
+
+export function reverseGeocode(point: LngLat) {
+  return loadAMap().then((AMap) => new Promise<string>((resolve, reject) => {
+    const geocoder = new AMap.Geocoder();
+    geocoder.getAddress(point, (status: string, result: any) => {
+      const address = result?.regeocode?.formattedAddress;
+      if (status === 'complete' && address) {
+        resolve(address);
+      } else {
+        reject(new Error('地址解析失败'));
+      }
+    });
+  }));
 }
 
 export function distanceInKm(from: LngLat, to: LngLat) {

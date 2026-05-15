@@ -16,6 +16,7 @@ import com.chengyiwaimai.entity.ReviewEntity;
 import com.chengyiwaimai.entity.RiderCertificationEntity;
 import com.chengyiwaimai.entity.SysUserEntity;
 import com.chengyiwaimai.entity.UserCouponEntity;
+import com.chengyiwaimai.entity.UserFavoriteMerchantEntity;
 import com.chengyiwaimai.entity.UserAddressEntity;
 import com.chengyiwaimai.entity.UserPointsEntity;
 import com.chengyiwaimai.entity.UserWalletEntity;
@@ -33,6 +34,7 @@ import com.chengyiwaimai.mapper.ReviewMapper;
 import com.chengyiwaimai.mapper.RiderCertificationMapper;
 import com.chengyiwaimai.mapper.SysUserMapper;
 import com.chengyiwaimai.mapper.UserCouponMapper;
+import com.chengyiwaimai.mapper.UserFavoriteMerchantMapper;
 import com.chengyiwaimai.mapper.UserAddressMapper;
 import com.chengyiwaimai.mapper.UserPointsMapper;
 import com.chengyiwaimai.mapper.UserWalletMapper;
@@ -54,9 +56,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.SecureRandom;
 import java.sql.Date;
 import java.time.Duration;
@@ -69,6 +77,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -87,6 +97,10 @@ public class BusinessService {
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final BigDecimal PLATFORM_SERVICE_FEE_RATE = new BigDecimal("0.06");
     private static final BigDecimal RIDER_ORDER_INCOME = new BigDecimal("4.50");
+    private static final long MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+    private static final Set<String> AVATAR_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
+    private static final String DEFAULT_RIDER_AVATAR_URL = "/rider-avatar.png";
+    private static final String LEGACY_RIDER_AVATAR_URL = "https://api.dicebear.com/7.x/avataaars/svg?seed=rider";
 
     private final MerchantMapper merchantMapper;
     private final DishMapper dishMapper;
@@ -96,6 +110,7 @@ public class BusinessService {
     private final CategoryMapper categoryMapper;
     private final UserAddressMapper userAddressMapper;
     private final UserCouponMapper userCouponMapper;
+    private final UserFavoriteMerchantMapper userFavoriteMerchantMapper;
     private final CouponMapper couponMapper;
     private final ReviewMapper reviewMapper;
     private final SysUserMapper sysUserMapper;
@@ -117,6 +132,7 @@ public class BusinessService {
             CategoryMapper categoryMapper,
             UserAddressMapper userAddressMapper,
             UserCouponMapper userCouponMapper,
+            UserFavoriteMerchantMapper userFavoriteMerchantMapper,
             CouponMapper couponMapper,
             ReviewMapper reviewMapper,
             SysUserMapper sysUserMapper,
@@ -137,6 +153,7 @@ public class BusinessService {
         this.categoryMapper = categoryMapper;
         this.userAddressMapper = userAddressMapper;
         this.userCouponMapper = userCouponMapper;
+        this.userFavoriteMerchantMapper = userFavoriteMerchantMapper;
         this.couponMapper = couponMapper;
         this.reviewMapper = reviewMapper;
         this.sysUserMapper = sysUserMapper;
@@ -160,6 +177,50 @@ public class BusinessService {
                 .toList();
     }
 
+    public List<Merchant> favoriteMerchants(CurrentUser user) {
+        List<UserFavoriteMerchantEntity> favorites = userFavoriteMerchantMapper.selectList(Wrappers.<UserFavoriteMerchantEntity>lambdaQuery()
+                .eq(UserFavoriteMerchantEntity::getUserId, user.userId())
+                .orderByDesc(UserFavoriteMerchantEntity::getUpdateTime));
+        if (favorites.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, MerchantEntity> merchantsById = merchantsById(favorites.stream()
+                .map(UserFavoriteMerchantEntity::getMerchantId)
+                .toList());
+        return favorites.stream()
+                .map(favorite -> merchantsById.get(favorite.getMerchantId()))
+                .filter(merchant -> merchant != null && "approved".equals(merchant.getAuditStatus()) && "open".equals(merchant.getBusinessStatus()))
+                .map(this::toMerchant)
+                .toList();
+    }
+
+    public Map<String, Object> favoriteMerchantStatus(CurrentUser user, Long merchantId) {
+        return orderedMap("merchantId", merchantId, "favorite", isFavoriteMerchant(user.userId(), merchantId));
+    }
+
+    public Map<String, Object> favoriteMerchant(CurrentUser user, Long merchantId) {
+        MerchantEntity merchant = merchantMapper.selectById(merchantId);
+        if (merchant == null || !"approved".equals(merchant.getAuditStatus()) || !"open".equals(merchant.getBusinessStatus())) {
+            throw new BizException("商家不存在或暂不可收藏");
+        }
+        UserFavoriteMerchantEntity favorite = new UserFavoriteMerchantEntity();
+        favorite.setUserId(user.userId());
+        favorite.setMerchantId(merchantId);
+        try {
+            userFavoriteMerchantMapper.insert(favorite);
+        } catch (DuplicateKeyException ignored) {
+            // Already favorited. Return idempotent success so repeated taps are harmless.
+        }
+        return favoriteMerchantStatus(user, merchantId);
+    }
+
+    public Map<String, Object> unfavoriteMerchant(CurrentUser user, Long merchantId) {
+        userFavoriteMerchantMapper.delete(Wrappers.<UserFavoriteMerchantEntity>lambdaQuery()
+                .eq(UserFavoriteMerchantEntity::getUserId, user.userId())
+                .eq(UserFavoriteMerchantEntity::getMerchantId, merchantId));
+        return favoriteMerchantStatus(user, merchantId);
+    }
+
     public Map<String, Object> customerProfile(CurrentUser user) {
         SysUserEntity entity = sysUserMapper.selectById(user.userId());
         String nickname = entity != null && entity.getNickname() != null && !entity.getNickname().isBlank()
@@ -174,11 +235,101 @@ public class BusinessService {
                 "userId", user.userId(),
                 "nickname", nickname,
                 "phone", phone,
+                "avatarUrl", entity == null || entity.getAvatarUrl() == null ? "" : entity.getAvatarUrl(),
                 "balance", money(wallet.getBalance()),
                 "points", points.getPoints() == null ? 0 : points.getPoints(),
                 "balanceLabel", "账户余额",
                 "pointsLabel", "账户积分"
         );
+    }
+
+    public Map<String, Object> riderProfile(CurrentUser user) {
+        SysUserEntity entity = sysUserMapper.selectById(user.userId());
+        Map<String, Object> level = riderLevel(user);
+        return orderedMap(
+                "userId", user.userId(),
+                "nickname", entity != null && entity.getNickname() != null && !entity.getNickname().isBlank() ? entity.getNickname() : "骑手",
+                "phone", entity != null && entity.getPhone() != null ? entity.getPhone() : user.phone(),
+                "avatarUrl", normalizeRiderAvatarUrl(entity == null ? null : entity.getAvatarUrl()),
+                "level", level.get("level"),
+                "score", level.get("score"),
+                "completedOrders", level.get("completedOrders"),
+                "nextLevelNeed", level.get("nextLevelNeed"),
+                "progressPercent", level.get("progressPercent")
+        );
+    }
+
+    private String normalizeRiderAvatarUrl(String avatarUrl) {
+        if (avatarUrl == null || avatarUrl.isBlank() || LEGACY_RIDER_AVATAR_URL.equals(avatarUrl) || "/rider-avatar.svg".equals(avatarUrl)) {
+            return DEFAULT_RIDER_AVATAR_URL;
+        }
+        return avatarUrl;
+    }
+
+    public Map<String, Object> updateUserProfile(CurrentUser user, Map<String, Object> body) {
+        String nickname = optionalText(body, "nickname");
+        String avatarUrl = firstText(body, "avatarUrl", "avatar");
+        if (nickname == null && avatarUrl == null) {
+            throw new BizException("请填写要保存的资料");
+        }
+        SysUserEntity update = new SysUserEntity();
+        update.setId(user.userId());
+        if (nickname != null) {
+            if (nickname.length() > 30) {
+                throw new BizException("昵称不能超过 30 个字符");
+            }
+            update.setNickname(nickname);
+        }
+        if (avatarUrl != null) {
+            if (avatarUrl.length() > 500) {
+                throw new BizException("头像地址不能超过 500 个字符");
+            }
+            update.setAvatarUrl(avatarUrl);
+        }
+        sysUserMapper.updateById(update);
+        SysUserEntity next = sysUserMapper.selectById(user.userId());
+        return orderedMap(
+                "userId", user.userId(),
+                "nickname", next == null || next.getNickname() == null ? "" : next.getNickname(),
+                "phone", next == null || next.getPhone() == null ? user.phone() : next.getPhone(),
+                "avatarUrl", next == null || next.getAvatarUrl() == null ? "" : next.getAvatarUrl()
+        );
+    }
+
+    public Map<String, Object> updateUserProfileWithAvatar(CurrentUser user, String nickname, MultipartFile avatar) {
+        String avatarUrl = avatar == null || avatar.isEmpty() ? null : saveAvatarFile(user, avatar);
+        return updateUserProfile(user, orderedMap("nickname", nickname, "avatarUrl", avatarUrl));
+    }
+
+    private String saveAvatarFile(CurrentUser user, MultipartFile avatar) {
+        String contentType = avatar.getContentType() == null ? "" : avatar.getContentType().toLowerCase();
+        if (!AVATAR_CONTENT_TYPES.contains(contentType)) {
+            throw new BizException("头像仅支持 JPG、PNG、WebP 或 GIF 图片");
+        }
+        if (avatar.getSize() <= 0 || avatar.getSize() > MAX_AVATAR_BYTES) {
+            throw new BizException("头像大小不能超过 2MB");
+        }
+        String extension = switch (contentType) {
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "image/gif" -> ".gif";
+            default -> ".jpg";
+        };
+        Path directory = Path.of("uploads", "avatars").toAbsolutePath().normalize();
+        String filename = "u" + user.userId() + "-" + UUID.randomUUID() + extension;
+        Path target = directory.resolve(filename).normalize();
+        if (!target.startsWith(directory)) {
+            throw new BizException("头像文件名不合法");
+        }
+        try {
+            Files.createDirectories(directory);
+            try (InputStream input = avatar.getInputStream()) {
+                Files.copy(input, target, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException ex) {
+            throw new BizException(500, "头像保存失败");
+        }
+        return "/api/uploads/avatars/" + filename;
     }
 
     @Transactional
@@ -1018,36 +1169,59 @@ public class BusinessService {
                 "totalOrders", totalCompleted,
                 "level", level.get("level"),
                 "score", level.get("score"),
-                "onTimeRate", "99.8%"
+                "onTimeRate", totalCompleted != null && totalCompleted > 0 ? "99.8%" : ""
         );
     }
 
     public Map<String, Object> riderLevel(CurrentUser user) {
         long completedOrders = count(deliveryOrderMapper.countRiderCompletedOrders(user.userId(), COMPLETED));
         String level;
+        long previousThreshold;
         long nextThreshold;
         if (completedOrders < 10) {
             level = "新手骑手";
+            previousThreshold = 0;
             nextThreshold = 10;
         } else if (completedOrders < 50) {
             level = "青铜骑手";
+            previousThreshold = 10;
             nextThreshold = 50;
         } else if (completedOrders < 100) {
             level = "白银骑手";
+            previousThreshold = 50;
             nextThreshold = 100;
         } else if (completedOrders < 200) {
             level = "黄金骑手";
+            previousThreshold = 100;
             nextThreshold = 200;
-        } else {
+        } else if (completedOrders < 500) {
             level = "铂金骑手";
+            previousThreshold = 200;
+            nextThreshold = 500;
+        } else if (completedOrders < 1000) {
+            level = "钻石骑手";
+            previousThreshold = 500;
+            nextThreshold = 1000;
+        } else if (completedOrders < 3000) {
+            level = "王牌骑手";
+            previousThreshold = 1000;
+            nextThreshold = 3000;
+        } else if (completedOrders < 6000) {
+            level = "大师骑手";
+            previousThreshold = 3000;
+            nextThreshold = 6000;
+        } else {
+            level = "传奇骑手";
+            previousThreshold = 6000;
             nextThreshold = completedOrders;
         }
-        long nextLevelNeed = completedOrders >= 200 ? 0 : nextThreshold - completedOrders;
-        int progressPercent = completedOrders >= 200 ? 100 : (int) Math.min(100, Math.floor(completedOrders * 100.0 / nextThreshold));
+        boolean maxLevel = completedOrders >= 6000;
+        long nextLevelNeed = maxLevel ? 0 : nextThreshold - completedOrders;
+        int progressPercent = maxLevel ? 100 : (int) Math.min(100, Math.floor((completedOrders - previousThreshold) * 100.0 / Math.max(1, nextThreshold - previousThreshold)));
         return orderedMap(
                 "level", level,
-                "score", BigDecimal.valueOf(4.8),
-                "scoreNote", "暂无独立评价体系时默认使用 4.8，后续可接入订单评价均分",
+                "score", completedOrders > 0 ? BigDecimal.valueOf(4.8) : null,
+                "scoreNote", completedOrders > 0 ? "暂无独立评价体系时默认使用 4.8，后续可接入订单评价均分" : "暂无完成订单，暂未生成评分",
                 "completedOrders", completedOrders,
                 "nextLevelNeed", nextLevelNeed,
                 "progressPercent", progressPercent
@@ -2044,6 +2218,16 @@ public class BusinessService {
         }
         return merchantMapper.selectBatchIds(ids).stream()
                 .collect(Collectors.toMap(MerchantEntity::getId, Function.identity()));
+    }
+
+    private boolean isFavoriteMerchant(Long userId, Long merchantId) {
+        if (userId == null || merchantId == null) {
+            return false;
+        }
+        Long count = userFavoriteMerchantMapper.selectCount(Wrappers.<UserFavoriteMerchantEntity>lambdaQuery()
+                .eq(UserFavoriteMerchantEntity::getUserId, userId)
+                .eq(UserFavoriteMerchantEntity::getMerchantId, merchantId));
+        return count != null && count > 0;
     }
 
     private Order toOrder(DeliveryOrderEntity entity) {

@@ -33,6 +33,26 @@ public class RiderController {
         return ApiResponse.ok(store.riderAuditStatus(user));
     }
 
+    @GetMapping("/profile")
+    public ApiResponse<Map<String, Object>> profile(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.riderProfile(user));
+    }
+
+    @PutMapping("/profile")
+    public ApiResponse<Map<String, Object>> updateProfile(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.updateUserProfile(user, body));
+    }
+
+    @PostMapping("/profile/avatar")
+    public ApiResponse<Map<String, Object>> uploadAvatar(HttpServletRequest request,
+                                                         @RequestParam(value = "nickname", required = false) String nickname,
+                                                         @RequestParam("avatar") org.springframework.web.multipart.MultipartFile avatar) {
+        CurrentUser user = AuthContext.requireRole(request, "rider");
+        return ApiResponse.ok(store.updateUserProfileWithAvatar(user, nickname, avatar));
+    }
+
     @GetMapping("/lobby")
     public ApiResponse<List<Map<String, Object>>> lobby(HttpServletRequest request) {
         AuthContext.requireRole(request, "rider");

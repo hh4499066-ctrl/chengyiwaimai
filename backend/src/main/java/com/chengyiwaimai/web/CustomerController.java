@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -35,6 +37,20 @@ public class CustomerController {
         return ApiResponse.ok(store.customerProfile(user));
     }
 
+    @PutMapping("/profile")
+    public ApiResponse<Map<String, Object>> updateProfile(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.updateUserProfile(user, body));
+    }
+
+    @PostMapping("/profile/avatar")
+    public ApiResponse<Map<String, Object>> uploadAvatar(HttpServletRequest request,
+                                                         @RequestParam(value = "nickname", required = false) String nickname,
+                                                         @RequestParam("avatar") MultipartFile avatar) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.updateUserProfileWithAvatar(user, nickname, avatar));
+    }
+
     @GetMapping("/addresses")
     public ApiResponse<?> addresses(HttpServletRequest request) {
         CurrentUser user = AuthContext.requireRole(request, "customer");
@@ -45,6 +61,30 @@ public class CustomerController {
     public ApiResponse<?> saveAddress(HttpServletRequest request, @RequestBody Address address) {
         CurrentUser user = AuthContext.requireRole(request, "customer");
         return ApiResponse.ok(store.saveAddress(user, address));
+    }
+
+    @GetMapping("/favorites")
+    public ApiResponse<?> favoriteMerchants(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.favoriteMerchants(user));
+    }
+
+    @GetMapping("/favorites/{merchantId}")
+    public ApiResponse<?> favoriteMerchantStatus(HttpServletRequest request, @PathVariable Long merchantId) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.favoriteMerchantStatus(user, merchantId));
+    }
+
+    @PostMapping("/favorites/{merchantId}")
+    public ApiResponse<?> favoriteMerchant(HttpServletRequest request, @PathVariable Long merchantId) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.favoriteMerchant(user, merchantId));
+    }
+
+    @DeleteMapping("/favorites/{merchantId}")
+    public ApiResponse<?> unfavoriteMerchant(HttpServletRequest request, @PathVariable Long merchantId) {
+        CurrentUser user = AuthContext.requireRole(request, "customer");
+        return ApiResponse.ok(store.unfavoriteMerchant(user, merchantId));
     }
 
     @GetMapping("/coupons")

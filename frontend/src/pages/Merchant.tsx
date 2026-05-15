@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, type Dish, type MerchantStats, type Order } from '../api/client';
 import { MerchantModule } from './management/ManagementPanels';
+import { readableCustomerAddress } from '../utils/amap';
 
 type Tone = 'primary' | 'secondary' | 'tertiary' | 'error';
 
@@ -88,7 +89,7 @@ function MerchantOrderCard({ order, onAction, loadingId }: { key?: React.Key; or
       </div>
       <div className="space-y-xs mb-md">
         <p className="font-body-md text-body-md font-medium text-on-surface">{order.merchantName}</p>
-        <p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">{order.address}</p>
+        <p className="font-body-md text-body-md text-on-surface-variant line-clamp-2">{readableCustomerAddress(order.address)}</p>
         <p className="font-label-md text-label-md text-on-surface-variant">备注：{order.remark?.trim() || '无备注'}</p>
         {order.payMethod && <p className="font-label-md text-label-md text-on-surface-variant">支付方式：{order.payMethod}</p>}
       </div>

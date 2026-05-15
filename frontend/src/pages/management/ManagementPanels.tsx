@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, type AdminUser, type MarketingActivity, type MerchantStats, type Order, type Review, type WithdrawRecord } from '../../api/client';
+import { readableCustomerAddress } from '../../utils/amap';
 
 type Column<T> = {
   key: keyof T;
@@ -27,11 +28,36 @@ function PageShell({ title, desc, action, onAction, children }: { title: string;
 function SimpleModal({ title, body, onClose }: { title: string; body: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
-      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-2xl max-h-[86dvh] space-y-md motion-enter overflow-hidden">
         <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
-        <div className="text-body-md text-on-surface-variant">{body}</div>
+        <div className="text-body-md text-on-surface-variant min-w-0 max-h-[64dvh] overflow-auto">{body}</div>
         <button onClick={onClose} className="liquid-button w-full bg-primary text-on-primary rounded-lg py-sm font-bold">关闭</button>
       </div>
+    </div>
+  );
+}
+
+function OrderDetail({ order }: { order: Order }) {
+  const rows: Array<[string, React.ReactNode]> = [
+    ['订单号', order.id],
+    ['商家', order.merchantName],
+    ['金额', `¥${Number(order.totalAmount || 0).toFixed(2)}`],
+    ['状态', order.status],
+    ['收货地址', readableCustomerAddress(order.address)],
+    ['备注', order.remark?.trim() || '无备注'],
+    ['支付方式', order.payMethod || '未记录'],
+    ['支付状态', order.payStatus || '未记录'],
+    ['退款状态', order.refundStatus || '未记录'],
+    ['创建时间', order.createTime || '未记录'],
+  ];
+  return (
+    <div className="grid gap-sm text-left">
+      {rows.map(([label, value]) => (
+        <div key={label} className="grid grid-cols-[88px_1fr] gap-sm rounded-lg bg-surface-container-high/60 px-md py-sm">
+          <span className="text-on-surface-variant">{label}</span>
+          <span className="font-medium text-on-surface break-words">{value}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -474,7 +500,7 @@ export function AdminModule({ type }: { type: string }) {
     return (
       <PageShell title="订单管理" desc="展示真实订单并支持状态筛选。" action="导出订单" onAction={exportOrders}>
         <div className="flex gap-sm mb-md overflow-x-auto stagger-children">{statuses.map((status) => <button key={status} onClick={() => setStatusFilter(status)} className={`liquid-button px-md py-xs rounded-full ${statusFilter === status ? 'bg-primary text-on-primary motion-pulse-ring' : 'bg-surface-container-high text-on-surface-variant'}`}>{status}</button>)}</div>
-        <DataTable<Order> columns={[{ key: 'id', label: '订单号' }, { key: 'merchantName', label: '商家' }, { key: 'totalAmount', label: '金额' }, { key: 'status', label: '状态' }]} rows={shownOrders} onView={(row) => setModal({ title: '订单详情', body: <pre>{JSON.stringify(row, null, 2)}</pre> })} onEdit={(row) => setModal({ title: '异常处理', body: `${row.id} 已进入演示处理弹窗。` })} />
+        <DataTable<Order> columns={[{ key: 'id', label: '订单号' }, { key: 'merchantName', label: '商家' }, { key: 'totalAmount', label: '金额' }, { key: 'status', label: '状态' }]} rows={shownOrders} onView={(row) => setModal({ title: '订单详情', body: <OrderDetail order={row} /> })} onEdit={(row) => setModal({ title: '异常处理', body: `${row.id} 已进入演示处理弹窗。` })} />
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
       </PageShell>
     );

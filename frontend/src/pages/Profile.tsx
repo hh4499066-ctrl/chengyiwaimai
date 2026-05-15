@@ -6,6 +6,7 @@ const fallbackProfile: CustomerProfile = {
   userId: 0,
   nickname: '橙意用户',
   phone: '',
+  avatarUrl: '/user-avatar.jpg',
   balance: 0,
   points: 0,
   balanceLabel: '账户余额',
@@ -20,12 +21,58 @@ function maskPhone(phone: string) {
   return `${value.slice(0, 3)}****${value.slice(-4)}`;
 }
 
+function ProfileEditModal({
+  profile,
+  onCancel,
+  onSubmit,
+}: {
+  profile: CustomerProfile;
+  onCancel: () => void;
+  onSubmit: (payload: { nickname: string; avatarFile?: File }) => void;
+}) {
+  const [nickname, setNickname] = useState(profile.nickname);
+  const [avatarFile, setAvatarFile] = useState<File | undefined>();
+  const [previewUrl, setPreviewUrl] = useState(profile.avatarUrl || '/user-avatar.jpg');
+  const canSubmit = nickname.trim().length > 0;
+  const chooseAvatar = (file?: File) => {
+    if (!file) {
+      return;
+    }
+    setAvatarFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-start justify-center px-md pt-[18dvh] pb-[96px] overflow-y-auto" onClick={onCancel}>
+      <div className="liquid-glass modal-surface w-full max-w-[432px] rounded-3xl p-lg space-y-md motion-enter max-h-[calc(100dvh-140px)] overflow-y-auto" onClick={(event) => event.stopPropagation()}>
+        <h2 className="font-headline-sm text-headline-sm font-bold">编辑个人资料</h2>
+        <div className="flex items-center gap-md">
+          <img alt="头像预览" src={previewUrl} className="w-16 h-16 rounded-full object-cover bg-surface-variant border border-outline-variant" />
+          <label className="liquid-button rounded-full bg-primary text-on-primary px-md py-sm text-label-md font-bold cursor-pointer">
+            选择头像
+            <input type="file" accept="image/*" className="sr-only" onChange={(event) => chooseAvatar(event.target.files?.[0])} />
+          </label>
+        </div>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">用户名</span>
+          <input value={nickname} onChange={(event) => setNickname(event.target.value)} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" maxLength={30} />
+        </label>
+        <p className="text-label-md text-on-surface-variant">{avatarFile ? `已选择：${avatarFile.name}` : '支持 JPG、PNG、WebP、GIF，最大 2MB。'}</p>
+        <div className="flex gap-sm">
+          <button onClick={onCancel} className="liquid-button flex-1 rounded-full border border-outline-variant bg-white text-on-surface py-sm shadow-sm">取消</button>
+          <button disabled={!canSubmit} onClick={() => onSubmit({ nickname: nickname.trim(), avatarFile })} className="liquid-button flex-1 rounded-full bg-primary text-on-primary py-sm disabled:opacity-50">保存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Profile({
   onLogout,
   goOrders,
   goAddress,
   goCoupons,
   goReviews,
+  goFavorites,
   onSearch,
   onMessage,
   onCart,
@@ -35,12 +82,15 @@ export default function Profile({
   goAddress?: () => void;
   goCoupons?: () => void;
   goReviews?: () => void;
+  goFavorites?: () => void;
   onSearch?: () => void;
   onMessage?: () => void;
   onCart?: () => void;
 }) {
   const tip = notify;
   const [profile, setProfile] = useState<CustomerProfile>(fallbackProfile);
+  const [couponCount, setCouponCount] = useState(0);
+  const [editOpen, setEditOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -55,6 +105,17 @@ export default function Profile({
           setProfile(fallbackProfile);
         }
       });
+    api.getCoupons()
+      .then((items) => {
+        if (mounted) {
+          setCouponCount(items.length);
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setCouponCount(0);
+        }
+      });
     return () => {
       mounted = false;
     };
@@ -62,8 +123,21 @@ export default function Profile({
 
   const displayName = profile.nickname || fallbackProfile.nickname;
   const displayPhone = maskPhone(profile.phone);
+  const avatarUrl = profile.avatarUrl || fallbackProfile.avatarUrl || '/user-avatar.jpg';
   const balanceText = Number(profile.balance ?? 0).toFixed(1).replace(/\.0$/, '');
   const pointsText = String(profile.points ?? 0);
+  const saveProfile = (payload: { nickname: string; avatarFile?: File }) => {
+    const action = payload.avatarFile
+      ? api.uploadCustomerAvatar(payload.avatarFile, payload.nickname)
+      : api.updateCustomerProfile({ nickname: payload.nickname });
+    action
+      .then((data) => {
+        setProfile((prev) => ({ ...prev, ...data }));
+        setEditOpen(false);
+        tip('个人资料已保存');
+      })
+      .catch((err) => tip(err instanceof Error ? err.message : '个人资料保存失败'));
+  };
   return (
     <div className="liquid-stage bg-surface text-on-surface font-body-md min-h-screen pb-[100px] md:bg-surface-container-low relative overflow-hidden">
       {/* TopAppBar Shared Component */}
@@ -86,9 +160,9 @@ export default function Profile({
       {/* Main Canvas */}
       <main className="max-w-[600px] mx-auto pt-[72px] md:pt-xl px-md flex flex-col gap-xl">
         {/* User Profile Header */}
-        <section onClick={() => tip(`用户：${displayName}，手机：${displayPhone}`)} className="liquid-card motion-enter flex items-center gap-md p-md rounded-xl cursor-pointer active:scale-[0.98] transition-transform">
+        <section onClick={() => setEditOpen(true)} className="liquid-card motion-enter flex items-center gap-md p-md rounded-xl cursor-pointer active:scale-[0.98] transition-transform">
           <div className="w-[72px] h-[72px] rounded-full overflow-hidden bg-surface-variant shrink-0 border-2 border-surface">
-            <img alt="用户头像" className="w-full h-full object-cover" src="/user-avatar.jpg" />
+            <img alt="用户头像" className="w-full h-full object-cover" src={avatarUrl} />
           </div>
           <div className="flex-grow flex flex-col justify-center">
             <h1 className="gold-sparkle-text font-headline-sm text-headline-sm font-bold">{displayName}</h1>
@@ -107,8 +181,8 @@ export default function Profile({
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">账户余额(元)</span>
           </button>
           <button onClick={goCoupons} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-error text-on-error font-label-md text-[10px] px-2 py-0.5 rounded-bl-lg">即将过期</div>
-            <span className="font-headline-md text-headline-md text-primary font-bold">5</span>
+            {couponCount > 0 && <div className="absolute top-0 right-0 bg-error text-on-error font-label-md text-[10px] px-2 py-0.5 rounded-bl-lg">可使用</div>}
+            <span className="font-headline-md text-headline-md text-primary font-bold">{couponCount}</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">优惠券(张)</span>
           </button>
           <button onClick={() => tip(`积分由已完成消费累计获得：${pointsText}`)} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
@@ -133,7 +207,7 @@ export default function Profile({
               </div>
               <span className="font-label-md text-label-md text-on-surface">我的评价</span>
             </button>
-            <button onClick={() => tip('我的收藏功能开发中')} className="liquid-button flex flex-col items-center gap-sm p-sm hover:bg-surface-container transition-colors rounded-lg cursor-pointer active:scale-[0.96]">
+            <button onClick={goFavorites} className="liquid-button flex flex-col items-center gap-sm p-sm hover:bg-surface-container transition-colors rounded-lg cursor-pointer active:scale-[0.96]">
               <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center text-error">
                 <span className="material-symbols-outlined text-[24px]">favorite</span>
               </div>
@@ -178,6 +252,7 @@ export default function Profile({
           </button>
         </section>
       </main>
+      {editOpen && <ProfileEditModal profile={profile} onCancel={() => setEditOpen(false)} onSubmit={saveProfile} />}
     </div>
   );
 }

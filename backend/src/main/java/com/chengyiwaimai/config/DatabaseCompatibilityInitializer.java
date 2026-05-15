@@ -23,12 +23,14 @@ public class DatabaseCompatibilityInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         ensureMerchantColumns();
         ensureApplicationTables();
+        ensureFavoriteTables();
         ensureOrderColumns();
         ensureWithdrawColumns();
         ensureDemoFinanceRows();
     }
 
     private void ensureMerchantColumns() {
+        addColumnIfMissing("sys_user", "avatar_url", "ALTER TABLE sys_user ADD COLUMN avatar_url VARCHAR(500) NULL AFTER nickname");
         addColumnIfMissing("merchant", "notice", "ALTER TABLE merchant ADD COLUMN notice VARCHAR(500) NULL AFTER address");
     }
 
@@ -94,6 +96,21 @@ public class DatabaseCompatibilityInitializer implements ApplicationRunner {
         if (varcharLength("rider_certification", "id_card") < 512) {
             execute("ALTER TABLE rider_certification MODIFY COLUMN id_card VARCHAR(512) NOT NULL");
         }
+    }
+
+    private void ensureFavoriteTables() {
+        execute("""
+                CREATE TABLE IF NOT EXISTS user_favorite_merchant (
+                  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+                  user_id BIGINT NOT NULL,
+                  merchant_id BIGINT NOT NULL,
+                  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  UNIQUE KEY uk_user_favorite_merchant (user_id, merchant_id),
+                  KEY idx_user_favorite_user_id (user_id),
+                  KEY idx_user_favorite_merchant_id (merchant_id)
+                )
+                """);
     }
 
     private void ensureOrderColumns() {

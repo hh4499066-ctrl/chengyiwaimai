@@ -1,14 +1,15 @@
 USE chengyiwaimai;
 SET NAMES utf8mb4;
 
-INSERT INTO sys_user(phone, password, nickname, role, status, deleted) VALUES
-('13800000001', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', 'mONESY', 'customer', 1, 0),
-('13800000002', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '王师傅', 'rider', 1, 0),
-('13800000003', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '老刘商家', 'merchant', 1, 0),
-('13800000004', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '平台管理员', 'admin', 1, 0)
+INSERT INTO sys_user(phone, password, nickname, avatar_url, role, status, deleted) VALUES
+('13800000001', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', 'mONESY', '/user-avatar.jpg', 'customer', 1, 0),
+('13800000002', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '王师傅', '/rider-avatar.png', 'rider', 1, 0),
+('13800000003', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '老刘商家', '', 'merchant', 1, 0),
+('13800000004', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '平台管理员', '', 'admin', 1, 0)
 ON DUPLICATE KEY UPDATE
   password = VALUES(password),
   nickname = VALUES(nickname),
+  avatar_url = VALUES(avatar_url),
   role = VALUES(role),
   status = 1,
   deleted = 0;

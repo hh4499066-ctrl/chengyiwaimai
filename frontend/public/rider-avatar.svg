@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="骑手默认头像">
+  <defs>
+    <linearGradient id="bg" x1="24" x2="136" y1="12" y2="148" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DBEAFE"/>
+      <stop offset="1" stop-color="#CCFBF1"/>
+    </linearGradient>
+    <linearGradient id="jacket" x1="42" x2="118" y1="88" y2="144" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563EB"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="80" fill="url(#bg)"/>
+  <circle cx="80" cy="74" r="34" fill="#F8CFA8"/>
+  <path d="M48 72c3-29 18-43 45-37 17 4 27 17 25 38-10-5-17-15-20-28-11 15-28 24-50 27Z" fill="#172033"/>
+  <path d="M55 71c6-4 15-13 22-25 8 12 21 20 36 24v18c0 18-14 33-31 33s-31-15-31-33V76c0-2 1-4 4-5Z" fill="#FFD9B8"/>
+  <circle cx="69" cy="82" r="3" fill="#172033"/>
+  <circle cx="94" cy="82" r="3" fill="#172033"/>
+  <path d="M72 99c6 5 14 5 20 0" fill="none" stroke="#172033" stroke-width="4" stroke-linecap="round"/>
+  <path d="M35 147c5-28 23-44 45-44s40 16 45 44H35Z" fill="url(#jacket)"/>
+  <path d="M66 105h28l-6 18h-16l-6-18Z" fill="#E0F2FE"/>
+  <path d="M50 125h18m24 0h18" stroke="#DBEAFE" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="120" cy="118" r="20" fill="#FACC15" stroke="#FFFFFF" stroke-width="6"/>
+  <path d="M110 118h20m-10-10v20" stroke="#1E293B" stroke-width="5" stroke-linecap="round"/>
+</svg>

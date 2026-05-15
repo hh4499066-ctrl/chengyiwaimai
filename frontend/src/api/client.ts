@@ -21,6 +21,11 @@ export type Merchant = {
   businessStatus?: string;
 };
 
+export type FavoriteStatus = {
+  merchantId: number;
+  favorite: boolean;
+};
+
 export type Dish = {
   id: number;
   merchantId: number;
@@ -90,10 +95,23 @@ export type CustomerProfile = {
   userId: number;
   nickname: string;
   phone: string;
+  avatarUrl?: string;
   balance: number;
   points: number;
   balanceLabel?: string;
   pointsLabel?: string;
+};
+
+export type RiderProfile = {
+  userId: number;
+  nickname: string;
+  phone: string;
+  avatarUrl?: string;
+  level: string;
+  score?: string | number | null;
+  completedOrders: number;
+  nextLevelNeed: number;
+  progressPercent: number;
 };
 
 export type Review = {
@@ -131,7 +149,7 @@ export type RiderStats = {
   totalIncome: number;
   totalOrders: number;
   level: string;
-  score: string;
+  score?: string | number | null;
   onTimeRate?: string;
 };
 
@@ -204,10 +222,11 @@ export type RiderLobbyOrder = {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('chengyi_token');
+  const isFormData = options.body instanceof FormData;
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -241,6 +260,22 @@ export const api = {
   getMerchants: () => request<Merchant[]>('/merchants'),
   getDishes: (merchantId: number) => request<Dish[]>(`/merchants/${merchantId}/dishes`),
   getCustomerProfile: () => request<CustomerProfile>('/customer/profile'),
+  updateCustomerProfile: (payload: { nickname?: string; avatarUrl?: string }) =>
+    request<CustomerProfile>('/customer/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  uploadCustomerAvatar: (file: File, nickname?: string) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    if (nickname) {
+      form.append('nickname', nickname);
+    }
+    return request<CustomerProfile>('/customer/profile/avatar', {
+      method: 'POST',
+      body: form,
+    });
+  },
   getCart: () => request<CartItem[]>('/customer/cart'),
   addCart: (payload: CartItem) =>
     request<CartItem>('/customer/cart', {
@@ -261,6 +296,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getCoupons: () => request<Coupon[]>('/customer/coupons'),
+  getFavoriteMerchants: () => request<Merchant[]>('/customer/favorites'),
+  getFavoriteMerchantStatus: (merchantId: number) => request<FavoriteStatus>(`/customer/favorites/${merchantId}`),
+  favoriteMerchant: (merchantId: number) => request<FavoriteStatus>(`/customer/favorites/${merchantId}`, { method: 'POST' }),
+  unfavoriteMerchant: (merchantId: number) => request<FavoriteStatus>(`/customer/favorites/${merchantId}`, { method: 'DELETE' }),
   getCustomerReviews: () => request<Review[]>('/customer/reviews'),
   createOrder: (payload: CreateOrderPayload) =>
     request<Order>('/orders', {
@@ -348,6 +387,23 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   getRiderIncome: () => request<RiderStats>('/rider/income'),
+  getRiderProfile: () => request<RiderProfile>('/rider/profile'),
+  updateRiderProfile: (payload: { nickname?: string; avatarUrl?: string }) =>
+    request<RiderProfile>('/rider/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  uploadRiderAvatar: (file: File, nickname?: string) => {
+    const form = new FormData();
+    form.append('avatar', file);
+    if (nickname) {
+      form.append('nickname', nickname);
+    }
+    return request<RiderProfile>('/rider/profile/avatar', {
+      method: 'POST',
+      body: form,
+    });
+  },
   withdraw: (amount: number, accountNo: string) =>
     request<{ status: string; amount: number; accountNo: string }>('/rider/withdraw', {
       method: 'POST',
