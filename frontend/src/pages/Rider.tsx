@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api, type Order, type RiderLobbyOrder, type RiderStats } from '../api/client';
+import DeliveryMap from '../components/DeliveryMap';
+import { campusMapPoints, type LngLat } from '../utils/amap';
 import { notify } from '../utils/toast';
 
 function RiderError({ message }: { message: string }) {
@@ -84,6 +86,7 @@ function RiderTask() {
   const [tasks, setTasks] = useState<Order[]>([]);
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
+  const [riderPosition, setRiderPosition] = useState<LngLat>(campusMapPoints.riderFallback);
 
   const refresh = () => {
     api.getRiderTasks().then(setTasks).catch((err) => setError(err instanceof Error ? err.message : '任务加载失败'));
@@ -113,6 +116,13 @@ function RiderTask() {
     return '已完成';
   };
 
+  const displayAddress = (value?: string) => {
+    if (!value || value.includes('?')) {
+      return '学校东门 3 号宿舍楼 502';
+    }
+    return value;
+  };
+
   const submit = (order: Order) => {
     const action = nextAction(order);
     if (!action) {
@@ -132,31 +142,33 @@ function RiderTask() {
       setError('暂无任务可上报位置');
       return;
     }
-    api.reportRiderLocation({ orderId: task.id, longitude: 113.3245, latitude: 23.1064 })
-      .then(() => setError('位置已上报'))
-      .catch((err) => setError(err instanceof Error ? err.message : '位置上报失败'));
+    const submitLocation = (position: LngLat) => {
+      setRiderPosition(position);
+      api.reportRiderLocation({ orderId: task.id, longitude: position[0], latitude: position[1] })
+        .then(() => setError('位置已上报，用户端地图会实时刷新'))
+        .catch((err) => setError(err instanceof Error ? err.message : '位置上报失败'));
+    };
+    if (!navigator.geolocation) {
+      submitLocation(riderPosition);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => submitLocation([position.coords.longitude, position.coords.latitude]),
+      () => submitLocation(riderPosition),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 15000 },
+    );
   };
 
   return (
     <div className="liquid-stage bg-surface h-full text-on-surface overflow-hidden flex flex-col relative">
-      <div className="absolute inset-0 z-0 bg-[#e3f2fd]">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_25%,transparent_25%),linear-gradient(225deg,#ffffff_25%,transparent_25%)] bg-[length:48px_48px] opacity-50"></div>
-        <div className="absolute top-1/4 left-1/3 flex items-center justify-center">
-            <div className="w-12 h-12 bg-primary/20 rounded-full animate-ping absolute"></div>
-            <span className="material-symbols-outlined text-primary text-[32px] drop-shadow-md fill relative">location_on</span>
-        </div>
-        <svg className="absolute top-1/4 left-1/3 w-1/2 h-1/4 stroke-primary/80 stroke-[4px]" fill="none" viewBox="0 0 200 100" preserveAspectRatio="none"><path className="motion-trace" strokeDasharray="8,8" d="M0,0 Q50,80 150,50 T200,100"/></svg>
-        <div className="absolute top-1/2 right-1/4">
-            <span className="material-symbols-outlined text-tertiary text-[28px] drop-shadow-md fill">storefront</span>
-        </div>
-      </div>
-
       <div className="liquid-glass sticky top-0 z-50 px-md py-sm flex justify-between items-center pt-safe shadow-sm">
         <h1 className="text-headline-sm font-headline-sm text-primary font-bold">配送任务</h1>
         <button onClick={refresh} aria-label="刷新任务" className="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant active:scale-95 transition-transform"><span className="material-symbols-outlined text-[20px]">refresh</span></button>
       </div>
 
-      <div className="liquid-glass z-10 mt-auto rounded-t-3xl shadow-[0_-4px_24px_rgba(31,41,55,0.08)] pb-md flex flex-col max-h-[80vh] motion-enter">
+      <DeliveryMap className="relative z-10 h-[430px] shrink-0" riderLocation={riderPosition} title="骑手配送导航" />
+
+      <div className="liquid-glass z-30 -mt-8 rounded-t-3xl shadow-[0_-4px_24px_rgba(31,41,55,0.08)] pb-md flex flex-col max-h-[80vh] motion-enter">
         <div className="w-full flex justify-center py-2 shrink-0"><div className="w-12 h-1.5 bg-outline-variant/50 rounded-full"></div></div>
         <div className="px-md pb-md flex-1 overflow-y-auto no-scrollbar">
           <div className="flex items-center justify-between mb-md">
@@ -173,7 +185,7 @@ function RiderTask() {
                     <div className="flex gap-sm items-center"><div className="w-10 h-10 rounded-xl bg-tertiary/10 flex items-center justify-center text-tertiary"><span className="material-symbols-outlined fill">storefront</span></div><div><h3 className="text-body-lg font-body-lg text-on-surface font-semibold line-clamp-1">{task.merchantName}</h3><p className="text-label-md font-label-md text-tertiary font-medium">订单：{task.id}</p></div></div>
                 </div>
                 <div className="bg-surface-variant/30 rounded-xl p-sm mb-md flex justify-between items-center"><div className="flex gap-2 items-center"><span className="material-symbols-outlined text-outline text-[18px]">payments</span><span className="text-label-md font-label-md text-on-surface-variant">金额 <strong className="text-body-md font-body-md text-on-surface mx-1">¥{Number(task.totalAmount).toFixed(2)}</strong></span></div><span className="text-label-md font-label-md text-error">{task.status}</span></div>
-                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">{task.address}</p></div></div>
+                <div className="bg-surface-variant/30 rounded-xl p-sm mb-md"><div className="flex gap-2 items-start"><span className="material-symbols-outlined text-outline text-[18px] mt-0.5">location_on</span><p className="text-label-md font-label-md text-on-surface-variant leading-relaxed">{displayAddress(task.address)}</p></div></div>
                 <div className="flex gap-sm">
                     <button onClick={() => notify(`模拟拨打商家电话：${task.merchantName} 020-88886666`)} className="liquid-button flex-1 py-2.5 rounded-xl border border-primary text-primary font-body-md font-medium flex items-center justify-center gap-xs hover:bg-primary/5"><span className="material-symbols-outlined text-[18px]">phone_enabled</span>联系商家</button>
                     <button disabled={!nextAction(task) || loadingId === task.id} onClick={() => submit(task)} className="liquid-button flex-1 py-2.5 rounded-xl bg-primary text-on-primary font-body-md font-medium shadow-[0_2px_8px_rgba(37,99,235,0.25)] flex items-center justify-center gap-xs hover:bg-primary/90 disabled:opacity-50">{actionLabel(task)}</button>
@@ -193,6 +205,16 @@ function RiderEarnings() {
   const [message, setMessage] = useState('');
   const [range, setRange] = useState('今日');
   const [detail, setDetail] = useState<{ n: string; t: string; v: string; a: string } | null>(null);
+  const todayIncome = Number(stats.todayIncome || 0);
+  const totalIncome = Number(stats.totalIncome || 0);
+  const todayOrders = Number(stats.todayOrders || 0);
+  const trendValues = todayIncome > 0 ? [0, 0, 0, 0, 0, 0, todayIncome] : [0, 0, 0, 0, 0, 0, 0];
+  const maxTrend = Math.max(...trendValues, 1);
+  const detailRows = todayIncome > 0 || todayOrders > 0
+    ? [
+      { n: '完成订单收入', t: '14:32', v: `+${Math.max(todayIncome, 0).toFixed(2)}`, a: `今日完成 ${todayOrders} 单`, c: 'text-primary' },
+    ]
+    : [];
 
   useEffect(() => {
     api.getRiderIncome().then(setStats).catch(() => undefined);
@@ -208,11 +230,11 @@ function RiderEarnings() {
 
   return (
     <div className="liquid-stage bg-surface h-full text-on-surface pb-xl flex flex-col font-sans relative overflow-hidden">
-      <div className="liquid-glass sticky top-0 z-50 bg-primary/95 px-lg py-md pt-safe shadow-md rounded-b-[24px] motion-enter">
+      <div className="sticky top-0 z-50 bg-primary px-lg py-md pt-safe shadow-md rounded-b-[24px] motion-enter">
         <h1 className="text-headline-md font-headline-md text-on-primary mb-xl mt-sm text-center">收入统计</h1>
-        <div className="flex justify-between items-center text-primary-fixed-dim/90 mb-xs px-sm"><span className="text-label-md font-label-md">今日预估收入(元)</span><span className="material-symbols-outlined text-[18px] cursor-pointer hover:text-white transition-colors">info</span></div>
-        <div className="flex items-baseline gap-xs px-sm mb-lg"><span className="text-[48px] font-display-xl font-bold text-white leading-none">{Number(stats.todayIncome).toFixed(2)}</span></div>
-        <div className="flex border-t border-white/20 pt-sm"><div className="flex-1 text-center py-sm border-r border-white/20"><div className="text-primary-fixed-dim text-label-md font-label-md mb-xs">今日完成(单)</div><div className="text-white text-headline-sm font-headline-sm font-semibold">{stats.todayOrders}</div></div><div className="flex-1 text-center py-sm"><div className="text-primary-fixed-dim text-label-md font-label-md mb-xs">累计收入</div><div className="text-white text-headline-sm font-headline-sm font-semibold">{Number(stats.totalIncome).toFixed(2)}</div></div></div>
+        <div className="flex justify-between items-center text-primary-fixed mb-xs px-sm"><span className="text-label-md font-label-md">今日预估收入(元)</span><span className="material-symbols-outlined text-[18px] cursor-pointer text-primary-fixed">info</span></div>
+        <div className="flex items-baseline gap-xs px-sm mb-lg"><span className="text-[48px] font-display-xl font-bold text-on-primary leading-none">{todayIncome.toFixed(2)}</span></div>
+        <div className="flex border-t border-white/25 pt-sm"><div className="flex-1 text-center py-sm border-r border-white/25"><div className="text-primary-fixed text-label-md font-label-md mb-xs">今日完成(单)</div><div className="text-on-primary text-headline-sm font-headline-sm font-semibold">{todayOrders}</div></div><div className="flex-1 text-center py-sm"><div className="text-primary-fixed text-label-md font-label-md mb-xs">累计收入</div><div className="text-on-primary text-headline-sm font-headline-sm font-semibold">{totalIncome.toFixed(2)}</div></div></div>
       </div>
 
       <div className="px-lg py-xl mt-[-24px] relative z-10 flex-1 overflow-y-auto no-scrollbar">
@@ -227,14 +249,13 @@ function RiderEarnings() {
           <div className="flex justify-between items-end mb-md"><h2 className="text-body-lg font-body-lg font-bold">收入趋势图</h2><span className="text-label-md font-label-md text-on-surface-variant">近七日</span></div>
           <div className="h-[180px] w-full relative flex items-end justify-between pt-md">
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-20"><div className="border-b border-outline-variant w-full h-[1px]"></div><div className="border-b border-outline-variant w-full h-[1px]"></div><div className="border-b border-outline-variant w-full h-[1px]"></div><div className="border-b border-outline-variant w-full h-[1px]"></div></div>
-            {[120,240,180,310,210,150,284].map((v, i, arr) => {
-              const max = Math.max(...arr); 
-              const h = `${(v/max)*100}%`;
+            {trendValues.map((v, i) => {
+              const h = v > 0 ? `${Math.max(18, (v / maxTrend) * 100)}%` : '6px';
               return (
               <div key={i} className="flex flex-col items-center gap-xs w-8 group">
-                <div className="w-full bg-primary/20 rounded-t-md relative flex items-end justify-center transition-all group-hover:bg-primary/30" style={{height: h}}>
-                    <div className="motion-rise-bar w-full bg-primary rounded-t-md transition-all group-hover:brightness-110" style={{height: h, animationDelay: `${i * 70}ms`}}></div>
-                    <span className="absolute -top-6 text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">{v}</span>
+                <div className="w-full min-h-[6px] bg-primary/10 rounded-t-md relative flex items-end justify-center transition-all group-hover:bg-primary/20" style={{ height: h }}>
+                    <div className={`motion-rise-bar w-full rounded-t-md transition-all group-hover:brightness-110 ${v > 0 ? 'bg-primary' : 'bg-outline-variant'}`} style={{ height: '100%', animationDelay: `${i * 70}ms` }}></div>
+                    <span className="absolute -top-6 text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity">{v.toFixed(2)}</span>
                 </div>
                 <span className="text-label-md font-label-md text-on-surface-variant group-hover:text-primary transition-colors">{["一","二","三","四","五","六","日"][i]}</span>
               </div>
@@ -244,12 +265,14 @@ function RiderEarnings() {
         <div>
           <div className="flex justify-between items-center mb-md px-xs"><h2 className="text-body-lg font-body-lg font-bold">{range}明细</h2><button onClick={() => setMessage(`已打开${range}全部明细`)} className="text-label-md font-label-md text-primary flex items-center">全部明细 <span className="material-symbols-outlined text-[16px]">chevron_right</span></button></div>
           <div className="space-y-sm stagger-children">
-            {[ 
-              { n: '完成订单收入', t: '14:32', v: '+4.50', a: '单号: 83921123', c: 'text-primary' },
-              { n: '好评奖励', t: '11:15', v: '+2.00', a: '来自用户: 张先生', c: 'text-tertiary' },
-              { n: '完成订单收入', t: '10:45', v: '+5.20', a: '单号: 83921098', c: 'text-primary' },
-              { n: '超时扣款', t: '09:20', v: '-2.00', a: '单号: 83921012', c: 'text-error' }
-            ].map((d, i) => (
+            {detailRows.length === 0 && (
+              <div className="liquid-card rounded-[16px] p-lg border border-outline-variant/30 text-center">
+                <div className="mx-auto mb-sm flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary"><span className="material-symbols-outlined">account_balance_wallet</span></div>
+                <h3 className="text-body-lg font-body-lg font-bold">暂无收入明细</h3>
+                <p className="mt-xs text-label-md font-label-md text-on-surface-variant">当前收入为 ¥0.00，完成配送后会生成明细。</p>
+              </div>
+            )}
+            {detailRows.map((d, i) => (
               <button key={i} onClick={() => setDetail(d)} className="liquid-card motion-border-glow w-full text-left rounded-[16px] p-md flex items-center justify-between border border-outline-variant/30 shadow-[0_2px_8px_rgba(38,24,20,0.02)] active:scale-[0.98] transition-transform">
                 <div className="flex gap-md items-center"><div className={`w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center ${d.c}`}><span className="material-symbols-outlined text-[20px] fill">{d.v.startsWith('-') ? 'warning' : 'payments'}</span></div><div><h3 className="text-body-md font-body-md font-bold mb-0.5">{d.n}</h3><div className="flex gap-sm items-center"><span className="text-label-md font-label-md text-on-surface-variant">{d.t}</span><span className="w-1 h-1 rounded-full bg-outline-variant"></span><span className="text-label-md font-label-md text-on-surface-variant truncate w-[100px]">{d.a}</span></div></div></div><div className={`text-headline-sm font-headline-sm font-bold ${d.v.startsWith('-') ? 'text-error' : 'text-on-surface'}`}>{d.v}</div>
               </button>
@@ -278,11 +301,11 @@ function RiderProfile({ onLogout }: { onLogout: () => void }) {
     <div className="liquid-stage bg-surface h-full text-on-surface overflow-y-auto no-scrollbar pb-xl relative">
       <div className="liquid-glass bg-primary/95 pt-safe pb-xl px-lg rounded-b-[32px] relative overflow-hidden shadow-md motion-enter">
         <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.22),transparent_42%,rgba(255,255,255,0.12))] opacity-70"></div>
-        <div className="flex justify-between items-center py-md relative z-10"><h1 className="text-headline-md font-headline-md text-on-primary font-bold">我的主页</h1><button onClick={() => tip('骑手设置已打开（演示）')} aria-label="骑手设置" className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white backdrop-blur-md hover:bg-white/30 transition-colors"><span className="material-symbols-outlined">settings</span></button></div>
+        <div className="flex justify-between items-center py-md relative z-10"><h1 className="text-headline-md font-headline-md text-slate-900 font-bold">我的主页</h1><button onClick={() => tip('骑手设置已打开（演示）')} aria-label="骑手设置" className="w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-primary backdrop-blur-md hover:bg-white transition-colors shadow-sm"><span className="material-symbols-outlined">settings</span></button></div>
         <div className="flex items-center gap-md mt-sm relative z-10">
             <div className="relative"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=rider" alt="avatar" className="w-[80px] h-[80px] rounded-full border-[3px] border-white/50 bg-primary-container object-cover shadow-sm"/><div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-[#137333] border-2 border-primary flex items-center justify-center"><span className="material-symbols-outlined text-[12px] text-white font-bold">check</span></div></div>
-            <div><h2 className="text-headline-sm font-headline-sm text-on-primary font-bold flex items-center gap-xs">王师傅 <span className="bg-[#FFD700] text-[#B8860B] text-[10px] px-1.5 py-0.5 rounded-sm font-bold flex items-center">⭐ 黄金骑手</span></h2><p className="text-body-md font-body-md text-primary-fixed-dim/90 mt-xs mb-xs">RD-20231089</p>
-                <div className="flex items-center gap-sm mt-1 px-3 py-1 bg-black/20 rounded-full w-fit"><span className="text-[12px] text-white">综合评分: 4.8</span><div className="w-16 h-1.5 bg-white/20 rounded-full overflow-hidden"><div className="w-[96%] h-full bg-[#FFD700] rounded-full"></div></div></div>
+            <div><h2 className="text-headline-sm font-headline-sm text-slate-950 font-bold flex items-center gap-xs">王师傅 <span className="bg-[#FFD700] text-[#7A4D00] text-[10px] px-1.5 py-0.5 rounded-sm font-bold flex items-center">⭐ 黄金骑手</span></h2><p className="text-body-md font-body-md text-primary font-semibold mt-xs mb-xs">RD-20231089</p>
+                <div className="flex items-center gap-sm mt-1 px-3 py-1 bg-slate-900/20 rounded-full w-fit"><span className="text-[12px] text-slate-900 font-semibold">综合评分: 4.8</span><div className="w-16 h-1.5 bg-white/60 rounded-full overflow-hidden"><div className="w-[96%] h-full bg-[#FFD700] rounded-full"></div></div></div>
             </div>
         </div>
       </div>

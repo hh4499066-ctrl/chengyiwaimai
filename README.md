@@ -42,6 +42,8 @@ npm run dev
 
 - `VITE_API_BASE_URL=/api`
 - `VITE_WS_BASE_URL=ws://localhost:8080/api/ws/orders`
+- `VITE_AMAP_KEY=6d6a9b6c3af5e81e074cb45d10751e7d`
+- `VITE_AMAP_SECURITY_JS_CODE`（如高德控制台开启安全密钥校验，需要同时配置）
 
 WebSocket 真实握手路径是 `/api/ws/orders`。普通 REST 接口只接受 `Authorization: Bearer <token>`，只有 WebSocket 握手允许 query token。
 

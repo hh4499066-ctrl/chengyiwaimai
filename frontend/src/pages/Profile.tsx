@@ -43,12 +43,12 @@ export default function Profile({
       {/* Main Canvas */}
       <main className="max-w-[600px] mx-auto pt-[72px] md:pt-xl px-md flex flex-col gap-xl">
         {/* User Profile Header */}
-        <section onClick={() => tip('用户：黄色闪光，手机：138****5678')} className="liquid-card motion-enter flex items-center gap-md p-md rounded-xl cursor-pointer active:scale-[0.98] transition-transform">
+        <section onClick={() => tip('用户：mONESY，手机：138****5678')} className="liquid-card motion-enter flex items-center gap-md p-md rounded-xl cursor-pointer active:scale-[0.98] transition-transform">
           <div className="w-[72px] h-[72px] rounded-full overflow-hidden bg-surface-variant shrink-0 border-2 border-surface">
             <img alt="用户头像" className="w-full h-full object-cover" src="/user-avatar.jpg" />
           </div>
           <div className="flex-grow flex flex-col justify-center">
-            <h1 className="gold-sparkle-text font-headline-sm text-headline-sm font-bold">黄色闪光</h1>
+            <h1 className="gold-sparkle-text font-headline-sm text-headline-sm font-bold">mONESY</h1>
             <div className="flex items-center gap-xs mt-xs">
               <span className="font-body-md text-body-md text-on-surface-variant">138****5678</span>
               <span className="material-symbols-outlined text-secondary text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>

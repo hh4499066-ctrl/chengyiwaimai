@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api, type Address, type CartItem, type Coupon, type Dish, type Merchant, type Order } from '../../api/client';
+import DeliveryMap from '../../components/DeliveryMap';
+import { campusMapPoints, estimateDeliveryMinutes, type LngLat } from '../../utils/amap';
 import { dishes as mockDishes, merchants as mockMerchants } from '../../mock/data';
 import { notify } from '../../utils/toast';
 
@@ -467,6 +469,7 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
   const [current, setCurrent] = useState<Order | null>(order);
   const [error, setError] = useState('');
   const [locationText, setLocationText] = useState('等待骑手上报位置');
+  const [riderLocation, setRiderLocation] = useState<LngLat | null>(null);
   const activeStep = orderStepIndex(current?.status);
 
   const refresh = () => {
@@ -482,7 +485,16 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
       .catch((err) => setError(err instanceof Error ? err.message : '订单状态加载失败'));
     if (order?.id) {
       api.getOrderLocation(order.id)
-        .then((location) => setLocationText(location.available ? `骑手位置：${location.longitude}, ${location.latitude}` : '等待骑手上报位置'))
+        .then((location) => {
+          if (location.available && location.longitude !== undefined && location.latitude !== undefined) {
+            const nextLocation: LngLat = [location.longitude, location.latitude];
+            setRiderLocation(nextLocation);
+            setLocationText(`骑手位置：${location.longitude.toFixed(5)}, ${location.latitude.toFixed(5)} · 预计 ${estimateDeliveryMinutes(nextLocation, campusMapPoints.customer)} 分钟送达`);
+          } else {
+            setRiderLocation(null);
+            setLocationText('等待骑手上报位置');
+          }
+        })
         .catch(() => setLocationText('WebSocket 连接失败时继续轮询订单状态'));
     }
   };
@@ -523,11 +535,7 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
   return (
     <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
       <PhoneHeader title="配送跟踪" onBack={() => go('home')} />
-      <div className="h-[260px] bg-[#e3f2fd] relative overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#ffffff_25%,transparent_25%),linear-gradient(225deg,#ffffff_25%,transparent_25%)] bg-[length:48px_48px] opacity-40"></div>
-        <div className="absolute left-20 top-24 text-primary"><span className="material-symbols-outlined text-[44px] fill">location_on</span></div>
-        <div className="absolute right-24 bottom-20 text-tertiary"><span className="material-symbols-outlined text-[40px] fill">electric_moped</span></div>
-      </div>
+      <DeliveryMap className="h-[260px]" riderLocation={riderLocation} title="高德实时配送跟踪" subtitle={locationText} />
       <main className="p-md -mt-lg relative z-10 space-y-md motion-enter">
         <ErrorBanner message={error} />
         <section className="liquid-glass rounded-2xl p-md">
