@@ -26,7 +26,7 @@ public final class Models {
     public record CreateOrderRequest(Long merchantId, String address, String remark, String payMethod, Long couponId, BigDecimal discountAmount, List<CartItem> items) {
     }
 
-    public record Order(String id, Long merchantId, String merchantName, String status, BigDecimal totalAmount, String address, String remark, String payMethod, Long couponId, BigDecimal discountAmount, LocalDateTime createTime) {
+    public record Order(String id, Long merchantId, String merchantName, String status, BigDecimal totalAmount, String address, String remark, String payMethod, String payStatus, String refundStatus, Long couponId, BigDecimal discountAmount, LocalDateTime createTime) {
     }
 
     public record RiderLocation(String orderId, BigDecimal longitude, BigDecimal latitude) {

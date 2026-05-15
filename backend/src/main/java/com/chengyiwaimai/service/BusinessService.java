@@ -183,6 +183,13 @@ public class BusinessService {
 
     @Transactional
     public Map<String, Object> merchantApply(CurrentUser user, Map<String, Object> body) {
+        MerchantEntity existingMerchant = merchantMapper.selectOne(Wrappers.<MerchantEntity>lambdaQuery()
+                .eq(MerchantEntity::getUserId, user.userId())
+                .eq(MerchantEntity::getAuditStatus, "approved")
+                .last("limit 1"));
+        if (existingMerchant != null) {
+            throw new BizException("商家入驻已通过，请在商家资料中修改店铺信息");
+        }
         String merchantName = requireText(body, "merchantName", "商家名称不能为空");
         String contactName = requireText(body, "contactName", "联系人不能为空");
         String contactPhone = requireText(body, "contactPhone", "联系电话不能为空");
@@ -265,6 +272,10 @@ public class BusinessService {
 
     @Transactional
     public Map<String, Object> riderCertification(CurrentUser user, Map<String, Object> body) {
+        RiderCertificationEntity latest = latestRiderCertification(user.userId());
+        if (latest != null && "approved".equals(latest.getAuditStatus())) {
+            throw new BizException("骑手认证已通过，无需重复提交");
+        }
         String realName = requireText(body, "realName", "姓名不能为空");
         String phone = requireText(body, "phone", "手机号不能为空");
         String idCard = requireText(body, "idCard", "身份证号不能为空");
@@ -279,7 +290,7 @@ public class BusinessService {
         certification.setUserId(user.userId());
         certification.setRealName(realName);
         certification.setPhone(phone);
-        certification.setIdCard(idCard);
+        certification.setIdCard(sensitiveDataCrypto.encrypt(idCard));
         certification.setVehicleType(vehicleType);
         certification.setIdCardFrontUrl(optionalText(body, "idCardFrontUrl"));
         certification.setIdCardBackUrl(optionalText(body, "idCardBackUrl"));
@@ -509,6 +520,8 @@ public class BusinessService {
         order.setCouponId(request.couponId());
         order.setDiscountAmount(discount);
         order.setStatus(WAIT_PAY);
+        order.setPayStatus("unpaid");
+        order.setRefundStatus("none");
         deliveryOrderMapper.insert(order);
         clearCart(user.userId());
         return toOrder(order, merchant.getName());
@@ -533,8 +546,11 @@ public class BusinessService {
         DeliveryOrderEntity update = new DeliveryOrderEntity();
         update.setStatus(WAIT_MERCHANT_ACCEPT);
         update.setPayMethod(normalizedPayMethod);
+        update.setPayStatus("paid");
+        update.setRefundStatus("none");
         int rows = deliveryOrderMapper.update(update, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
                 .eq(DeliveryOrderEntity::getStatus, WAIT_PAY)
+                .and(wrapper -> wrapper.eq(DeliveryOrderEntity::getPayStatus, "unpaid").or().isNull(DeliveryOrderEntity::getPayStatus))
                 .eq(DeliveryOrderEntity::getId, orderId)
                 .eq(DeliveryOrderEntity::getUserId, user.userId()));
         if (rows != 1) {
@@ -556,6 +572,7 @@ public class BusinessService {
                 .eq(DeliveryOrderEntity::getId, orderId)
                 .eq(DeliveryOrderEntity::getUserId, user.userId()));
         restoreStock(orderId);
+        restoreCoupon(orderId);
         return canceled;
     }
 
@@ -571,7 +588,8 @@ public class BusinessService {
                 .eq(DeliveryOrderEntity::getId, orderId)
                 .eq(DeliveryOrderEntity::getMerchantId, merchant.getId()));
         restoreStock(orderId);
-        return order;
+        compensateOrderCancel(orderId);
+        return toOrder(deliveryOrderMapper.selectById(orderId));
     }
 
     public Order merchantReady(CurrentUser user, String orderId) {
@@ -707,6 +725,7 @@ public class BusinessService {
                     .eq(DeliveryOrderEntity::getStatus, WAIT_PAY));
             if (rows == 1) {
                 restoreStock(order.getId());
+                restoreCoupon(order.getId());
                 count++;
             }
         }
@@ -1113,7 +1132,7 @@ public class BusinessService {
                             "status", certification == null ? "not_submitted" : certification.getAuditStatus(),
                             "auditStatus", certification == null ? "not_submitted" : certification.getAuditStatus(),
                             "rejectReason", certification == null || certification.getRejectReason() == null ? "" : certification.getRejectReason(),
-                            "idCard", certification == null ? "" : maskIdCard(certification.getIdCard()),
+                "idCard", certification == null ? "" : maskIdCard(sensitiveDataCrypto.decrypt(certification.getIdCard())),
                             "vehicleType", certification == null || certification.getVehicleType() == null ? "" : certification.getVehicleType()
                     );
                 })
@@ -1491,7 +1510,7 @@ public class BusinessService {
                 "userId", certification.getUserId(),
                 "realName", certification.getRealName(),
                 "phone", certification.getPhone(),
-                "idCard", maskIdCard(certification.getIdCard()),
+                "idCard", maskIdCard(sensitiveDataCrypto.decrypt(certification.getIdCard())),
                 "vehicleType", certification.getVehicleType(),
                 "idCardFrontUrl", certification.getIdCardFrontUrl() == null ? "" : certification.getIdCardFrontUrl(),
                 "idCardBackUrl", certification.getIdCardBackUrl() == null ? "" : certification.getIdCardBackUrl(),
@@ -1907,6 +1926,33 @@ public class BusinessService {
         }
     }
 
+    private void compensateOrderCancel(String orderId) {
+        DeliveryOrderEntity order = requireOrder(orderId);
+        int refundRows = deliveryOrderMapper.update(null, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
+                .set(DeliveryOrderEntity::getRefundStatus, "refunded")
+                .eq(DeliveryOrderEntity::getId, orderId)
+                .eq(DeliveryOrderEntity::getPayStatus, "paid")
+                .and(wrapper -> wrapper.eq(DeliveryOrderEntity::getRefundStatus, "none").or().isNull(DeliveryOrderEntity::getRefundStatus)));
+        if (refundRows != 1) {
+            return;
+        }
+        BigDecimal amount = money(order.getTotalAmount());
+        if (("campus_card".equals(order.getPayMethod()) || "balance".equals(order.getPayMethod())) && amount.compareTo(BigDecimal.ZERO) > 0) {
+            ensureWallet(order.getUserId());
+            userWalletMapper.refundBalance(order.getUserId(), amount);
+        }
+        int rewardPoints = amount.setScale(0, RoundingMode.DOWN).intValue();
+        if (rewardPoints > 0) {
+            ensurePoints(order.getUserId());
+            userPointsMapper.deductPointsFloorZero(order.getUserId(), rewardPoints);
+        }
+        restoreCoupon(orderId);
+    }
+
+    private void restoreCoupon(String orderId) {
+        userCouponMapper.restoreByOrderId(orderId);
+    }
+
     private DeliveryOrderEntity requireOrder(String orderId) {
         DeliveryOrderEntity order = deliveryOrderMapper.selectById(orderId);
         if (order == null) {
@@ -2010,7 +2056,7 @@ public class BusinessService {
     }
 
     private Order toOrder(DeliveryOrderEntity entity, String merchantName) {
-        return new Order(entity.getId(), entity.getMerchantId(), merchantName, entity.getStatus(), entity.getTotalAmount(), entity.getAddress(), entity.getRemark(), entity.getPayMethod(), entity.getCouponId(), entity.getDiscountAmount(), entity.getCreateTime());
+        return new Order(entity.getId(), entity.getMerchantId(), merchantName, entity.getStatus(), entity.getTotalAmount(), entity.getAddress(), entity.getRemark(), entity.getPayMethod(), entity.getPayStatus(), entity.getRefundStatus(), entity.getCouponId(), entity.getDiscountAmount(), entity.getCreateTime());
     }
 
     private Merchant toMerchant(MerchantEntity entity) {

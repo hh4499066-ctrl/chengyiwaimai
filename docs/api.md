@@ -178,3 +178,12 @@ WebSocket 必须携带 `orderId` 和 `token`。用户只能订阅自己的订单
 - `GET /admin/merchants`：同时支持 `merchant_application` 申请记录和已有 `merchant` 记录。
 - `GET /admin/riders`：返回骑手最新认证状态、脱敏身份证号、交通工具和按完成单计算的等级。
 - `POST /admin/{module}/{id}/audit`：请求体支持 `{ "status": "approved|rejected", "rejectReason": "驳回原因" }`。商家通过后创建或更新 `merchant`；骑手通过后启用骑手账号，驳回时保存原因并禁用账号。
+
+## 2026-05-15 订单取消补偿补充
+
+- `delivery_order` 新增 `pay_status` 和 `refund_status`。新订单默认为 `pay_status=unpaid`、`refund_status=none`，支付成功后更新为 `pay_status=paid`。
+- 商家拒单/取消已支付订单时，后端只会在 `pay_status=paid` 且 `refund_status=none` 时执行一次补偿，并把 `refund_status` 更新为 `refunded`。
+- 补偿内容：`balance/campus_card` 支付退回 `user_wallet.balance`；支付时增加的积分按 `floor(totalAmount)` 从 `user_points.points` 扣回且不低于 0；订单占用的优惠券从 `used` 恢复为 `claimed` 并清空使用信息。
+- 用户取消待支付订单、超时取消待支付订单会恢复库存并释放已占用优惠券，不触发余额退款和积分回滚。
+- 骑手实名认证身份证号使用 `SensitiveDataCrypto` 加密落库，接口和后台列表只返回脱敏值。课程演示环境仍建议不要填写真实身份证号。
+- 已通过商家入驻或骑手认证的账号不能重复提交申请/认证，资料修改应走对应资料维护接口。

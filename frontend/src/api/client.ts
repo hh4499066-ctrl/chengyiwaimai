@@ -49,6 +49,8 @@ export type CreateOrderPayload = {
   address: string;
   remark?: string;
   payMethod?: string;
+  payStatus?: string;
+  refundStatus?: string;
   couponId?: number;
   discountAmount?: number;
   items: CartItem[];

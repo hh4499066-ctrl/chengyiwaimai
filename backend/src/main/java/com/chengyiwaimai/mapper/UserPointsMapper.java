@@ -23,4 +23,12 @@ public interface UserPointsMapper extends BaseMapper<UserPointsEntity> {
             WHERE user_id = #{userId}
             """)
     int addPoints(@Param("userId") Long userId, @Param("points") Integer points);
+
+    @Update("""
+            UPDATE user_points
+            SET points = GREATEST(points - #{points}, 0),
+                update_time = NOW()
+            WHERE user_id = #{userId}
+            """)
+    int deductPointsFloorZero(@Param("userId") Long userId, @Param("points") Integer points);
 }

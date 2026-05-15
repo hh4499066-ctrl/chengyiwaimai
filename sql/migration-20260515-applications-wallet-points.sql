@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS rider_certification (
   user_id BIGINT NOT NULL,
   real_name VARCHAR(50) NOT NULL,
   phone VARCHAR(20) NOT NULL,
-  id_card VARCHAR(32) NOT NULL,
+  id_card VARCHAR(512) NOT NULL,
   vehicle_type VARCHAR(30) NOT NULL,
   id_card_front_url VARCHAR(500),
   id_card_back_url VARCHAR(500),

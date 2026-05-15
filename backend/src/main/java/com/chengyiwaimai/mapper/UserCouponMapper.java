@@ -5,6 +5,7 @@ import com.chengyiwaimai.entity.UserCouponEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 import java.util.Map;
@@ -32,4 +33,15 @@ public interface UserCouponMapper extends BaseMapper<UserCouponEntity> {
             ORDER BY uc.valid_end IS NULL, uc.valid_end ASC, uc.id ASC
             """)
     List<Map<String, Object>> selectAvailableCoupons(@Param("userId") Long userId);
+
+    @Update("""
+            UPDATE user_coupon
+            SET status = 'claimed',
+                used_order_id = NULL,
+                used_time = NULL,
+                update_time = NOW()
+            WHERE used_order_id = #{orderId}
+              AND status = 'used'
+            """)
+    int restoreByOrderId(@Param("orderId") String orderId);
 }

@@ -26,4 +26,12 @@ public interface UserWalletMapper extends BaseMapper<UserWalletEntity> {
               AND balance >= #{amount}
             """)
     int deductBalance(@Param("userId") Long userId, @Param("amount") BigDecimal amount);
+
+    @Update("""
+            UPDATE user_wallet
+            SET balance = balance + #{amount},
+                update_time = NOW()
+            WHERE user_id = #{userId}
+            """)
+    int refundBalance(@Param("userId") Long userId, @Param("amount") BigDecimal amount);
 }

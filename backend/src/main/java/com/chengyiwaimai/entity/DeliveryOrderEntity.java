@@ -19,6 +19,8 @@ public class DeliveryOrderEntity {
     private String status;
     private String remark;
     private String payMethod;
+    private String payStatus;
+    private String refundStatus;
     private Long couponId;
     private BigDecimal discountAmount;
     @TableLogic
@@ -96,6 +98,22 @@ public class DeliveryOrderEntity {
 
     public void setPayMethod(String payMethod) {
         this.payMethod = payMethod;
+    }
+
+    public String getPayStatus() {
+        return payStatus;
+    }
+
+    public void setPayStatus(String payStatus) {
+        this.payStatus = payStatus;
+    }
+
+    public String getRefundStatus() {
+        return refundStatus;
+    }
+
+    public void setRefundStatus(String refundStatus) {
+        this.refundStatus = refundStatus;
     }
 
     public Long getCouponId() {
