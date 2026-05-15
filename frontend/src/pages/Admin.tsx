@@ -5,6 +5,51 @@ import { notify } from '../utils/toast';
 
 // === SUBCOMPONENTS (Matching Admin HTMLs) ===
 
+type Tone = 'primary' | 'secondary' | 'tertiary' | 'error';
+
+const toneClasses: Record<Tone, { bar: string; icon: string; text: string }> = {
+  primary: { bar: 'bg-primary', icon: 'bg-primary/10 text-primary', text: 'text-primary' },
+  secondary: { bar: 'bg-secondary', icon: 'bg-secondary/10 text-secondary', text: 'text-secondary' },
+  tertiary: { bar: 'bg-tertiary', icon: 'bg-tertiary/10 text-tertiary', text: 'text-tertiary' },
+  error: { bar: 'bg-error', icon: 'bg-error/10 text-error', text: 'text-error' },
+};
+
+function LoadingCard() {
+  return (
+    <div className="liquid-card rounded-xl p-md animate-pulse">
+      <div className="h-4 w-24 rounded bg-outline-variant/50" />
+      <div className="mt-sm h-7 w-32 rounded bg-outline-variant/40" />
+      <div className="mt-lg h-3 w-28 rounded bg-outline-variant/30" />
+    </div>
+  );
+}
+
+function RejectReasonModal({ title, defaultValue, onCancel, onSubmit }: { title: string; defaultValue: string; onCancel: () => void; onSubmit: (reason: string) => void }) {
+  const [reason, setReason] = useState(defaultValue);
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg max-w-lg w-full space-y-md motion-enter">
+        <div>
+          <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">{title}</h2>
+          <p className="text-body-md text-on-surface-variant mt-xs">填写原因后会同步给申请方，便于补充资料后重新提交。</p>
+        </div>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">驳回原因</span>
+          <textarea
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            className="mt-xs w-full min-h-28 rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary"
+          />
+        </label>
+        <div className="flex justify-end gap-sm">
+          <button onClick={onCancel} className="liquid-button px-md py-sm rounded-lg border border-outline-variant text-on-surface-variant">取消</button>
+          <button disabled={!reason.trim()} onClick={() => onSubmit(reason.trim())} className="liquid-button px-md py-sm rounded-lg bg-error text-on-error disabled:opacity-50">确认驳回</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function formatShortMoney(value: number) {
   if (value >= 10000) {
     return `¥${(value / 10000).toFixed(1)}万`;
@@ -29,9 +74,10 @@ function AdminDashboard() {
   const [dashboard, setDashboard] = useState<AdminDashboardData>({ todayGmv: 0, todayOrders: 0, activeUsers: 0, todayExceptionOrders: 0, totalGmv: 0, totalOrders: 0, totalExceptionOrders: 0 });
   const [scope, setScope] = useState<'today' | 'total'>('today');
   const [chartRange, setChartRange] = useState<'month' | 'week'>('month');
+  const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
-    api.getAdminDashboard().then(setDashboard).catch(() => undefined);
+    api.getAdminDashboard().then(setDashboard).catch(() => undefined).finally(() => setLoading(false));
   }, []);
 
   const exportCsv = () => {
@@ -78,25 +124,26 @@ function AdminDashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-md mb-xl stagger-children">
         {/* Metric Cards */}
-        {[
-          { title: scope === 'today' ? "今日GMV" : "累计GMV", value: `¥ ${Number(scope === 'today' ? dashboard.todayGmv : dashboard.totalGmv ?? dashboard.todayGmv).toFixed(2)}`, m: "真实接口", c: "primary", icon: "account_balance_wallet" },
-          { title: scope === 'today' ? "今日订单" : "累计订单", value: String(scope === 'today' ? dashboard.todayOrders : dashboard.totalOrders ?? dashboard.todayOrders), m: "真实接口", c: "secondary", icon: "receipt_long" },
-          { title: "活跃用户数", value: String(dashboard.activeUsers), m: "状态正常用户", c: "tertiary", icon: "group" },
-        ].map((item, idx) => (
+        {loading && [...Array(3)].map((_, index) => <LoadingCard key={index} />)}
+        {!loading && ([
+          { title: scope === 'today' ? "今日GMV" : "累计GMV", value: `¥ ${Number(scope === 'today' ? dashboard.todayGmv : dashboard.totalGmv ?? dashboard.todayGmv).toFixed(2)}`, m: "真实接口", c: "primary" as Tone, icon: "account_balance_wallet" },
+          { title: scope === 'today' ? "今日订单" : "累计订单", value: String(scope === 'today' ? dashboard.todayOrders : dashboard.totalOrders ?? dashboard.todayOrders), m: "真实接口", c: "secondary" as Tone, icon: "receipt_long" },
+          { title: "活跃用户数", value: String(dashboard.activeUsers), m: "状态正常用户", c: "tertiary" as Tone, icon: "group" },
+        ]).map((item, idx) => (
           <div key={idx} className="liquid-card motion-border-glow rounded-xl p-md flex flex-col justify-between relative overflow-hidden group">
-            <div className={`absolute left-0 top-0 bottom-0 w-[4px] bg-${item.c}`}></div>
+            <div className={`absolute left-0 top-0 bottom-0 w-[4px] ${toneClasses[item.c].bar}`}></div>
             <div className="flex justify-between items-start z-10 pl-sm">
               <div>
                 <p className="font-body-md text-body-md text-on-surface-variant">{item.title}</p>
                 <h3 className="font-headline-md text-headline-md text-on-surface mt-xs">{item.value}</h3>
               </div>
-              <div className={`bg-${item.c}/10 p-sm rounded-lg text-${item.c}`}>
+              <div className={`${toneClasses[item.c].icon} p-sm rounded-lg`}>
                 <span className="material-symbols-outlined fill">{item.icon}</span>
               </div>
             </div>
             <div className="mt-lg z-10 pl-sm flex items-center gap-xs">
-              <span className={`material-symbols-outlined text-${item.c} text-sm`}>trending_up</span>
-              <span className={`font-label-md text-label-md text-${item.c}`}>{item.m}</span>
+              <span className={`material-symbols-outlined ${toneClasses[item.c].text} text-sm`}>trending_up</span>
+              <span className={`font-label-md text-label-md ${toneClasses[item.c].text}`}>{item.m}</span>
               <span className="font-label-md text-label-md text-on-surface-variant ml-xs">较昨日</span>
             </div>
           </div>
@@ -216,27 +263,31 @@ function AdminMerchantAuditLive() {
   const [items, setItems] = useState<AdminMerchant[]>([]);
   const [keyword, setKeyword] = useState('');
   const [modal, setModal] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<AdminMerchant | null>(null);
+  const [loading, setLoading] = useState(true);
   const refresh = () => api.getAdminMerchants().then(setItems).catch(() => setItems([]));
-  React.useEffect(() => { refresh(); }, []);
+  React.useEffect(() => { refresh().finally(() => setLoading(false)); }, []);
   const shown = items.filter((item) => !keyword || item.name.includes(keyword) || item.category.includes(keyword));
-  const audit = (item: AdminMerchant, status: string) => {
-    const rejectReason = status === 'rejected' ? window.prompt('驳回原因', '资料不完整，请补充后重新提交') || '' : '';
-    return api.adminAudit('merchants', item.id, status, rejectReason).then(refresh);
-  };
+  const audit = (item: AdminMerchant, status: string, rejectReason = '') => api.adminAudit('merchants', item.id, status, rejectReason).then(refresh);
   return (
     <div className="liquid-stage flex-1 overflow-y-auto p-lg bg-surface space-y-md relative">
       <header className="motion-enter"><h1 className="font-headline-md text-headline-md font-bold">商家入驻审核</h1><p className="text-on-surface-variant">真实读取商家列表，支持筛选、查看、通过和驳回。</p></header>
       <section className="liquid-card motion-border-glow rounded-xl p-md flex gap-sm">
-        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="flex-1 rounded-lg border border-outline-variant p-sm" placeholder="商家名称 / 类别" />
+        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="flex-1 rounded-lg border border-outline-variant p-sm" placeholder="商家名称 / 类别" aria-label="筛选商家名称或类别" />
         <button onClick={() => setKeyword('')} className="liquid-button px-md py-sm rounded-lg border border-primary/30 text-primary">重置条件</button>
       </section>
       <div className="liquid-card motion-border-glow rounded-xl overflow-auto">
         <table className="w-full text-left min-w-[760px]">
           <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">商家</th><th className="p-md">类别</th><th className="p-md">电话</th><th className="p-md">审核</th><th className="p-md text-right">操作</th></tr></thead>
-          <tbody className="stagger-children">{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.category}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.auditStatus}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看资料</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过</button><button onClick={() => audit(item, 'rejected')} className="text-error">驳回</button></td></tr>)}</tbody>
+          <tbody className="stagger-children">
+            {loading && [...Array(3)].map((_, index) => <tr key={index} className="border-t border-outline-variant/20"><td className="p-md" colSpan={5}><div className="h-5 rounded bg-outline-variant/30 animate-pulse" /></td></tr>)}
+            {!loading && shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.category}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.auditStatus}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看资料</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过</button><button onClick={() => setRejecting(item)} className="text-error">驳回</button></td></tr>)}
+          </tbody>
         </table>
+        {!loading && shown.length === 0 && <p className="p-lg text-center text-on-surface-variant">暂无匹配商家</p>}
       </div>
       {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass modal-surface rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
+      {rejecting && <RejectReasonModal title={`驳回 ${rejecting.name}`} defaultValue="资料不完整，请补充后重新提交" onCancel={() => setRejecting(null)} onSubmit={(reason) => audit(rejecting, 'rejected', reason).then(() => setRejecting(null))} />}
     </div>
   );
 }
@@ -245,27 +296,31 @@ function AdminRiderAuditLive() {
   const [items, setItems] = useState<AdminUser[]>([]);
   const [keyword, setKeyword] = useState('');
   const [modal, setModal] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState<AdminUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const refresh = () => api.getAdminRiders().then(setItems).catch(() => setItems([]));
-  React.useEffect(() => { refresh(); }, []);
+  React.useEffect(() => { refresh().finally(() => setLoading(false)); }, []);
   const shown = items.filter((item) => !keyword || item.name.includes(keyword) || item.phone.includes(keyword));
-  const audit = (item: AdminUser, status: string) => {
-    const rejectReason = status === 'rejected' ? window.prompt('驳回原因', '认证资料不完整，请补充后重新提交') || '' : '';
-    return api.adminAudit('riders', item.id, status, rejectReason).then(refresh);
-  };
+  const audit = (item: AdminUser, status: string, rejectReason = '') => api.adminAudit('riders', item.id, status, rejectReason).then(refresh);
   return (
     <div className="liquid-stage flex-1 overflow-y-auto p-lg bg-surface space-y-md relative">
       <header className="motion-enter"><h1 className="font-headline-md text-headline-md font-bold">骑手审核</h1><p className="text-on-surface-variant">真实读取骑手账号，支持查询、查看原件、通过和标记违规。</p></header>
       <section className="liquid-card motion-border-glow rounded-xl p-md flex gap-sm">
-        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="flex-1 rounded-lg border border-outline-variant p-sm" placeholder="骑手姓名 / 手机号" />
+        <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="flex-1 rounded-lg border border-outline-variant p-sm" placeholder="骑手姓名 / 手机号" aria-label="筛选骑手姓名或手机号" inputMode="search" />
         <button onClick={() => setKeyword('')} className="liquid-button px-md py-sm rounded-lg border border-primary/30 text-primary">重置</button>
       </section>
       <div className="liquid-card motion-border-glow rounded-xl overflow-auto">
         <table className="w-full text-left min-w-[760px]">
           <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">骑手</th><th className="p-md">手机号</th><th className="p-md">角色</th><th className="p-md">状态</th><th className="p-md text-right">操作</th></tr></thead>
-          <tbody className="stagger-children">{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.role}</td><td className="p-md">{item.status}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看原件</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过审核</button><button onClick={() => audit(item, 'rejected')} className="text-error">驳回</button></td></tr>)}</tbody>
+          <tbody className="stagger-children">
+            {loading && [...Array(3)].map((_, index) => <tr key={index} className="border-t border-outline-variant/20"><td className="p-md" colSpan={5}><div className="h-5 rounded bg-outline-variant/30 animate-pulse" /></td></tr>)}
+            {!loading && shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.role}</td><td className="p-md">{item.status}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看原件</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过审核</button><button onClick={() => setRejecting(item)} className="text-error">驳回</button></td></tr>)}
+          </tbody>
         </table>
+        {!loading && shown.length === 0 && <p className="p-lg text-center text-on-surface-variant">暂无匹配骑手</p>}
       </div>
       {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass modal-surface rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
+      {rejecting && <RejectReasonModal title={`驳回 ${rejecting.name}`} defaultValue="认证资料不完整，请补充后重新提交" onCancel={() => setRejecting(null)} onSubmit={(reason) => audit(rejecting, 'rejected', reason).then(() => setRejecting(null))} />}
     </div>
   );
 }

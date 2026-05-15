@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api, type Address, type CartItem, type Coupon, type Dish, type Merchant, type Order } from '../../api/client';
+import { api, type Address, type CartItem, type Coupon, type Dish, type Merchant, type Order, type Review } from '../../api/client';
 import DeliveryMap from '../../components/DeliveryMap';
 import { campusMapPoints, estimateDeliveryMinutes, type LngLat } from '../../utils/amap';
 import { dishes as mockDishes, merchants as mockMerchants } from '../../mock/data';
@@ -8,6 +8,14 @@ import { notify } from '../../utils/toast';
 type Navigate = (screen: string) => void;
 
 const address = '学校东门 3 号宿舍楼 502';
+
+function readableAddress(value?: string) {
+  const text = (value || '').trim();
+  if (!text || text.includes('??')) {
+    return address;
+  }
+  return text;
+}
 
 function PhoneHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   return (
@@ -107,7 +115,7 @@ export function SearchPage({ onBack, onMerchant }: { onBack: () => void; onMerch
         <ErrorBanner message={error} />
         <div className="liquid-card rounded-full px-md py-sm border border-outline-variant/40 flex items-center gap-sm shadow-sm">
           <span className="material-symbols-outlined text-on-surface-variant">search</span>
-          <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="bg-transparent outline-none flex-1 text-body-md" placeholder="输入商家或品类" />
+          <input value={keyword} onChange={(event) => setKeyword(event.target.value)} className="bg-transparent outline-none flex-1 text-body-md" placeholder="输入商家或品类" inputMode="search" autoComplete="off" aria-label="搜索商家或品类" />
           <button onClick={() => setKeyword(keyword.trim())} className="liquid-button bg-primary text-on-primary px-md py-xs rounded-full text-label-md font-bold">搜索</button>
         </div>
         <div className="flex gap-sm overflow-x-auto no-scrollbar stagger-children">
@@ -277,7 +285,7 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
       setAddresses(next);
       setSelectedAddress(next[0] || null);
     }).catch(() => {
-      const fallback = { receiver: '张同学', phone: '138****5678', detail: address, isDefault: true };
+      const fallback = { receiver: 'mONESY', phone: '138****5678', detail: address, isDefault: true };
       setAddresses([fallback]);
       setSelectedAddress(fallback);
     });
@@ -311,7 +319,7 @@ export function CheckoutPage({ merchantId, setOrder, go }: { merchantId: number;
           <span className="font-headline-sm text-headline-sm font-bold">优惠券</span>
           <span className="text-primary">{selectedCoupon ? `${selectedCoupon.name} -¥${selectedCoupon.discountAmount}` : '选择优惠券'}</span>
         </button>
-        <textarea value={remark} onChange={(event) => setRemark(event.target.value)} className="liquid-card w-full min-h-24 rounded-2xl p-md outline-none focus:border-primary" placeholder="订单备注，如少辣、不要香菜" />
+          <textarea value={remark} onChange={(event) => setRemark(event.target.value)} className="liquid-card w-full min-h-24 rounded-2xl p-md outline-none focus:border-primary" placeholder="订单备注，如少辣、不要香菜" aria-label="订单备注" />
         <section className="liquid-card rounded-2xl p-md">
           <h2 className="font-headline-sm text-headline-sm font-bold mb-sm">订单商品</h2>
           {items.length === 0 && <p className="text-body-md text-on-surface-variant py-sm">购物车为空</p>}
@@ -541,7 +549,7 @@ export function TrackingPage({ order, setOrder, go }: { order: Order | null; set
         <ErrorBanner message={error} />
         <section className="liquid-glass rounded-2xl p-md">
           <h2 className="font-headline-sm text-headline-sm font-bold">{current?.status || '暂无订单'}</h2>
-          <p className="text-body-md text-on-surface-variant mt-xs">{current ? `${current.merchantName} · ${current.address}` : '请先创建并支付订单'}</p>
+          <p className="text-body-md text-on-surface-variant mt-xs">{current ? `${current.merchantName} · ${readableAddress(current.address)}` : '请先创建并支付订单'}</p>
           <p className="text-label-md text-primary mt-xs">{locationText}</p>
         </section>
         <section className="liquid-card rounded-2xl p-md">
@@ -578,7 +586,7 @@ export function ReviewPage({ orderId, go }: { orderId: string | null; go: Naviga
     }
     api
       .submitReview({ orderId, rating, content: content.trim() || '本次体验不错' })
-      .then(() => go('orders'))
+      .then(() => go('reviews'))
       .catch((err) => setError(err instanceof Error ? err.message : '提交评价失败'));
   };
 
@@ -592,9 +600,47 @@ export function ReviewPage({ orderId, go }: { orderId: string | null; go: Naviga
           <div className="flex justify-center gap-xs my-lg text-secondary-container">
             {[1, 2, 3, 4, 5].map((star) => <button key={star} onClick={() => setRating(star)} aria-label={`评分 ${star} 星`} className={`liquid-button material-symbols-outlined text-[36px] rounded-lg ${star <= rating ? 'fill text-secondary-container motion-pulse-ring' : 'text-outline'}`}>star</button>)}
           </div>
-          <textarea value={content} onChange={(event) => setContent(event.target.value)} className="w-full min-h-32 rounded-xl border border-outline-variant bg-white/70 p-md outline-none focus:border-primary" placeholder="写下真实评价..." />
+          <textarea value={content} onChange={(event) => setContent(event.target.value)} className="w-full min-h-32 rounded-xl border border-outline-variant bg-white/70 p-md outline-none focus:border-primary" placeholder="写下真实评价..." aria-label="评价内容" />
         </section>
         <button onClick={submit} className="liquid-button w-full bg-primary text-on-primary rounded-full py-md font-headline-sm shadow-md">提交评价</button>
+      </main>
+    </div>
+  );
+}
+
+export function ReviewsPage({ go }: { go: Navigate }) {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.getCustomerReviews()
+      .then(setReviews)
+      .catch((err) => setError(err instanceof Error ? err.message : '评价加载失败'));
+  }, []);
+
+  return (
+    <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
+      <PhoneHeader title="我的评价" onBack={() => go('profile')} />
+      <main className="p-md space-y-md stagger-children">
+        <ErrorBanner message={error} />
+        {reviews.length === 0 && !error && (
+          <section className="liquid-card rounded-2xl p-lg text-center">
+            <span className="material-symbols-outlined text-[36px] text-secondary">star_rate</span>
+            <h2 className="font-headline-sm text-headline-sm font-bold mt-sm">暂无评价</h2>
+            <p className="text-body-md text-on-surface-variant mt-xs">完成订单后可在配送跟踪页提交评价。</p>
+            <button onClick={() => go('orders')} className="liquid-button mt-md rounded-full bg-primary text-on-primary px-lg py-sm">查看历史订单</button>
+          </section>
+        )}
+        {reviews.map((review) => (
+          <article key={review.id} className="liquid-card rounded-2xl p-md">
+            <div className="flex items-center justify-between gap-sm">
+              <h2 className="font-headline-sm text-headline-sm font-bold">订单 {review.orderId}</h2>
+              <span className="text-secondary whitespace-nowrap">{'★'.repeat(review.rating)}</span>
+            </div>
+            <p className="text-body-md text-on-surface mt-sm">{review.content}</p>
+            {review.reply && <p className="text-body-md text-on-surface-variant mt-sm rounded-lg bg-surface-container-high p-sm">商家回复：{review.reply}</p>}
+          </article>
+        ))}
       </main>
     </div>
   );
@@ -616,7 +662,7 @@ export function OrdersPage({ go, setOrder }: { go: Navigate; setOrder: (order: O
 
   return (
     <div className="liquid-stage bg-surface min-h-full pb-[100px] relative overflow-hidden">
-      <PhoneHeader title="历史订单" />
+      <PhoneHeader title="历史订单" onBack={() => go('profile')} />
       <main className="p-md space-y-md stagger-children">
         <ErrorBanner message={error} />
         {orders.length === 0 && !error && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
@@ -637,14 +683,19 @@ export function OrdersPage({ go, setOrder }: { go: Navigate; setOrder: (order: O
 export function AddressPage({ go }: { go: Navigate }) {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [error, setError] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({ receiver: '同学', phone: '13800000000', detail: '' });
   useEffect(() => {
     api.getAddresses().then(setAddresses).catch((err) => setError(err instanceof Error ? err.message : '地址加载失败'));
   }, []);
   const add = () => {
-    const detail = window.prompt('新增地址');
-    if (!detail) return;
-    api.saveAddress({ receiver: '同学', phone: '13800000000', detail, isDefault: addresses.length === 0 })
+    if (!form.detail.trim()) return;
+    api.saveAddress({ receiver: form.receiver.trim() || '同学', phone: form.phone.trim() || '13800000000', detail: form.detail.trim(), isDefault: addresses.length === 0 })
       .then(() => api.getAddresses().then(setAddresses))
+      .then(() => {
+        setFormOpen(false);
+        setForm({ receiver: '同学', phone: '13800000000', detail: '' });
+      })
       .catch((err) => setError(err instanceof Error ? err.message : '地址保存失败'));
   };
   return (
@@ -652,10 +703,33 @@ export function AddressPage({ go }: { go: Navigate }) {
       <PhoneHeader title="我的地址" onBack={() => go('profile')} />
       <main className="p-md space-y-md stagger-children">
         <ErrorBanner message={error} />
-        <button onClick={add} className="liquid-button w-full rounded-full bg-primary text-on-primary py-sm font-bold">新增地址</button>
+        <button onClick={() => setFormOpen(true)} className="liquid-button w-full rounded-full bg-primary text-on-primary py-sm font-bold">新增地址</button>
         {addresses.length === 0 && <p className="text-center text-on-surface-variant py-xl">暂无地址</p>}
         {addresses.map((item, index) => <div key={item.id ?? index} className="liquid-card rounded-2xl p-md"><h3 className="font-headline-sm font-bold">{item.receiver} {item.phone}</h3><p className="text-on-surface-variant mt-xs">{item.detail}</p></div>)}
       </main>
+      {formOpen && (
+        <div className="absolute inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-end" onClick={() => setFormOpen(false)}>
+          <div className="liquid-glass modal-surface w-full rounded-t-3xl p-lg space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
+            <h2 className="font-headline-sm text-headline-sm font-bold">新增地址</h2>
+            <label className="block">
+              <span className="text-label-md font-label-md text-on-surface-variant">收货人</span>
+              <input value={form.receiver} onChange={(event) => setForm((prev) => ({ ...prev, receiver: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" />
+            </label>
+            <label className="block">
+              <span className="text-label-md font-label-md text-on-surface-variant">手机号</span>
+              <input value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" inputMode="numeric" autoComplete="tel" />
+            </label>
+            <label className="block">
+              <span className="text-label-md font-label-md text-on-surface-variant">详细地址</span>
+              <textarea value={form.detail} onChange={(event) => setForm((prev) => ({ ...prev, detail: event.target.value }))} className="mt-xs w-full min-h-24 rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" />
+            </label>
+            <div className="flex gap-sm">
+              <button onClick={() => setFormOpen(false)} className="liquid-button flex-1 rounded-full border border-outline-variant py-sm">取消</button>
+              <button disabled={!form.detail.trim()} onClick={add} className="liquid-button flex-1 rounded-full bg-primary text-on-primary py-sm disabled:opacity-50">保存</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -36,12 +36,14 @@ export default function Home({
   const [addressOpen, setAddressOpen] = useState(false);
   const [category, setCategory] = useState('全部分类');
   const [sort, setSort] = useState<'default' | 'sales' | 'distance'>('default');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     api
       .getMerchants()
       .then((items) => setMerchantList(items.map(enrichMerchant)))
-      .catch(() => setMerchantList(mockMerchants.map(enrichMerchant)));
+      .catch(() => setMerchantList(mockMerchants.map(enrichMerchant)))
+      .finally(() => setLoading(false));
   }, []);
 
   const openMerchant = (merchantId: number) => onMerchantClick?.(merchantId);
@@ -74,7 +76,7 @@ export default function Home({
         </div>
         <div className="liquid-card bg-white rounded-lg border border-outline-variant/70 shadow-[0_8px_24px_rgba(15,23,42,0.05)] flex items-center px-md py-sm focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/15">
           <span className="material-symbols-outlined text-on-surface-variant mr-sm">search</span>
-          <input onFocus={onSearch} className="bg-transparent border-none outline-none w-full text-on-surface-variant placeholder-on-surface-variant/70 font-body-md text-body-md focus:ring-0 p-0" placeholder="想吃点什么？" type="text" />
+          <input onFocus={onSearch} className="bg-transparent border-none outline-none w-full text-on-surface-variant placeholder-on-surface-variant/70 font-body-md text-body-md focus:ring-0 p-0" placeholder="想吃点什么？" type="text" inputMode="search" autoComplete="off" aria-label="搜索商家或菜品" />
           <button onClick={onSearch} className="border-l border-outline-variant pl-sm ml-sm flex items-center gap-xs text-primary hover:text-primary/80 transition-colors">
             <span className="font-label-md text-label-md whitespace-nowrap">搜索</span>
           </button>
@@ -120,7 +122,14 @@ export default function Home({
             <button onClick={onSearch} className="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors flex items-center">查看更多 <span className="material-symbols-outlined text-[16px]">chevron_right</span></button>
           </div>
           <div className="flex gap-sm overflow-x-auto hide-scrollbar pb-xs -mx-md px-md">
-            {shownMerchants.slice(0, 4).map((merchant) => (
+            {loading && [...Array(2)].map((_, index) => (
+              <div key={index} className="liquid-card min-w-[240px] rounded-lg p-sm animate-pulse">
+                <div className="h-[120px] rounded-lg bg-outline-variant/40" />
+                <div className="mt-sm h-5 w-32 rounded bg-outline-variant/40" />
+                <div className="mt-xs h-3 w-44 rounded bg-outline-variant/30" />
+              </div>
+            ))}
+            {!loading && shownMerchants.slice(0, 4).map((merchant) => (
               <button key={merchant.id} onClick={() => openMerchant(merchant.id)} className="liquid-card text-left min-w-[240px] bg-white rounded-lg overflow-hidden flex-shrink-0 active:scale-[0.98]">
                 <div className="h-[120px] relative">
                   <img alt={merchant.name} className="w-full h-full object-cover" src={merchant.image} />
@@ -156,7 +165,17 @@ export default function Home({
             <button onClick={() => setSort('distance')} className={`font-body-md text-body-md px-sm py-xs rounded-lg transition-colors ${sort === 'distance' ? 'font-bold text-primary bg-primary/10' : 'text-on-surface-variant hover:bg-surface-container-high'}`}>距离最近</button>
           </div>
           <div className="flex flex-col gap-md stagger-children">
-            {shownMerchants.map((merchant) => (
+            {loading && [...Array(4)].map((_, index) => (
+              <div key={index} className="liquid-card w-full flex gap-sm p-sm rounded-lg animate-pulse">
+                <div className="w-[88px] h-[88px] rounded-lg bg-outline-variant/40 shrink-0" />
+                <div className="flex-1 py-xs">
+                  <div className="h-5 w-36 rounded bg-outline-variant/40" />
+                  <div className="mt-sm h-3 w-28 rounded bg-outline-variant/30" />
+                  <div className="mt-lg h-3 w-full rounded bg-outline-variant/30" />
+                </div>
+              </div>
+            ))}
+            {!loading && shownMerchants.map((merchant) => (
               <button key={merchant.id} onClick={() => openMerchant(merchant.id)} className="liquid-card w-full text-left flex gap-sm p-sm bg-white rounded-lg active:scale-[0.98]">
                 <div className="w-[88px] h-[88px] rounded-lg overflow-hidden flex-shrink-0">
                   <img alt={merchant.name} className="w-full h-full object-cover" src={merchant.image} />

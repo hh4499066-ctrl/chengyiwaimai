@@ -131,7 +131,7 @@ export const demoOrder: DemoOrder = {
   merchantName: '老刘家招牌牛肉面',
   status: '骑手配送中',
   totalAmount: 43,
-  receiver: '张同学',
+  receiver: 'mONESY',
   address: '学校东门 3 号宿舍楼 502',
   riderName: '王师傅',
   riderPhone: '138****2468',

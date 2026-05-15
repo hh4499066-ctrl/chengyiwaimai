@@ -2,7 +2,7 @@ USE chengyiwaimai;
 SET NAMES utf8mb4;
 
 INSERT INTO sys_user(phone, password, nickname, role, status, deleted) VALUES
-('13800000001', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '张同学', 'customer', 1, 0),
+('13800000001', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', 'mONESY', 'customer', 1, 0),
 ('13800000002', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '王师傅', 'rider', 1, 0),
 ('13800000003', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '老刘商家', 'merchant', 1, 0),
 ('13800000004', 'pbkdf2_sha256$120000$Y2hlbmd5aS1kZW1vLTIwMjY=$gV+4C7T9/gmzrWclngb6rqprJR8e7V1wCpNxT8apZ/I=', '平台管理员', 'admin', 1, 0)
@@ -60,7 +60,7 @@ INSERT INTO dish_category(merchant_id, name, sort, deleted) VALUES
 ON DUPLICATE KEY UPDATE sort = VALUES(sort), deleted = 0;
 
 INSERT INTO user_address(user_id, receiver, phone, detail, is_default)
-SELECT id, '张同学', '13800000001', '学校东门 3 号宿舍楼 502', 1
+SELECT id, 'mONESY', '13800000001', '学校东门 3 号宿舍楼 502', 1
 FROM sys_user
 WHERE phone = '13800000001'
   AND NOT EXISTS (

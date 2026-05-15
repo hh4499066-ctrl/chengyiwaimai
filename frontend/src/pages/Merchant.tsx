@@ -2,11 +2,64 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { api, type Dish, type MerchantStats, type Order } from '../api/client';
 import { MerchantModule } from './management/ManagementPanels';
 
+type Tone = 'primary' | 'secondary' | 'tertiary' | 'error';
+
+const toneClasses: Record<Tone, { icon: string; text: string }> = {
+  primary: { icon: 'bg-primary/10 text-primary', text: 'text-primary' },
+  secondary: { icon: 'bg-secondary/10 text-secondary', text: 'text-secondary' },
+  tertiary: { icon: 'bg-tertiary/10 text-tertiary', text: 'text-tertiary' },
+  error: { icon: 'bg-error/10 text-error', text: 'text-error' },
+};
+
+type PromptConfig = {
+  title: string;
+  label: string;
+  defaultValue: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+  onSubmit: (value: string) => void;
+};
+
 function MerchantError({ message }: { message: string }) {
   if (!message) {
     return null;
   }
   return <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{message}</div>;
+}
+
+function OrderCardSkeleton() {
+  return (
+    <div className="liquid-card rounded-2xl p-md animate-pulse">
+      <div className="h-5 w-24 rounded bg-outline-variant/40" />
+      <div className="mt-md h-4 w-44 rounded bg-outline-variant/30" />
+      <div className="mt-sm h-4 w-full rounded bg-outline-variant/30" />
+      <div className="mt-md h-9 rounded-xl bg-outline-variant/30" />
+    </div>
+  );
+}
+
+function MerchantPromptModal({ config, onClose }: { config: PromptConfig; onClose: () => void }) {
+  const [value, setValue] = useState(config.defaultValue);
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
+        <h3 className="font-headline-sm text-headline-sm font-bold">{config.title}</h3>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">{config.label}</span>
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary"
+            inputMode={config.inputMode}
+            autoFocus
+          />
+        </label>
+        <div className="flex justify-end gap-sm">
+          <button onClick={onClose} className="liquid-button px-md py-sm rounded-lg border border-outline-variant">取消</button>
+          <button disabled={!value.trim()} onClick={() => config.onSubmit(value.trim())} className="liquid-button px-md py-sm rounded-lg bg-primary text-on-primary disabled:opacity-50">确认</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function statusTone(status: string) {
@@ -61,11 +114,13 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
+  const [loadingOrders, setLoadingOrders] = useState(true);
   const [serverStats, setServerStats] = useState<MerchantStats | null>(null);
   const [businessStatus, setBusinessStatus] = useState('open');
 
   const refreshOrders = () => {
-    api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败'));
+    setLoadingOrders(true);
+    return api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败')).finally(() => setLoadingOrders(false));
   };
 
   useEffect(() => {
@@ -125,15 +180,15 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold">今日营业数据</h3>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-md mb-xl stagger-children">
         {[
-          { title: "今日预计收入", value: `¥ ${stats.todayIncome.toFixed(2)}`, m: "实时订单汇总", c: "primary", icon: "account_balance_wallet" },
-          { title: "今日有效订单", value: String(stats.todayOrders), m: "来自真实订单", c: "secondary", icon: "receipt_long" },
-          { title: "待接订单", value: String(stats.pending), m: "需尽快处理", c: "tertiary", icon: "storefront" },
-          { title: "待骑手取餐", value: String(stats.ready), m: "已进入骑手大厅", c: "error", icon: "warning" },
+          { title: "今日预计收入", value: `¥ ${stats.todayIncome.toFixed(2)}`, m: "实时订单汇总", c: "primary" as Tone, icon: "account_balance_wallet" },
+          { title: "今日有效订单", value: String(stats.todayOrders), m: "来自真实订单", c: "secondary" as Tone, icon: "receipt_long" },
+          { title: "待接订单", value: String(stats.pending), m: "需尽快处理", c: "tertiary" as Tone, icon: "storefront" },
+          { title: "待骑手取餐", value: String(stats.ready), m: "已进入骑手大厅", c: "error" as Tone, icon: "warning" },
         ].map((item, idx) => (
           <div key={idx} className={`liquid-card motion-border-glow rounded-xl p-md flex flex-col relative overflow-hidden group ${item.c === 'error' ? 'border-error/30 bg-error-container/30' : ''}`}>
             <div className="flex justify-between items-start z-10 mb-sm">
                 <p className="font-body-md text-body-md text-on-surface-variant">{item.title}</p>
-                <div className={`bg-${item.c}/10 p-1.5 rounded-lg text-${item.c}`}>
+                <div className={`${toneClasses[item.c].icon} p-1.5 rounded-lg`}>
                   <span className="material-symbols-outlined text-[20px] fill">{item.icon}</span>
                 </div>
             </div>
@@ -146,8 +201,9 @@ function MerchantWorkbench({ onViewAllOrders }: { onViewAllOrders: () => void })
       <h3 className="font-headline-sm text-headline-sm text-on-surface mb-md font-bold flex items-center justify-between">实时单况 <button onClick={onViewAllOrders} className="text-primary font-body-md text-body-md font-medium hover:underline flex items-center">查看全部 <span className="material-symbols-outlined text-[18px]">chevron_right</span></button></h3>
       <MerchantError message={error} />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-md stagger-children">
-         {pendingOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无待处理订单</p>}
-         {pendingOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
+         {loadingOrders && [...Array(3)].map((_, index) => <OrderCardSkeleton key={index} />)}
+         {!loadingOrders && pendingOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无待处理订单</p>}
+         {!loadingOrders && pendingOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
       </div>
       <div className="h-xl md:hidden"></div>
     </div>
@@ -159,11 +215,13 @@ function MerchantOrders() {
   const [activeStatus, setActiveStatus] = useState('全部');
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
+  const [loading, setLoading] = useState(true);
   const statuses = ['全部', '待商家接单', '商家已接单', '商家已出餐', '骑手已接单', '骑手已取餐', '已完成', '已取消'];
   const shownOrders = activeStatus === '全部' ? orders : orders.filter((order) => order.status === activeStatus);
 
   const refreshOrders = () => {
-    api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败'));
+    setLoading(true);
+    return api.getMerchantOrders().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '订单加载失败')).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -191,8 +249,9 @@ function MerchantOrders() {
       </header>
       <div className="flex-1 overflow-y-auto p-md md:p-lg space-y-md bg-surface-container-low stagger-children">
           <MerchantError message={error} />
-          {shownOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
-          {shownOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
+          {loading && [...Array(4)].map((_, index) => <OrderCardSkeleton key={index} />)}
+          {!loading && shownOrders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无订单</p>}
+          {!loading && shownOrders.map((order) => <MerchantOrderCard key={order.id} order={order} onAction={action} loadingId={loadingId} />)}
       </div>
     </div>
   );
@@ -209,8 +268,10 @@ function MerchantMenuLive() {
   const [categoryRows, setCategoryRows] = useState<Array<{ id: number; merchantId: number; name: string; sort: number }>>([]);
   const [activeCategory, setActiveCategory] = useState('全部');
   const [form, setForm] = useState({ name: '', description: '', price: '18', sales: '99', categoryName: '招牌推荐', status: 'on_sale' });
+  const [promptConfig, setPromptConfig] = useState<PromptConfig | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const refresh = () => api.getMerchantDishes().then(setDishes).catch((err) => setError(err instanceof Error ? err.message : '商品加载失败'));
+  const refresh = () => api.getMerchantDishes().then(setDishes).catch((err) => setError(err instanceof Error ? err.message : '商品加载失败')).finally(() => setLoading(false));
   const refreshCategories = () => api.getMerchantCategories().then((rows) => {
     setCategoryRows(rows);
     setCategories(['全部', ...rows.map((row) => row.name)]);
@@ -260,35 +321,54 @@ function MerchantMenuLive() {
   };
 
   const restock = (dish: Dish) => {
-    const next = Number(window.prompt('输入新库存', String(dish.sales ?? 99)));
-    if (Number.isFinite(next) && next >= 0) {
-      api.updateMerchantDishStock(dish.id, next).then(refresh).catch((err) => setError(err instanceof Error ? err.message : '库存更新失败'));
-    }
+    setPromptConfig({
+      title: '补充库存',
+      label: `${dish.name} 新库存`,
+      defaultValue: String(dish.sales ?? 99),
+      inputMode: 'numeric',
+      onSubmit: (value) => {
+        const next = Number(value);
+        if (Number.isFinite(next) && next >= 0) {
+          api.updateMerchantDishStock(dish.id, next).then(refresh).catch((err) => setError(err instanceof Error ? err.message : '库存更新失败'));
+          setPromptConfig(null);
+        }
+      },
+    });
   };
   const shownDishes = activeCategory === '全部' ? dishes : dishes.filter((dish) => (dish.categoryName || dish.category) === activeCategory);
 
   const addCategory = () => {
-    const name = window.prompt('新分类名称');
-    if (name) {
-      api.saveMerchantCategory({ name, sort: categoryRows.length + 1 }).then(() => {
-        setMessage('分类已保存');
-        refreshCategories();
-      }).catch((err) => setError(err instanceof Error ? err.message : '分类保存失败'));
-    }
+    setPromptConfig({
+      title: '新增分类',
+      label: '分类名称',
+      defaultValue: '',
+      onSubmit: (name) => {
+        api.saveMerchantCategory({ name, sort: categoryRows.length + 1 }).then(() => {
+          setMessage('分类已保存');
+          refreshCategories();
+        }).catch((err) => setError(err instanceof Error ? err.message : '分类保存失败'));
+        setPromptConfig(null);
+      },
+    });
   };
 
   const editCategory = () => {
     if (activeCategory === '全部') return;
-    const name = window.prompt('编辑分类名称', activeCategory);
-    if (name) {
-      const row = categoryRows.find((item) => item.name === activeCategory);
-      if (!row) return;
-      api.updateMerchantCategory(row.id, { name, sort: row.sort }).then(() => {
-        setActiveCategory(name);
-        refreshCategories();
-        refresh();
-      }).catch((err) => setError(err instanceof Error ? err.message : '分类编辑失败'));
-    }
+    setPromptConfig({
+      title: '编辑分类',
+      label: '分类名称',
+      defaultValue: activeCategory,
+      onSubmit: (name) => {
+        const row = categoryRows.find((item) => item.name === activeCategory);
+        if (!row) return;
+        api.updateMerchantCategory(row.id, { name, sort: row.sort }).then(() => {
+          setActiveCategory(name);
+          refreshCategories();
+          refresh();
+        }).catch((err) => setError(err instanceof Error ? err.message : '分类编辑失败'));
+        setPromptConfig(null);
+      },
+    });
   };
 
   const deleteCategory = () => {
@@ -323,7 +403,12 @@ function MerchantMenuLive() {
           <table className="w-full text-left border-collapse">
             <thead><tr className="bg-surface-container-low border-b border-outline-variant/30 text-on-surface-variant font-label-md"><th className="p-md">商品信息</th><th className="p-md">价格</th><th className="p-md">库存/状态</th><th className="p-md text-right">操作</th></tr></thead>
             <tbody className="divide-y divide-outline-variant/20 font-body-md stagger-children">
-              {shownDishes.map((dish) => (
+              {loading && [...Array(4)].map((_, index) => (
+                <tr key={index}>
+                  <td className="p-md" colSpan={4}><div className="h-5 rounded bg-outline-variant/30 animate-pulse" /></td>
+                </tr>
+              ))}
+              {!loading && shownDishes.map((dish) => (
                 <tr key={dish.id} className="hover:bg-surface-variant/20 transition-colors">
                   <td className="p-md"><p className="font-bold">{dish.name}</p><p className="text-on-surface-variant">{dish.categoryName || dish.category}</p></td>
                   <td className="p-md font-bold">¥{Number(dish.price).toFixed(2)}</td>
@@ -333,20 +418,34 @@ function MerchantMenuLive() {
               ))}
             </tbody>
           </table>
+          {!loading && shownDishes.length === 0 && <p className="p-lg text-center text-on-surface-variant">暂无商品</p>}
         </div>
       </div>
       {formOpen && (
         <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
           <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-xl space-y-md motion-enter">
             <h3 className="font-headline-sm text-headline-sm font-bold">{editing ? '编辑商品' : '新建商品'}</h3>
-            {(['name', 'description', 'price', 'sales', 'categoryName'] as const).map((key) => (
-              <input key={key} value={form[key]} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder={key} />
+            {([
+              ['name', '商品名称', undefined],
+              ['description', '商品描述', undefined],
+              ['price', '价格', 'decimal'],
+              ['sales', '库存', 'numeric'],
+              ['categoryName', '分类', undefined],
+            ] as const).map(([key, label, inputMode]) => (
+              <label key={key} className="block">
+                <span className="text-label-md font-label-md text-on-surface-variant">{label}</span>
+                <input value={form[key]} onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant p-sm" placeholder={label} inputMode={inputMode} />
+              </label>
             ))}
-            <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm"><option value="on_sale">上架</option><option value="off_sale">下架</option></select>
+            <label className="block">
+              <span className="text-label-md font-label-md text-on-surface-variant">售卖状态</span>
+              <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant p-sm"><option value="on_sale">上架</option><option value="off_sale">下架</option></select>
+            </label>
             <div className="flex justify-end gap-sm"><button onClick={() => setFormOpen(false)} className="liquid-button px-md py-sm rounded-lg border">取消</button><button onClick={save} className="liquid-button px-md py-sm rounded-lg bg-primary text-on-primary">保存</button></div>
           </div>
         </div>
       )}
+      {promptConfig && <MerchantPromptModal config={promptConfig} onClose={() => setPromptConfig(null)} />}
     </div>
   );
 }
@@ -378,12 +477,24 @@ function MerchantSettings() {
       <header className="motion-enter"><h2 className="font-headline-md text-headline-md font-bold">营业设置</h2><p className="text-on-surface-variant">读取当前营业状态后再保存配置。</p></header>
       {message && <div className="rounded-lg bg-primary/10 text-primary px-md py-sm">{message}</div>}
       <div className="liquid-card motion-border-glow rounded-xl p-lg space-y-md max-w-2xl">
-        <select value={settings.status} onChange={(event) => setSettings((prev) => ({ ...prev, status: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm">
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">营业状态</span>
+          <select value={settings.status} onChange={(event) => setSettings((prev) => ({ ...prev, status: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant p-sm">
           <option value="open">营业中</option><option value="closed">休息中</option><option value="paused">暂停接单</option>
-        </select>
-        <input value={settings.deliveryFee} onChange={(event) => setSettings((prev) => ({ ...prev, deliveryFee: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="配送费" />
-        <input value={settings.minOrder} onChange={(event) => setSettings((prev) => ({ ...prev, minOrder: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm" placeholder="起送价" />
-        <textarea value={settings.announcement} onChange={(event) => setSettings((prev) => ({ ...prev, announcement: event.target.value }))} className="w-full rounded-lg border border-outline-variant p-sm min-h-28" placeholder="店铺公告" />
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">配送费</span>
+          <input value={settings.deliveryFee} onChange={(event) => setSettings((prev) => ({ ...prev, deliveryFee: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant p-sm" placeholder="配送费" inputMode="decimal" />
+        </label>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">起送价</span>
+          <input value={settings.minOrder} onChange={(event) => setSettings((prev) => ({ ...prev, minOrder: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant p-sm" placeholder="起送价" inputMode="decimal" />
+        </label>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">店铺公告</span>
+          <textarea value={settings.announcement} onChange={(event) => setSettings((prev) => ({ ...prev, announcement: event.target.value }))} className="mt-xs w-full rounded-lg border border-outline-variant p-sm min-h-28" placeholder="店铺公告" />
+        </label>
         <button onClick={save} className="liquid-button bg-primary text-on-primary px-lg py-sm rounded-lg font-bold">保存配置</button>
       </div>
     </div>

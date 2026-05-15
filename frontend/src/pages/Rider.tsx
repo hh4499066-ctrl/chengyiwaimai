@@ -4,6 +4,43 @@ import DeliveryMap from '../components/DeliveryMap';
 import { campusMapPoints, type LngLat } from '../utils/amap';
 import { notify } from '../utils/toast';
 
+function RiderCardSkeleton() {
+  return (
+    <div className="liquid-card rounded-2xl p-md animate-pulse">
+      <div className="h-6 w-24 rounded bg-outline-variant/40" />
+      <div className="mt-md h-4 w-full rounded bg-outline-variant/30" />
+      <div className="mt-sm h-4 w-2/3 rounded bg-outline-variant/30" />
+      <div className="mt-md h-10 rounded-xl bg-outline-variant/30" />
+    </div>
+  );
+}
+
+function WithdrawModal({ onCancel, onSubmit }: { onCancel: () => void; onSubmit: (amount: number, accountNo: string) => void }) {
+  const [amount, setAmount] = useState('50');
+  const [accountNo, setAccountNo] = useState('校园卡 6222****8888');
+  const parsedAmount = Number(amount);
+  const canSubmit = Number.isFinite(parsedAmount) && parsedAmount > 0 && accountNo.trim().length > 0;
+  return (
+    <div className="absolute inset-0 z-[100] bg-black/30 flex items-end" onClick={onCancel}>
+      <div className="liquid-glass modal-surface w-full rounded-t-3xl p-lg space-y-md motion-enter" onClick={(event) => event.stopPropagation()}>
+        <h3 className="font-headline-sm text-headline-sm font-bold">申请提现</h3>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">提现金额</span>
+          <input value={amount} onChange={(event) => setAmount(event.target.value)} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" inputMode="decimal" />
+        </label>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">提现账户</span>
+          <input value={accountNo} onChange={(event) => setAccountNo(event.target.value)} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" autoComplete="off" />
+        </label>
+        <div className="flex gap-sm">
+          <button onClick={onCancel} className="liquid-button flex-1 rounded-full border border-outline-variant py-sm">取消</button>
+          <button disabled={!canSubmit} onClick={() => onSubmit(parsedAmount, accountNo.trim())} className="liquid-button flex-1 rounded-full bg-primary text-on-primary py-sm disabled:opacity-50">提交</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RiderError({ message }: { message: string }) {
   if (!message) {
     return null;
@@ -16,9 +53,11 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
   const [online, setOnline] = useState(true);
+  const [loading, setLoading] = useState(true);
 
   const refresh = () => {
-    api.getRiderLobby().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '大厅订单加载失败'));
+    setLoading(true);
+    return api.getRiderLobby().then(setOrders).catch((err) => setError(err instanceof Error ? err.message : '大厅订单加载失败')).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -53,8 +92,9 @@ function RiderLobby({ onAccepted }: { onAccepted: () => void }) {
         </div>
         <div className="space-y-4 stagger-children">
           {!online && <p className="text-body-md text-on-surface-variant">离线时不展示可接订单，请先上线。</p>}
-          {online && orders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无可抢订单</p>}
-          {online && orders.map((order) => (
+          {online && loading && [...Array(3)].map((_, index) => <RiderCardSkeleton key={index} />)}
+          {online && !loading && orders.length === 0 && <p className="text-body-md text-on-surface-variant">暂无可抢订单</p>}
+          {online && !loading && orders.map((order) => (
             <div key={order.orderId} className="liquid-card motion-border-glow rounded-2xl p-md relative overflow-hidden group">
               <div className="flex justify-between items-start mb-md">
                 <div><h2 className="text-headline-sm font-headline-sm text-on-surface">¥{Number(order.income).toFixed(2)}</h2><p className="text-label-md font-label-md text-on-surface-variant mt-xs">预计收入</p></div>
@@ -86,10 +126,12 @@ function RiderTask() {
   const [tasks, setTasks] = useState<Order[]>([]);
   const [error, setError] = useState('');
   const [loadingId, setLoadingId] = useState('');
+  const [loading, setLoading] = useState(true);
   const [riderPosition, setRiderPosition] = useState<LngLat>(campusMapPoints.riderFallback);
 
   const refresh = () => {
-    api.getRiderTasks().then(setTasks).catch((err) => setError(err instanceof Error ? err.message : '任务加载失败'));
+    setLoading(true);
+    return api.getRiderTasks().then(setTasks).catch((err) => setError(err instanceof Error ? err.message : '任务加载失败')).finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -177,8 +219,9 @@ function RiderTask() {
           </div>
           <RiderError message={error} />
           <div className="space-y-md mt-md stagger-children">
-            {tasks.length === 0 && <p className="text-body-md text-on-surface-variant">暂无配送任务</p>}
-            {tasks.map((task, index) => (
+            {loading && [...Array(2)].map((_, index) => <RiderCardSkeleton key={index} />)}
+            {!loading && tasks.length === 0 && <p className="text-body-md text-on-surface-variant">暂无配送任务</p>}
+            {!loading && tasks.map((task, index) => (
               <div key={task.id} className="liquid-card motion-border-glow rounded-2xl p-md border border-outline-variant/30 shadow-sm relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-8 h-8 bg-error rounded-bl-2xl flex items-center justify-center text-on-error font-body-md font-bold">{index + 1}</div>
                 <div className="flex justify-between items-start mb-sm pr-6">
@@ -205,6 +248,7 @@ function RiderEarnings() {
   const [message, setMessage] = useState('');
   const [range, setRange] = useState('今日');
   const [detail, setDetail] = useState<{ n: string; t: string; v: string; a: string } | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   const todayIncome = Number(stats.todayIncome || 0);
   const totalIncome = Number(stats.totalIncome || 0);
   const todayOrders = Number(stats.todayOrders || 0);
@@ -221,11 +265,16 @@ function RiderEarnings() {
   }, []);
 
   const submitWithdraw = () => {
-    const amount = Number(window.prompt('提现金额', '50'));
-    const accountNo = window.prompt('提现账户', '校园卡 6222****8888') || '';
-    if (amount > 0 && accountNo) {
-      api.withdraw(amount, accountNo).then(() => setMessage('提现申请已提交')).catch((err) => setMessage(err instanceof Error ? err.message : '提现失败'));
-    }
+    setWithdrawOpen(true);
+  };
+
+  const confirmWithdraw = (amount: number, accountNo: string) => {
+    api.withdraw(amount, accountNo)
+      .then(() => {
+        setMessage('提现申请已提交');
+        setWithdrawOpen(false);
+      })
+      .catch((err) => setMessage(err instanceof Error ? err.message : '提现失败'));
   };
 
   return (
@@ -291,6 +340,7 @@ function RiderEarnings() {
           </div>
         </div>
       )}
+      {withdrawOpen && <WithdrawModal onCancel={() => setWithdrawOpen(false)} onSubmit={confirmWithdraw} />}
     </div>
   );
 }

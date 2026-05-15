@@ -36,6 +36,71 @@ function SimpleModal({ title, body, onClose }: { title: string; body: React.Reac
   );
 }
 
+function TextEntryModal({ title, label, defaultValue = '', multiline, onClose, onSubmit }: { title: string; label: string; defaultValue?: string; multiline?: boolean; onClose: () => void; onSubmit: (value: string) => void }) {
+  const [value, setValue] = useState(defaultValue);
+  const fieldClass = "mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary";
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
+        <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">{label}</span>
+          {multiline ? (
+            <textarea value={value} onChange={(event) => setValue(event.target.value)} className={`${fieldClass} min-h-28`} autoFocus />
+          ) : (
+            <input value={value} onChange={(event) => setValue(event.target.value)} className={fieldClass} autoFocus />
+          )}
+        </label>
+        <div className="flex justify-end gap-sm">
+          <button onClick={onClose} className="liquid-button px-md py-sm rounded-lg border border-outline-variant">取消</button>
+          <button disabled={!value.trim()} onClick={() => onSubmit(value.trim())} className="liquid-button px-md py-sm rounded-lg bg-primary text-on-primary disabled:opacity-50">确认</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FinanceWithdrawModal({ defaultAmount, onClose, onSubmit }: { defaultAmount: string; onClose: () => void; onSubmit: (amount: number, accountNo: string) => void }) {
+  const [amount, setAmount] = useState(defaultAmount);
+  const [accountNo, setAccountNo] = useState('对公账户 6222****8888');
+  const parsedAmount = Number(amount);
+  const canSubmit = Number.isFinite(parsedAmount) && parsedAmount > 0 && accountNo.trim().length > 0;
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
+        <h3 className="font-headline-sm text-headline-sm font-bold">申请提现</h3>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">提现金额</span>
+          <input value={amount} onChange={(event) => setAmount(event.target.value)} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" inputMode="decimal" />
+        </label>
+        <label className="block">
+          <span className="text-label-md font-label-md text-on-surface-variant">提现账户</span>
+          <input value={accountNo} onChange={(event) => setAccountNo(event.target.value)} className="mt-xs w-full rounded-lg border border-outline-variant bg-white/80 p-sm outline-none focus:border-primary" autoComplete="off" />
+        </label>
+        <div className="flex justify-end gap-sm">
+          <button onClick={onClose} className="liquid-button px-md py-sm rounded-lg border border-outline-variant">取消</button>
+          <button disabled={!canSubmit} onClick={() => onSubmit(parsedAmount, accountNo.trim())} className="liquid-button px-md py-sm rounded-lg bg-primary text-on-primary disabled:opacity-50">提交</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({ title, body, onCancel, onConfirm }: { title: string; body: React.ReactNode; onCancel: () => void; onConfirm: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg">
+      <div className="liquid-glass modal-surface rounded-2xl p-lg w-full max-w-lg space-y-md motion-enter">
+        <h3 className="font-headline-sm text-headline-sm font-bold">{title}</h3>
+        <div className="text-body-md text-on-surface-variant">{body}</div>
+        <div className="flex justify-end gap-sm">
+          <button onClick={onCancel} className="liquid-button px-md py-sm rounded-lg border border-outline-variant">取消</button>
+          <button onClick={onConfirm} className="liquid-button px-md py-sm rounded-lg bg-error text-on-error">确认删除</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function toDateTimeInput(value?: string) {
   if (!value) {
     return '';
@@ -164,6 +229,8 @@ export function MerchantModule({ type }: { type: string }) {
   const [activityForm, setActivityForm] = useState<ActivityFormState | null>(null);
   const [savingActivity, setSavingActivity] = useState(false);
   const [modal, setModal] = useState<{ title: string; body: React.ReactNode } | null>(null);
+  const [replyTarget, setReplyTarget] = useState<Review | null>(null);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
 
   const refreshMarketing = () => api.getMerchantMarketing().then(setMarketing).catch(() => setMarketing([]));
   const refreshWithdrawRecords = () => api.getMerchantWithdrawRecords().then(setWithdrawRecords).catch(() => setWithdrawRecords([]));
@@ -200,11 +267,15 @@ export function MerchantModule({ type }: { type: string }) {
   };
 
   if (type === 'reviews') {
-    const reply = (review: Review) => {
-      const content = window.prompt('回复内容', review.reply || '感谢支持，欢迎再次光临');
-      if (content) {
-        api.replyMerchantReview(review.id, content).then(() => api.getMerchantReviews().then(setReviews));
+    const reply = (review: Review) => setReplyTarget(review);
+    const submitReply = (content: string) => {
+      if (!replyTarget) {
+        return;
       }
+      api.replyMerchantReview(replyTarget.id, content)
+        .then(() => api.getMerchantReviews().then(setReviews))
+        .then(() => setReplyTarget(null))
+        .catch((err) => setModal({ title: '回复失败', body: err instanceof Error ? err.message : '评价回复失败' }));
     };
     return (
       <PageShell title="评价管理" desc="查看用户评价并及时回复。">
@@ -215,6 +286,7 @@ export function MerchantModule({ type }: { type: string }) {
           onEdit={reply}
         />
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
+        {replyTarget && <TextEntryModal title="回复评价" label="回复内容" defaultValue={replyTarget.reply || '感谢支持，欢迎再次光临'} multiline onClose={() => setReplyTarget(null)} onSubmit={submitReply} />}
       </PageShell>
     );
   }
@@ -235,20 +307,21 @@ export function MerchantModule({ type }: { type: string }) {
       { label: '待处理提现', value: money(pendingWithdrawAmount) },
       { label: '已提现金额', value: money(withdrawnAmount) },
     ];
-    const submitWithdraw = () => {
-      const amount = Number(window.prompt('提现金额', String(availableBalance.toFixed(2))));
+    const submitWithdraw = (amount: number, accountNo: string) => {
       if (!Number.isFinite(amount) || amount <= 0) {
         setModal({ title: '提现失败', body: '提现金额必须大于 0。' });
         return;
       }
-      const accountNo = window.prompt('提现账户', '对公账户 6222****8888') || '';
       api.merchantWithdraw(amount, accountNo)
         .then(() => refreshWithdrawRecords())
-        .then(() => setModal({ title: '提现申请已提交', body: '提现申请已写入数据库并刷新记录。' }))
+        .then(() => {
+          setWithdrawOpen(false);
+          setModal({ title: '提现申请已提交', body: '提现申请已写入数据库并刷新记录。' });
+        })
         .catch((err) => setModal({ title: '提现失败', body: err instanceof Error ? err.message : '提现申请提交失败' }));
     };
     return (
-      <PageShell title="财务结算" desc="统计真实营业收入、订单和退款数据。" action="申请提现" onAction={submitWithdraw}>
+      <PageShell title="财务结算" desc="统计真实营业收入、订单和退款数据。" action="申请提现" onAction={() => setWithdrawOpen(true)}>
         <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-md stagger-children">
           {financeCards.map((item) => (
             <div key={item.label} className="liquid-card motion-border-glow rounded-xl p-md">
@@ -281,6 +354,7 @@ export function MerchantModule({ type }: { type: string }) {
           )}
         </section>
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
+        {withdrawOpen && <FinanceWithdrawModal defaultAmount={availableBalance.toFixed(2)} onClose={() => setWithdrawOpen(false)} onSubmit={submitWithdraw} />}
       </PageShell>
     );
   }
@@ -307,6 +381,7 @@ export function AdminModule({ type }: { type: string }) {
   const [activityForm, setActivityForm] = useState<ActivityFormState | null>(null);
   const [savingActivity, setSavingActivity] = useState(false);
   const [modal, setModal] = useState<{ title: string; body: React.ReactNode } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MarketingActivity | null>(null);
   const shownOrders = useMemo(() => statusFilter === '全部' ? orders : orders.filter((order) => order.status === statusFilter), [orders, statusFilter]);
   const statuses = useMemo(() => ['全部', ...Array.from(new Set(orders.map((order) => order.status)))], [orders]);
 
@@ -362,12 +437,17 @@ export function AdminModule({ type }: { type: string }) {
   };
 
   const deleteAdminActivity = (activity: MarketingActivity) => {
-    if (!window.confirm(`确认删除活动：${activity.name}？`)) {
-      return;
-    }
-    api.adminDelete('marketing', activity.id)
+    setDeleteTarget(activity);
+  };
+
+  const confirmDeleteAdminActivity = () => {
+    if (!deleteTarget) return;
+    api.adminDelete('marketing', deleteTarget.id)
       .then(() => refreshMarketing())
-      .then(() => setModal({ title: '活动已删除', body: '活动已删除并刷新列表。' }))
+      .then(() => {
+        setDeleteTarget(null);
+        setModal({ title: '活动已删除', body: '活动已删除并刷新列表。' });
+      })
       .catch((err) => setModal({ title: '删除失败', body: err instanceof Error ? err.message : '营销活动删除失败' }));
   };
 
@@ -417,6 +497,7 @@ export function AdminModule({ type }: { type: string }) {
         />
         {activityForm && <ActivityFormModal title={activityForm.id ? '编辑活动' : '新建活动'} form={activityForm} saving={savingActivity} onChange={setActivityForm} onSave={saveAdminActivity} onClose={() => setActivityForm(null)} />}
         {modal && <SimpleModal title={modal.title} body={modal.body} onClose={() => setModal(null)} />}
+        {deleteTarget && <ConfirmModal title="删除活动" body={`确认删除活动：${deleteTarget.name}？此操作会同步到后台营销配置。`} onCancel={() => setDeleteTarget(null)} onConfirm={confirmDeleteAdminActivity} />}
       </PageShell>
     );
   }

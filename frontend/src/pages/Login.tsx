@@ -97,11 +97,28 @@ function LoginCard({ role, setRole, back }: { role: Role; setRole: (role: string
         <div className="space-y-md">
           <div className="relative flex items-center h-14 bg-surface-container-lowest rounded-full px-md border border-outline-variant focus-within:border-primary-container focus-within:ring-2 focus-within:ring-primary-container/20 shadow-sm">
             <span className="material-symbols-outlined text-on-surface-variant mr-sm">smartphone</span>
-            <input value={phone} onChange={(event) => setPhone(event.target.value)} className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full" placeholder="请输入手机号" type="tel" />
+            <input
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full"
+              placeholder="请输入手机号"
+              type="tel"
+              inputMode="numeric"
+              autoComplete="tel"
+              aria-label="手机号"
+            />
           </div>
           <div className="relative flex items-center h-14 bg-surface-container-lowest rounded-full px-md border border-outline-variant shadow-sm">
             <span className="material-symbols-outlined text-on-surface-variant mr-sm">lock</span>
-            <input value={password} onChange={(event) => setPassword(event.target.value)} className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full" placeholder="请输入密码" type="password" />
+            <input
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="flex-grow bg-transparent border-none p-0 font-body-lg text-body-lg text-on-surface outline-none h-full"
+              placeholder="请输入密码"
+              type="password"
+              autoComplete="current-password"
+              aria-label="密码"
+            />
           </div>
           {error && <div className="rounded-lg bg-error-container text-on-error-container px-md py-sm text-body-md">{error}</div>}
           <button onClick={submit} disabled={loading} className="liquid-button w-full h-14 bg-primary text-on-primary rounded-lg font-headline-sm text-headline-sm shadow-[0_12px_24px_rgba(37,99,235,0.18)] hover:bg-primary/90 active:scale-[0.98] transition-all disabled:opacity-60">

@@ -5,16 +5,19 @@ import { dishes } from '../mock/data';
 export default function Cart({ onCheckout, onSearch, onMessage, onMerchant }: { onCheckout?: () => void; onSearch?: () => void; onMessage?: () => void; onMerchant?: (merchantId?: number) => void }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
   const subtotal = useMemo(() => items.reduce((sum, item) => sum + item.price * item.quantity, 0), [items]);
   const cartMerchant = items.find((item) => item.merchantId || item.merchantName);
   const deliveryFee = items.length > 0 ? 1.5 : 0;
   const total = subtotal + deliveryFee;
 
   const refresh = () => {
+    setLoading(true);
     api
       .getCart()
       .then(setItems)
-      .catch((err) => setError(err instanceof Error ? err.message : '购物车加载失败'));
+      .catch((err) => setError(err instanceof Error ? err.message : '购物车加载失败'))
+      .finally(() => setLoading(false));
   };
 
   useEffect(() => {
@@ -60,8 +63,18 @@ export default function Cart({ onCheckout, onSearch, onMessage, onMerchant }: { 
           </div>
 
           <div className="flex flex-col gap-md pt-sm stagger-children">
-            {items.length === 0 && <p className="text-body-md text-on-surface-variant py-md">购物车还是空的</p>}
-            {items.map((item) => (
+            {loading && [...Array(2)].map((_, index) => (
+              <div key={index} className="liquid-card flex gap-sm items-start rounded-lg p-sm animate-pulse">
+                <div className="w-20 h-20 rounded-lg bg-outline-variant/40 shrink-0" />
+                <div className="flex-1">
+                  <div className="h-5 w-32 rounded bg-outline-variant/40" />
+                  <div className="mt-sm h-3 w-24 rounded bg-outline-variant/30" />
+                  <div className="mt-lg h-4 w-full rounded bg-outline-variant/30" />
+                </div>
+              </div>
+            ))}
+            {!loading && items.length === 0 && <p className="text-body-md text-on-surface-variant py-md">购物车还是空的</p>}
+            {!loading && items.map((item) => (
               <div key={item.dishId} className="liquid-card flex gap-sm items-start rounded-lg p-sm">
                 <div className="w-20 h-20 rounded-lg bg-surface-container overflow-hidden shrink-0 shadow-sm">
                   <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url('${dishes.find((dish) => dish.id === item.dishId)?.image || dishes[0].image}')` }}></div>
