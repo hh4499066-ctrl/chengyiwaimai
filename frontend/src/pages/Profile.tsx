@@ -1,5 +1,24 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { api, type CustomerProfile } from '../api/client';
 import { notify } from '../utils/toast';
+
+const fallbackProfile: CustomerProfile = {
+  userId: 0,
+  nickname: '橙意用户',
+  phone: '',
+  balance: 128.5,
+  points: 3450,
+  balanceLabel: '演示余额',
+  pointsLabel: '演示积分',
+};
+
+function maskPhone(phone: string) {
+  const value = phone.trim();
+  if (value.length < 7) {
+    return value || '未绑定手机号';
+  }
+  return `${value.slice(0, 3)}****${value.slice(-4)}`;
+}
 
 export default function Profile({
   onLogout,
@@ -21,6 +40,30 @@ export default function Profile({
   onCart?: () => void;
 }) {
   const tip = notify;
+  const [profile, setProfile] = useState<CustomerProfile>(fallbackProfile);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getCustomerProfile()
+      .then((data) => {
+        if (mounted) {
+          setProfile({ ...fallbackProfile, ...data });
+        }
+      })
+      .catch(() => {
+        if (mounted) {
+          setProfile(fallbackProfile);
+        }
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const displayName = profile.nickname || fallbackProfile.nickname;
+  const displayPhone = maskPhone(profile.phone);
+  const balanceText = Number(profile.balance ?? 0).toFixed(1).replace(/\.0$/, '');
+  const pointsText = String(profile.points ?? 0);
   return (
     <div className="liquid-stage bg-surface text-on-surface font-body-md min-h-screen pb-[100px] md:bg-surface-container-low relative overflow-hidden">
       {/* TopAppBar Shared Component */}
@@ -43,14 +86,14 @@ export default function Profile({
       {/* Main Canvas */}
       <main className="max-w-[600px] mx-auto pt-[72px] md:pt-xl px-md flex flex-col gap-xl">
         {/* User Profile Header */}
-        <section onClick={() => tip('用户：mONESY，手机：138****5678')} className="liquid-card motion-enter flex items-center gap-md p-md rounded-xl cursor-pointer active:scale-[0.98] transition-transform">
+        <section onClick={() => tip(`用户：${displayName}，手机：${displayPhone}`)} className="liquid-card motion-enter flex items-center gap-md p-md rounded-xl cursor-pointer active:scale-[0.98] transition-transform">
           <div className="w-[72px] h-[72px] rounded-full overflow-hidden bg-surface-variant shrink-0 border-2 border-surface">
             <img alt="用户头像" className="w-full h-full object-cover" src="/user-avatar.jpg" />
           </div>
           <div className="flex-grow flex flex-col justify-center">
-            <h1 className="gold-sparkle-text font-headline-sm text-headline-sm font-bold">mONESY</h1>
+            <h1 className="gold-sparkle-text font-headline-sm text-headline-sm font-bold">{displayName}</h1>
             <div className="flex items-center gap-xs mt-xs">
-              <span className="font-body-md text-body-md text-on-surface-variant">138****5678</span>
+              <span className="font-body-md text-body-md text-on-surface-variant">{displayPhone}</span>
               <span className="material-symbols-outlined text-secondary text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
             </div>
           </div>
@@ -59,8 +102,8 @@ export default function Profile({
 
         {/* Data Overview Bento Grid */}
         <section className="grid grid-cols-3 gap-sm stagger-children">
-          <button onClick={() => tip('账户余额可用于模拟支付，演示环境不产生真实扣款。')} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
-            <span className="font-headline-md text-headline-md text-primary font-bold">128.5</span>
+          <button onClick={() => tip(`${profile.balanceLabel || '演示余额'}可用于模拟支付，演示环境不产生真实扣款。`)} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
+            <span className="font-headline-md text-headline-md text-primary font-bold">{balanceText}</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">账户余额(元)</span>
           </button>
           <button onClick={goCoupons} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer relative overflow-hidden">
@@ -68,8 +111,8 @@ export default function Profile({
             <span className="font-headline-md text-headline-md text-primary font-bold">5</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">优惠券(张)</span>
           </button>
-          <button onClick={() => tip('积分可用于兑换优惠券，当前演示积分 3450。')} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
-            <span className="font-headline-md text-headline-md text-primary font-bold">3450</span>
+          <button onClick={() => tip(`${profile.pointsLabel || '演示积分'}：${pointsText}`)} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
+            <span className="font-headline-md text-headline-md text-primary font-bold">{pointsText}</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">积分</span>
           </button>
         </section>

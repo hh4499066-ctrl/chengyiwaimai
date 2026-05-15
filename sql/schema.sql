@@ -179,9 +179,10 @@ CREATE TABLE IF NOT EXISTS marketing_activity (
 
 CREATE TABLE IF NOT EXISTS withdraw_record (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rider_id BIGINT NOT NULL,
-  owner_type VARCHAR(20) DEFAULT 'rider',
-  owner_id BIGINT,
+  rider_id BIGINT COMMENT '历史兼容字段，真实归属以 owner_type + owner_id 为准',
+  owner_type VARCHAR(20) NOT NULL DEFAULT 'rider' COMMENT 'rider,merchant',
+  owner_id BIGINT NOT NULL,
+  operator_user_id BIGINT COMMENT '提交提现的登录用户 ID',
   amount DECIMAL(10,2) NOT NULL,
   account_no VARCHAR(512) NOT NULL,
   status VARCHAR(20) DEFAULT 'submitted',

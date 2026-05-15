@@ -140,6 +140,25 @@ public class BusinessService {
                 .toList();
     }
 
+    public Map<String, Object> customerProfile(CurrentUser user) {
+        SysUserEntity entity = sysUserMapper.selectById(user.userId());
+        String nickname = entity != null && entity.getNickname() != null && !entity.getNickname().isBlank()
+                ? entity.getNickname()
+                : "橙意用户";
+        String phone = entity != null && entity.getPhone() != null && !entity.getPhone().isBlank()
+                ? entity.getPhone()
+                : user.phone();
+        return orderedMap(
+                "userId", user.userId(),
+                "nickname", nickname,
+                "phone", phone,
+                "balance", new BigDecimal("128.50"),
+                "points", 3450,
+                "balanceLabel", "演示余额",
+                "pointsLabel", "演示积分"
+        );
+    }
+
     public List<Dish> dishes(Long merchantId) {
         return dishMapper.selectList(Wrappers.<DishEntity>lambdaQuery()
                         .eq(DishEntity::getMerchantId, merchantId)
@@ -1012,13 +1031,16 @@ public class BusinessService {
         return grossIncome.subtract(occupiedWithdrawAmount).max(BigDecimal.ZERO);
     }
 
-    private Map<String, Object> createWithdrawRecord(String ownerType, Long ownerId, Long legacyRiderId, BigDecimal amount, String accountNo) {
+    private Map<String, Object> createWithdrawRecord(String ownerType, Long ownerId, Long operatorUserId, BigDecimal amount, String accountNo) {
         validateWithdrawAmount(amount);
         String trimmedAccountNo = requireWithdrawAccount(accountNo);
         WithdrawRecordEntity record = new WithdrawRecordEntity();
-        record.setRiderId(legacyRiderId);
         record.setOwnerType(ownerType);
         record.setOwnerId(ownerId);
+        record.setOperatorUserId(operatorUserId);
+        if ("rider".equals(ownerType)) {
+            record.setRiderId(ownerId);
+        }
         record.setAmount(amount);
         record.setAccountNo(sensitiveDataCrypto.encrypt(trimmedAccountNo));
         record.setStatus("submitted");
@@ -1041,10 +1063,12 @@ public class BusinessService {
 
     public List<Map<String, Object>> withdrawRecords(CurrentUser user) {
         return withdrawRecordMapper.selectList(Wrappers.<WithdrawRecordEntity>lambdaQuery()
-                        .eq(WithdrawRecordEntity::getRiderId, user.userId())
-                        .and(wrapper -> wrapper.isNull(WithdrawRecordEntity::getOwnerType)
-                                .or()
-                                .eq(WithdrawRecordEntity::getOwnerType, "rider"))
+                        .and(wrapper -> wrapper
+                                .eq(WithdrawRecordEntity::getOwnerType, "rider")
+                                .eq(WithdrawRecordEntity::getOwnerId, user.userId())
+                                .or(legacy -> legacy
+                                        .isNull(WithdrawRecordEntity::getOwnerType)
+                                        .eq(WithdrawRecordEntity::getRiderId, user.userId())))
                         .orderByDesc(WithdrawRecordEntity::getCreateTime))
                 .stream()
                 .map(this::withdrawRecordMap)
@@ -1068,6 +1092,7 @@ public class BusinessService {
                 "id", record.getId(),
                 "ownerType", record.getOwnerType() == null ? "rider" : record.getOwnerType(),
                 "ownerId", record.getOwnerId() == null ? record.getRiderId() : record.getOwnerId(),
+                "operatorUserId", record.getOperatorUserId(),
                 "amount", record.getAmount(),
                 "accountNo", accountNoMasked,
                 "accountNoMasked", accountNoMasked,

@@ -14,6 +14,7 @@ public class WithdrawRecordEntity {
     private Long riderId;
     private String ownerType;
     private Long ownerId;
+    private Long operatorUserId;
     private BigDecimal amount;
     private String accountNo;
     private String status;
@@ -50,6 +51,14 @@ public class WithdrawRecordEntity {
 
     public void setOwnerId(Long ownerId) {
         this.ownerId = ownerId;
+    }
+
+    public Long getOperatorUserId() {
+        return operatorUserId;
+    }
+
+    public void setOperatorUserId(Long operatorUserId) {
+        this.operatorUserId = operatorUserId;
     }
 
     public BigDecimal getAmount() {

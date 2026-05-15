@@ -1,5 +1,5 @@
-const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || '6d6a9b6c3af5e81e074cb45d10751e7d';
-const AMAP_SECURITY_JS_CODE = import.meta.env.VITE_AMAP_SECURITY_JS_CODE;
+const AMAP_KEY = (import.meta.env.VITE_AMAP_KEY || '6d6a9b6c3af5e81e074cb45d10751e7d').trim();
+const AMAP_SECURITY_JS_CODE = (import.meta.env.VITE_AMAP_SECURITY_JS_CODE || '').trim();
 
 type AMapGlobal = Record<string, any>;
 

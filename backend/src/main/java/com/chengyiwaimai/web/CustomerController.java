@@ -32,7 +32,7 @@ public class CustomerController {
     @GetMapping("/profile")
     public ApiResponse<Map<String, Object>> profile(HttpServletRequest request) {
         CurrentUser user = AuthContext.requireRole(request, "customer");
-        return ApiResponse.ok(Map.of("nickname", "橙意用户", "phone", user.phone(), "balance", 128.5, "points", 3450));
+        return ApiResponse.ok(store.customerProfile(user));
     }
 
     @GetMapping("/addresses")

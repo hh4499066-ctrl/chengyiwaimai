@@ -84,6 +84,16 @@ export type Coupon = {
   status: string;
 };
 
+export type CustomerProfile = {
+  userId: number;
+  nickname: string;
+  phone: string;
+  balance: number;
+  points: number;
+  balanceLabel?: string;
+  pointsLabel?: string;
+};
+
 export type Review = {
   id: number;
   orderId: string;
@@ -140,6 +150,7 @@ export type WithdrawRecord = {
   id: number;
   ownerType?: string;
   ownerId?: number;
+  operatorUserId?: number;
   amount: number;
   accountNo: string;
   accountNoMasked?: string;
@@ -227,6 +238,7 @@ export const api = {
     }),
   getMerchants: () => request<Merchant[]>('/merchants'),
   getDishes: (merchantId: number) => request<Dish[]>(`/merchants/${merchantId}/dishes`),
+  getCustomerProfile: () => request<CustomerProfile>('/customer/profile'),
   getCart: () => request<CartItem[]>('/customer/cart'),
   addCart: (payload: CartItem) =>
     request<CartItem>('/customer/cart', {

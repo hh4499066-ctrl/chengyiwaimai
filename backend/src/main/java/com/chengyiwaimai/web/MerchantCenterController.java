@@ -33,12 +33,12 @@ public class MerchantCenterController {
 
     @PostMapping("/apply")
     public ApiResponse<Map<String, Object>> apply(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("status", "pending", "message", "入驻申请已提交", "data", body));
+        return ApiResponse.ok(Map.of("status", "pending", "demo", true, "message", "入驻申请已提交，当前为演示流程", "data", body));
     }
 
     @GetMapping("/audit-status")
     public ApiResponse<Map<String, Object>> auditStatus() {
-        return ApiResponse.ok(Map.of("status", "approved", "message", "店铺审核已通过"));
+        return ApiResponse.ok(Map.of("status", "approved", "demo", true, "message", "店铺审核演示状态：已通过"));
     }
 
     @GetMapping("/workbench")
@@ -170,11 +170,11 @@ public class MerchantCenterController {
 
     @GetMapping("/profile")
     public ApiResponse<Map<String, Object>> profile() {
-        return ApiResponse.ok(Map.of("name", "老刘家招牌牛肉面", "phone", "020-88886666", "address", "学校东门美食街 12 号", "status", "营业中"));
+        return ApiResponse.ok(Map.of("name", "老刘家招牌牛肉面", "phone", "020-88886666", "address", "学校东门美食街 12 号", "status", "营业中", "demo", true));
     }
 
     @PostMapping("/profile")
     public ApiResponse<Map<String, Object>> saveProfile(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("saved", true, "profile", body));
+        return ApiResponse.ok(Map.of("saved", true, "demo", true, "profile", body));
     }
 }

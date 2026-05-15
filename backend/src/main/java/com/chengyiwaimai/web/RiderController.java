@@ -23,12 +23,12 @@ public class RiderController {
 
     @PostMapping("/certification")
     public ApiResponse<Map<String, Object>> certification(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("status", "pending", "message", "实名认证资料已提交", "data", body));
+        return ApiResponse.ok(Map.of("status", "pending", "demo", true, "message", "实名认证资料已提交，当前为演示流程", "data", body));
     }
 
     @GetMapping("/audit-status")
     public ApiResponse<Map<String, Object>> auditStatus() {
-        return ApiResponse.ok(Map.of("status", "approved", "message", "审核已通过，可开始接单"));
+        return ApiResponse.ok(Map.of("status", "approved", "demo", true, "message", "认证审核演示状态：已通过，可开始接单"));
     }
 
     @GetMapping("/lobby")
@@ -77,6 +77,6 @@ public class RiderController {
 
     @GetMapping("/level")
     public ApiResponse<Map<String, Object>> level() {
-        return ApiResponse.ok(Map.of("level", "黄金骑手", "score", 4.8, "nextLevelNeed", "再完成 58 单升级为铂金骑手"));
+        return ApiResponse.ok(Map.of("level", "黄金骑手", "score", 4.8, "nextLevelNeed", "再完成 58 单升级为铂金骑手", "demo", true));
     }
 }

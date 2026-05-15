@@ -33,7 +33,7 @@
 - 优惠券与支付：下单时校验优惠券启用状态、使用门槛和抵扣金额，支付方式保存到 `delivery_order.pay_method`。
 - 营销活动：平台和商家营销活动均落库，`marketing_activity` 使用 `(merchant_id, name)` 联合唯一约束，支持多商家同名活动且初始化脚本可重复执行。
 - 后台审核：商家审核更新 `merchant.audit_status`，骑手审核/用户启禁用更新 `sys_user.status`，操作后前端刷新列表。
-- 财务提现：骑手和商家提现统一写入 `withdraw_record`，通过 `owner_type/owner_id` 区分来源，可查询历史记录。
+- 财务提现：骑手和商家提现统一写入 `withdraw_record`，通过 `owner_type/owner_id` 区分真实归属，`operator_user_id` 记录提交提现的登录用户，`rider_id` 仅作为历史兼容字段保留。
 - 真实看板：后台顶部指标、近 30 天/近 7 天 GMV 趋势、商家成交榜、骑手完成榜均由数据库订单统计生成。
 
 ## 当前实现状态
