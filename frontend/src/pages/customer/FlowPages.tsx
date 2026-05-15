@@ -403,7 +403,8 @@ export function PayPage({ order, setOrder, go }: { order: Order | null; setOrder
         {[
           { key: 'wechat', label: '微信支付（模拟）' },
           { key: 'alipay', label: '支付宝（模拟）' },
-          { key: 'campus_card', label: '校园一卡通（模拟）' },
+          { key: 'campus_card', label: '校园一卡通' },
+          { key: 'balance', label: '余额支付' },
         ].map((item) => (
           <button key={item.key} onClick={() => setPayMethod(item.key)} className={`liquid-button w-full p-md rounded-2xl border flex items-center justify-between ${payMethod === item.key ? 'border-primary bg-primary/10 text-primary motion-pulse-ring' : 'liquid-card'}`}>
             <span className="font-body-lg">{item.label}</span>

@@ -364,10 +364,10 @@ export const api = {
   getAdminMerchants: () => request<AdminMerchant[]>('/admin/merchants'),
   getAdminRiders: () => request<AdminUser[]>('/admin/riders'),
   getAdminMarketing: () => request<MarketingActivity[]>('/admin/marketing'),
-  adminAudit: (module: 'merchants' | 'riders' | 'users', id: number, status: string) =>
+  adminAudit: (module: 'merchants' | 'riders' | 'users', id: number, status: string, rejectReason?: string) =>
     request<{ module: string; id: number; result: string }>(`/admin/${module}/${id}/audit`, {
       method: 'POST',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, rejectReason }),
     }),
   adminCreate: (module: string, body: Record<string, unknown>) =>
     request<Record<string, unknown>>(`/admin/${module}`, {

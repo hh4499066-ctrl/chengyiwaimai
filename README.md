@@ -67,12 +67,13 @@ mysql -uroot -p < sql/migration-20260512-auth-order-cart.sql
 mysql -uroot -p < sql/migration-20260513-review-fixes.sql
 mysql -uroot -p < sql/migration-20260514-funds-marketing-dashboard.sql
 mysql -uroot -p < sql/migration-20260515-withdraw-owner-cleanup.sql
+mysql -uroot -p < sql/migration-20260515-applications-wallet-points.sql
 mysql -uroot -p < sql/init.sql
 ```
 
 本轮迁移新增 `delivery_order.pay_method/coupon_id/discount_amount`、`dish_category`、`user_coupon`、`withdraw_record.owner_type/owner_id/operator_user_id`，并为 `marketing_activity` 增加 `merchant_id` 和 `(merchant_id, name)` 联合唯一键。`withdraw_record.rider_id` 仅保留为历史兼容字段，真实归属以 `owner_type + owner_id` 为准。删除营销活动时服务端会改写历史记录名称释放唯一键，后台看板统计索引也在 `migration-20260514-funds-marketing-dashboard.sql` 中补齐。优惠券抵扣、支付方式、商家/骑手提现和营销活动均以数据库记录为准。
 
-商家入驻申请、商家资料保存、骑手认证审核、骑手等级等少数接口仍为演示接口；核心订单、配送、优惠券、营业状态、营销活动、财务提现和后台启禁用流程已真实落库。
+商家入驻申请已写入 `merchant_application`，管理员审核通过后会创建或更新 `merchant`，驳回会保存 `reject_reason`。骑手实名认证写入 `rider_certification`，后台审核会同步认证状态和骑手账号接单状态。骑手等级按真实完成订单数计算。用户余额来自 `user_wallet`，积分来自 `user_points`；余额/校园卡支付会校验并扣减余额，支付成功后按消费金额向下取整增加积分。
 
 WebSocket 演示环境通过 query token 鉴权；生产环境建议改为短期票据、Cookie 或网关鉴权。后端不得打印完整 token。REST 接口仍只接受 Authorization Header，不能通过 `?token=` 认证。
 

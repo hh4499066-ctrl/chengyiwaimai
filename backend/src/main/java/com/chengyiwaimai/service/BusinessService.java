@@ -9,12 +9,16 @@ import com.chengyiwaimai.entity.DeliveryOrderEntity;
 import com.chengyiwaimai.entity.DishEntity;
 import com.chengyiwaimai.entity.CouponEntity;
 import com.chengyiwaimai.entity.MarketingActivityEntity;
+import com.chengyiwaimai.entity.MerchantApplicationEntity;
 import com.chengyiwaimai.entity.MerchantEntity;
 import com.chengyiwaimai.entity.OrderItemEntity;
 import com.chengyiwaimai.entity.ReviewEntity;
+import com.chengyiwaimai.entity.RiderCertificationEntity;
 import com.chengyiwaimai.entity.SysUserEntity;
 import com.chengyiwaimai.entity.UserCouponEntity;
 import com.chengyiwaimai.entity.UserAddressEntity;
+import com.chengyiwaimai.entity.UserPointsEntity;
+import com.chengyiwaimai.entity.UserWalletEntity;
 import com.chengyiwaimai.entity.WithdrawRecordEntity;
 import com.chengyiwaimai.mapper.CartItemMapper;
 import com.chengyiwaimai.mapper.CategoryMapper;
@@ -22,12 +26,16 @@ import com.chengyiwaimai.mapper.CouponMapper;
 import com.chengyiwaimai.mapper.DeliveryOrderMapper;
 import com.chengyiwaimai.mapper.DishMapper;
 import com.chengyiwaimai.mapper.MarketingActivityMapper;
+import com.chengyiwaimai.mapper.MerchantApplicationMapper;
 import com.chengyiwaimai.mapper.MerchantMapper;
 import com.chengyiwaimai.mapper.OrderItemMapper;
 import com.chengyiwaimai.mapper.ReviewMapper;
+import com.chengyiwaimai.mapper.RiderCertificationMapper;
 import com.chengyiwaimai.mapper.SysUserMapper;
 import com.chengyiwaimai.mapper.UserCouponMapper;
 import com.chengyiwaimai.mapper.UserAddressMapper;
+import com.chengyiwaimai.mapper.UserPointsMapper;
+import com.chengyiwaimai.mapper.UserWalletMapper;
 import com.chengyiwaimai.mapper.WithdrawRecordMapper;
 import com.chengyiwaimai.model.Models.Address;
 import com.chengyiwaimai.model.Models.CartItem;
@@ -93,6 +101,10 @@ public class BusinessService {
     private final SysUserMapper sysUserMapper;
     private final MarketingActivityMapper marketingActivityMapper;
     private final WithdrawRecordMapper withdrawRecordMapper;
+    private final MerchantApplicationMapper merchantApplicationMapper;
+    private final RiderCertificationMapper riderCertificationMapper;
+    private final UserWalletMapper userWalletMapper;
+    private final UserPointsMapper userPointsMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final SensitiveDataCrypto sensitiveDataCrypto;
 
@@ -110,6 +122,10 @@ public class BusinessService {
             SysUserMapper sysUserMapper,
             MarketingActivityMapper marketingActivityMapper,
             WithdrawRecordMapper withdrawRecordMapper,
+            MerchantApplicationMapper merchantApplicationMapper,
+            RiderCertificationMapper riderCertificationMapper,
+            UserWalletMapper userWalletMapper,
+            UserPointsMapper userPointsMapper,
             StringRedisTemplate stringRedisTemplate,
             SensitiveDataCrypto sensitiveDataCrypto
     ) {
@@ -126,6 +142,10 @@ public class BusinessService {
         this.sysUserMapper = sysUserMapper;
         this.marketingActivityMapper = marketingActivityMapper;
         this.withdrawRecordMapper = withdrawRecordMapper;
+        this.merchantApplicationMapper = merchantApplicationMapper;
+        this.riderCertificationMapper = riderCertificationMapper;
+        this.userWalletMapper = userWalletMapper;
+        this.userPointsMapper = userPointsMapper;
         this.stringRedisTemplate = stringRedisTemplate;
         this.sensitiveDataCrypto = sensitiveDataCrypto;
     }
@@ -148,14 +168,137 @@ public class BusinessService {
         String phone = entity != null && entity.getPhone() != null && !entity.getPhone().isBlank()
                 ? entity.getPhone()
                 : user.phone();
+        UserWalletEntity wallet = ensureWallet(user.userId());
+        UserPointsEntity points = ensurePoints(user.userId());
         return orderedMap(
                 "userId", user.userId(),
                 "nickname", nickname,
                 "phone", phone,
-                "balance", new BigDecimal("128.50"),
-                "points", 3450,
-                "balanceLabel", "演示余额",
-                "pointsLabel", "演示积分"
+                "balance", money(wallet.getBalance()),
+                "points", points.getPoints() == null ? 0 : points.getPoints(),
+                "balanceLabel", "账户余额",
+                "pointsLabel", "账户积分"
+        );
+    }
+
+    @Transactional
+    public Map<String, Object> merchantApply(CurrentUser user, Map<String, Object> body) {
+        String merchantName = requireText(body, "merchantName", "商家名称不能为空");
+        String contactName = requireText(body, "contactName", "联系人不能为空");
+        String contactPhone = requireText(body, "contactPhone", "联系电话不能为空");
+        String address = requireText(body, "address", "地址不能为空");
+        Long pending = merchantApplicationMapper.selectCount(Wrappers.<MerchantApplicationEntity>lambdaQuery()
+                .eq(MerchantApplicationEntity::getUserId, user.userId())
+                .eq(MerchantApplicationEntity::getAuditStatus, "pending"));
+        if (pending != null && pending > 0) {
+            throw new BizException("已有待审核入驻申请，请勿重复提交");
+        }
+        MerchantApplicationEntity application = new MerchantApplicationEntity();
+        application.setUserId(user.userId());
+        application.setMerchantName(merchantName);
+        application.setContactName(contactName);
+        application.setContactPhone(contactPhone);
+        application.setAddress(address);
+        application.setCategory(optionalText(body, "category"));
+        application.setLicenseUrl(optionalText(body, "licenseUrl"));
+        application.setFoodLicenseUrl(optionalText(body, "foodLicenseUrl"));
+        application.setAuditStatus("pending");
+        merchantApplicationMapper.insert(application);
+        return merchantApplicationMap(application);
+    }
+
+    public Map<String, Object> merchantAuditStatus(CurrentUser user) {
+        MerchantApplicationEntity application = latestMerchantApplication(user.userId());
+        if (application == null) {
+            return orderedMap("status", "not_submitted", "auditStatus", "not_submitted");
+        }
+        return orderedMap(
+                "status", application.getAuditStatus(),
+                "auditStatus", application.getAuditStatus(),
+                "rejectReason", application.getRejectReason() == null ? "" : application.getRejectReason(),
+                "submitTime", application.getCreateTime(),
+                "application", merchantApplicationMap(application)
+        );
+    }
+
+    public Map<String, Object> merchantProfile(CurrentUser user) {
+        MerchantEntity merchant = merchantMapper.selectOne(Wrappers.<MerchantEntity>lambdaQuery()
+                .eq(MerchantEntity::getUserId, user.userId())
+                .last("limit 1"));
+        if (merchant == null) {
+            return orderedMap(
+                    "hasMerchant", false,
+                    "status", "not_created",
+                    "message", "请先完成入驻申请"
+            );
+        }
+        return merchantProfileMap(merchant);
+    }
+
+    public Map<String, Object> saveMerchantProfile(CurrentUser user, Map<String, Object> body) {
+        MerchantEntity merchant = requireMerchant(user);
+        MerchantEntity update = new MerchantEntity();
+        update.setId(merchant.getId());
+        String name = firstText(body, "name", "merchantName", "storeName");
+        if (name != null) {
+            update.setName(name);
+        }
+        String phone = firstText(body, "phone", "contactPhone");
+        if (phone != null) {
+            update.setPhone(phone);
+        }
+        String address = optionalText(body, "address");
+        if (address != null) {
+            update.setAddress(address);
+        }
+        String category = optionalText(body, "category");
+        if (category != null) {
+            update.setCategory(category);
+        }
+        String notice = firstText(body, "notice", "announcement");
+        if (notice != null) {
+            update.setNotice(notice);
+        }
+        merchantMapper.updateById(update);
+        return merchantProfileMap(merchantMapper.selectById(merchant.getId()));
+    }
+
+    @Transactional
+    public Map<String, Object> riderCertification(CurrentUser user, Map<String, Object> body) {
+        String realName = requireText(body, "realName", "姓名不能为空");
+        String phone = requireText(body, "phone", "手机号不能为空");
+        String idCard = requireText(body, "idCard", "身份证号不能为空");
+        String vehicleType = requireText(body, "vehicleType", "交通工具类型不能为空");
+        Long pending = riderCertificationMapper.selectCount(Wrappers.<RiderCertificationEntity>lambdaQuery()
+                .eq(RiderCertificationEntity::getUserId, user.userId())
+                .eq(RiderCertificationEntity::getAuditStatus, "pending"));
+        if (pending != null && pending > 0) {
+            throw new BizException("已有待审核骑手认证，请勿重复提交");
+        }
+        RiderCertificationEntity certification = new RiderCertificationEntity();
+        certification.setUserId(user.userId());
+        certification.setRealName(realName);
+        certification.setPhone(phone);
+        certification.setIdCard(idCard);
+        certification.setVehicleType(vehicleType);
+        certification.setIdCardFrontUrl(optionalText(body, "idCardFrontUrl"));
+        certification.setIdCardBackUrl(optionalText(body, "idCardBackUrl"));
+        certification.setAuditStatus("pending");
+        riderCertificationMapper.insert(certification);
+        return riderCertificationMap(certification);
+    }
+
+    public Map<String, Object> riderAuditStatus(CurrentUser user) {
+        RiderCertificationEntity certification = latestRiderCertification(user.userId());
+        if (certification == null) {
+            return orderedMap("status", "not_submitted", "auditStatus", "not_submitted");
+        }
+        return orderedMap(
+                "status", certification.getAuditStatus(),
+                "auditStatus", certification.getAuditStatus(),
+                "rejectReason", certification.getRejectReason() == null ? "" : certification.getRejectReason(),
+                "submitTime", certification.getCreateTime(),
+                "certification", riderCertificationMap(certification)
         );
     }
 
@@ -371,20 +514,34 @@ public class BusinessService {
         return toOrder(order, merchant.getName());
     }
 
+    @Transactional
     public Order payOrder(CurrentUser user, String orderId, String payMethod) {
         DeliveryOrderEntity order = requireOrder(orderId);
         if (!user.userId().equals(order.getUserId())) {
             throw new BizException(403, "无权操作该订单");
         }
+        String normalizedPayMethod = normalizePayMethod(payMethod);
+        if ("campus_card".equals(normalizedPayMethod) || "balance".equals(normalizedPayMethod)) {
+            ensureWallet(user.userId());
+            int walletRows = userWalletMapper.deductBalance(user.userId(), money(order.getTotalAmount()));
+            if (walletRows != 1) {
+                throw new BizException("账户余额不足，无法完成支付");
+            }
+        }
+        int rewardPoints = money(order.getTotalAmount()).setScale(0, RoundingMode.DOWN).intValue();
+        ensurePoints(user.userId());
         DeliveryOrderEntity update = new DeliveryOrderEntity();
         update.setStatus(WAIT_MERCHANT_ACCEPT);
-        update.setPayMethod(normalizePayMethod(payMethod));
+        update.setPayMethod(normalizedPayMethod);
         int rows = deliveryOrderMapper.update(update, Wrappers.<DeliveryOrderEntity>lambdaUpdate()
                 .eq(DeliveryOrderEntity::getStatus, WAIT_PAY)
                 .eq(DeliveryOrderEntity::getId, orderId)
                 .eq(DeliveryOrderEntity::getUserId, user.userId()));
         if (rows != 1) {
             throw new BizException("订单状态已变化，请刷新");
+        }
+        if (rewardPoints > 0) {
+            userPointsMapper.addPoints(user.userId(), rewardPoints);
         }
         return toOrder(deliveryOrderMapper.selectById(orderId));
     }
@@ -834,14 +991,47 @@ public class BusinessService {
         Long totalCompleted = deliveryOrderMapper.selectCount(Wrappers.<DeliveryOrderEntity>lambdaQuery()
                 .eq(DeliveryOrderEntity::getRiderId, user.userId())
                 .eq(DeliveryOrderEntity::getStatus, COMPLETED));
+        Map<String, Object> level = riderLevel(user);
         return Map.of(
                 "todayIncome", BigDecimal.valueOf(todayCompleted.size()).multiply(RIDER_ORDER_INCOME),
                 "todayOrders", todayCompleted.size(),
                 "totalIncome", BigDecimal.valueOf(totalCompleted).multiply(RIDER_ORDER_INCOME),
                 "totalOrders", totalCompleted,
-                "level", "黄金骑手",
-                "score", "4.8",
+                "level", level.get("level"),
+                "score", level.get("score"),
                 "onTimeRate", "99.8%"
+        );
+    }
+
+    public Map<String, Object> riderLevel(CurrentUser user) {
+        long completedOrders = count(deliveryOrderMapper.countRiderCompletedOrders(user.userId(), COMPLETED));
+        String level;
+        long nextThreshold;
+        if (completedOrders < 10) {
+            level = "新手骑手";
+            nextThreshold = 10;
+        } else if (completedOrders < 50) {
+            level = "青铜骑手";
+            nextThreshold = 50;
+        } else if (completedOrders < 100) {
+            level = "白银骑手";
+            nextThreshold = 100;
+        } else if (completedOrders < 200) {
+            level = "黄金骑手";
+            nextThreshold = 200;
+        } else {
+            level = "铂金骑手";
+            nextThreshold = completedOrders;
+        }
+        long nextLevelNeed = completedOrders >= 200 ? 0 : nextThreshold - completedOrders;
+        int progressPercent = completedOrders >= 200 ? 100 : (int) Math.min(100, Math.floor(completedOrders * 100.0 / nextThreshold));
+        return orderedMap(
+                "level", level,
+                "score", BigDecimal.valueOf(4.8),
+                "scoreNote", "暂无独立评价体系时默认使用 4.8，后续可接入订单评价均分",
+                "completedOrders", completedOrders,
+                "nextLevelNeed", nextLevelNeed,
+                "progressPercent", progressPercent
         );
     }
 
@@ -910,28 +1100,63 @@ public class BusinessService {
                         .eq(SysUserEntity::getRole, "rider")
                         .orderByDesc(SysUserEntity::getCreateTime))
                 .stream()
-                .map(user -> Map.<String, Object>of(
-                        "id", user.getId(),
-                        "name", user.getNickname() == null ? "" : user.getNickname(),
-                        "phone", user.getPhone(),
-                        "level", "黄金骑手",
-                        "status", user.getStatus() != null && user.getStatus() == 1 ? "正常" : "禁用"
-                ))
+                .map(user -> {
+                    RiderCertificationEntity certification = latestRiderCertification(user.getId());
+                    Map<String, Object> level = riderLevel(new CurrentUser(user.getId(), user.getPhone(), "rider"));
+                    return orderedMap(
+                            "id", user.getId(),
+                            "name", certification != null && certification.getRealName() != null ? certification.getRealName() : (user.getNickname() == null ? "" : user.getNickname()),
+                            "phone", certification != null && certification.getPhone() != null ? certification.getPhone() : user.getPhone(),
+                            "role", user.getRole(),
+                            "level", level.get("level"),
+                            "completedOrders", level.get("completedOrders"),
+                            "status", certification == null ? "not_submitted" : certification.getAuditStatus(),
+                            "auditStatus", certification == null ? "not_submitted" : certification.getAuditStatus(),
+                            "rejectReason", certification == null || certification.getRejectReason() == null ? "" : certification.getRejectReason(),
+                            "idCard", certification == null ? "" : maskIdCard(certification.getIdCard()),
+                            "vehicleType", certification == null || certification.getVehicleType() == null ? "" : certification.getVehicleType()
+                    );
+                })
                 .toList();
     }
 
     public List<Map<String, Object>> adminMerchants() {
-        return merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery().orderByDesc(MerchantEntity::getCreateTime))
+        List<Map<String, Object>> applications = merchantApplicationMapper.selectList(Wrappers.<MerchantApplicationEntity>lambdaQuery()
+                        .orderByDesc(MerchantApplicationEntity::getCreateTime))
                 .stream()
-                .map(merchant -> Map.<String, Object>of(
-                        "id", merchant.getId(),
+                .map(application -> orderedMap(
+                        "id", application.getId(),
+                        "applicationId", application.getId(),
+                        "userId", application.getUserId(),
+                        "name", application.getMerchantName() == null ? "" : application.getMerchantName(),
+                        "category", application.getCategory() == null ? "" : application.getCategory(),
+                        "phone", application.getContactPhone() == null ? "" : application.getContactPhone(),
+                        "address", application.getAddress() == null ? "" : application.getAddress(),
+                        "contactName", application.getContactName() == null ? "" : application.getContactName(),
+                        "auditStatus", application.getAuditStatus() == null ? "" : application.getAuditStatus(),
+                        "rejectReason", application.getRejectReason() == null ? "" : application.getRejectReason(),
+                        "businessStatus", "",
+                        "source", "merchant_application"
+                ))
+                .toList();
+        List<Map<String, Object>> merchants = merchantMapper.selectList(Wrappers.<MerchantEntity>lambdaQuery().orderByDesc(MerchantEntity::getCreateTime))
+                .stream()
+                .filter(merchant -> latestMerchantApplication(merchant.getUserId()) == null)
+                .map(merchant -> orderedMap(
+                        "id", -merchant.getId(),
+                        "merchantId", merchant.getId(),
+                        "userId", merchant.getUserId(),
                         "name", merchant.getName() == null ? "" : merchant.getName(),
                         "category", merchant.getCategory() == null ? "" : merchant.getCategory(),
                         "phone", merchant.getPhone() == null ? "" : merchant.getPhone(),
                         "address", merchant.getAddress() == null ? "" : merchant.getAddress(),
                         "auditStatus", merchant.getAuditStatus() == null ? "" : merchant.getAuditStatus(),
-                        "businessStatus", merchant.getBusinessStatus() == null ? "" : merchant.getBusinessStatus()
+                        "businessStatus", merchant.getBusinessStatus() == null ? "" : merchant.getBusinessStatus(),
+                        "source", "merchant"
                 ))
+                .toList();
+        return IntStream.range(0, applications.size() + merchants.size())
+                .mapToObj(index -> index < applications.size() ? applications.get(index) : merchants.get(index - applications.size()))
                 .toList();
     }
 
@@ -1205,9 +1430,195 @@ public class BusinessService {
         return result;
     }
 
+    private UserWalletEntity ensureWallet(Long userId) {
+        userWalletMapper.ensureWallet(userId, BigDecimal.ZERO);
+        return userWalletMapper.selectOne(Wrappers.<UserWalletEntity>lambdaQuery()
+                .eq(UserWalletEntity::getUserId, userId)
+                .last("limit 1"));
+    }
+
+    private UserPointsEntity ensurePoints(Long userId) {
+        userPointsMapper.ensurePoints(userId, 0);
+        return userPointsMapper.selectOne(Wrappers.<UserPointsEntity>lambdaQuery()
+                .eq(UserPointsEntity::getUserId, userId)
+                .last("limit 1"));
+    }
+
+    private MerchantApplicationEntity latestMerchantApplication(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return merchantApplicationMapper.selectOne(Wrappers.<MerchantApplicationEntity>lambdaQuery()
+                .eq(MerchantApplicationEntity::getUserId, userId)
+                .orderByDesc(MerchantApplicationEntity::getCreateTime)
+                .orderByDesc(MerchantApplicationEntity::getId)
+                .last("limit 1"));
+    }
+
+    private RiderCertificationEntity latestRiderCertification(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        return riderCertificationMapper.selectOne(Wrappers.<RiderCertificationEntity>lambdaQuery()
+                .eq(RiderCertificationEntity::getUserId, userId)
+                .orderByDesc(RiderCertificationEntity::getCreateTime)
+                .orderByDesc(RiderCertificationEntity::getId)
+                .last("limit 1"));
+    }
+
+    private Map<String, Object> merchantApplicationMap(MerchantApplicationEntity application) {
+        return orderedMap(
+                "id", application.getId(),
+                "userId", application.getUserId(),
+                "merchantName", application.getMerchantName(),
+                "contactName", application.getContactName(),
+                "contactPhone", application.getContactPhone(),
+                "address", application.getAddress(),
+                "category", application.getCategory() == null ? "" : application.getCategory(),
+                "licenseUrl", application.getLicenseUrl() == null ? "" : application.getLicenseUrl(),
+                "foodLicenseUrl", application.getFoodLicenseUrl() == null ? "" : application.getFoodLicenseUrl(),
+                "auditStatus", application.getAuditStatus(),
+                "rejectReason", application.getRejectReason() == null ? "" : application.getRejectReason(),
+                "submitTime", application.getCreateTime(),
+                "createTime", application.getCreateTime(),
+                "updateTime", application.getUpdateTime()
+        );
+    }
+
+    private Map<String, Object> riderCertificationMap(RiderCertificationEntity certification) {
+        return orderedMap(
+                "id", certification.getId(),
+                "userId", certification.getUserId(),
+                "realName", certification.getRealName(),
+                "phone", certification.getPhone(),
+                "idCard", maskIdCard(certification.getIdCard()),
+                "vehicleType", certification.getVehicleType(),
+                "idCardFrontUrl", certification.getIdCardFrontUrl() == null ? "" : certification.getIdCardFrontUrl(),
+                "idCardBackUrl", certification.getIdCardBackUrl() == null ? "" : certification.getIdCardBackUrl(),
+                "auditStatus", certification.getAuditStatus(),
+                "rejectReason", certification.getRejectReason() == null ? "" : certification.getRejectReason(),
+                "submitTime", certification.getCreateTime(),
+                "createTime", certification.getCreateTime(),
+                "updateTime", certification.getUpdateTime()
+        );
+    }
+
+    private Map<String, Object> merchantProfileMap(MerchantEntity merchant) {
+        return orderedMap(
+                "hasMerchant", true,
+                "id", merchant.getId(),
+                "userId", merchant.getUserId(),
+                "name", merchant.getName() == null ? "" : merchant.getName(),
+                "merchantName", merchant.getName() == null ? "" : merchant.getName(),
+                "phone", merchant.getPhone() == null ? "" : merchant.getPhone(),
+                "address", merchant.getAddress() == null ? "" : merchant.getAddress(),
+                "status", merchant.getBusinessStatus() == null ? "open" : merchant.getBusinessStatus(),
+                "businessStatus", merchant.getBusinessStatus() == null ? "open" : merchant.getBusinessStatus(),
+                "rating", merchant.getRating() == null ? BigDecimal.ZERO : merchant.getRating(),
+                "category", merchant.getCategory() == null ? "" : merchant.getCategory(),
+                "notice", merchant.getNotice() == null ? "" : merchant.getNotice(),
+                "auditStatus", merchant.getAuditStatus() == null ? "" : merchant.getAuditStatus()
+        );
+    }
+
+    private void upsertMerchantFromApplication(MerchantApplicationEntity application) {
+        MerchantEntity merchant = merchantMapper.selectOne(Wrappers.<MerchantEntity>lambdaQuery()
+                .eq(MerchantEntity::getUserId, application.getUserId())
+                .last("limit 1"));
+        if (merchant == null) {
+            merchant = new MerchantEntity();
+            merchant.setUserId(application.getUserId());
+            merchant.setName(application.getMerchantName());
+            merchant.setCategory(application.getCategory());
+            merchant.setPhone(application.getContactPhone());
+            merchant.setAddress(application.getAddress());
+            merchant.setAuditStatus("approved");
+            merchant.setBusinessStatus("open");
+            merchant.setRating(new BigDecimal("5.0"));
+            merchantMapper.insert(merchant);
+            return;
+        }
+        MerchantEntity update = new MerchantEntity();
+        update.setId(merchant.getId());
+        update.setName(application.getMerchantName());
+        update.setCategory(application.getCategory());
+        update.setPhone(application.getContactPhone());
+        update.setAddress(application.getAddress());
+        update.setAuditStatus("approved");
+        merchantMapper.updateById(update);
+    }
+
+    private String requireText(Map<String, Object> body, String key, String message) {
+        String value = optionalText(body, key);
+        if (value == null) {
+            throw new BizException(message);
+        }
+        return value;
+    }
+
+    private String optionalText(Map<String, Object> body, String key) {
+        if (body == null || body.get(key) == null) {
+            return null;
+        }
+        String value = String.valueOf(body.get(key)).trim();
+        return value.isBlank() ? null : value;
+    }
+
+    private String firstText(Map<String, Object> body, String... keys) {
+        for (String key : keys) {
+            String value = optionalText(body, key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String maskIdCard(String idCard) {
+        if (idCard == null || idCard.isBlank()) {
+            return "";
+        }
+        String value = idCard.trim();
+        if (value.length() <= 8) {
+            return "****";
+        }
+        return value.substring(0, 4) + "**********" + value.substring(value.length() - 4);
+    }
+
+    private String defaultRejectReason(String rejectReason) {
+        return rejectReason == null || rejectReason.isBlank() ? "审核未通过，请补充资料后重新提交" : rejectReason.trim();
+    }
+
     public Map<String, Object> adminAudit(String module, Long id, String status) {
+        return adminAudit(module, id, status, "");
+    }
+
+    @Transactional
+    public Map<String, Object> adminAudit(String module, Long id, String status, String rejectReason) {
         if ("merchants".equals(module) || "merchant".equals(module)) {
             String auditStatus = normalizeAuditStatus(status);
+            if (id != null && id < 0) {
+                Long merchantId = Math.abs(id);
+                MerchantEntity merchant = new MerchantEntity();
+                merchant.setAuditStatus(auditStatus);
+                int rows = merchantMapper.update(merchant, Wrappers.<MerchantEntity>lambdaUpdate().eq(MerchantEntity::getId, merchantId));
+                if (rows != 1) {
+                    throw new BizException("商家不存在");
+                }
+                return Map.of("module", module, "id", merchantId, "result", auditStatus, "auditStatus", auditStatus);
+            }
+            MerchantApplicationEntity application = merchantApplicationMapper.selectById(id);
+            if (application != null) {
+                MerchantApplicationEntity updateApplication = new MerchantApplicationEntity();
+                updateApplication.setId(application.getId());
+                updateApplication.setAuditStatus(auditStatus);
+                updateApplication.setRejectReason("rejected".equals(auditStatus) ? defaultRejectReason(rejectReason) : "");
+                merchantApplicationMapper.updateById(updateApplication);
+                if ("approved".equals(auditStatus)) {
+                    upsertMerchantFromApplication(application);
+                }
+                return Map.of("module", module, "id", id, "result", auditStatus, "auditStatus", auditStatus);
+            }
             MerchantEntity merchant = new MerchantEntity();
             merchant.setAuditStatus(auditStatus);
             int rows = merchantMapper.update(merchant, Wrappers.<MerchantEntity>lambdaUpdate().eq(MerchantEntity::getId, id));
@@ -1216,14 +1627,29 @@ public class BusinessService {
             }
             return Map.of("module", module, "id", id, "result", auditStatus, "auditStatus", auditStatus);
         }
-        if ("riders".equals(module) || "users".equals(module)) {
+        if ("riders".equals(module)) {
+            String auditStatus = normalizeAuditStatus(status);
+            RiderCertificationEntity certification = latestRiderCertification(id);
+            if (certification == null) {
+                throw new BizException("骑手认证记录不存在");
+            }
+            RiderCertificationEntity updateCertification = new RiderCertificationEntity();
+            updateCertification.setId(certification.getId());
+            updateCertification.setAuditStatus(auditStatus);
+            updateCertification.setRejectReason("rejected".equals(auditStatus) ? defaultRejectReason(rejectReason) : "");
+            riderCertificationMapper.updateById(updateCertification);
+            SysUserEntity user = new SysUserEntity();
+            user.setStatus("approved".equals(auditStatus) ? 1 : 0);
+            sysUserMapper.update(user, Wrappers.<SysUserEntity>lambdaUpdate()
+                    .eq(SysUserEntity::getId, certification.getUserId())
+                    .eq(SysUserEntity::getRole, "rider"));
+            return Map.of("module", module, "id", id, "result", auditStatus, "auditStatus", auditStatus);
+        }
+        if ("users".equals(module)) {
             Integer nextStatus = normalizeUserStatus(status);
             SysUserEntity user = new SysUserEntity();
             user.setStatus(nextStatus);
             var wrapper = Wrappers.<SysUserEntity>lambdaUpdate().eq(SysUserEntity::getId, id);
-            if ("riders".equals(module)) {
-                wrapper.eq(SysUserEntity::getRole, "rider");
-            }
             int rows = sysUserMapper.update(user, wrapper);
             if (rows != 1) {
                 throw new BizException("用户不存在");
@@ -1308,7 +1734,7 @@ public class BusinessService {
     }
 
     private String normalizePayMethod(String payMethod) {
-        if ("wechat".equals(payMethod) || "alipay".equals(payMethod) || "campus_card".equals(payMethod)) {
+        if ("wechat".equals(payMethod) || "alipay".equals(payMethod) || "campus_card".equals(payMethod) || "balance".equals(payMethod)) {
             return payMethod;
         }
         throw new BizException("支付方式不支持");

@@ -17,6 +17,7 @@ public class MerchantEntity {
     private String category;
     private String phone;
     private String address;
+    private String notice;
     private String auditStatus;
     private String businessStatus;
     private BigDecimal rating;
@@ -71,6 +72,14 @@ public class MerchantEntity {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public String getNotice() {
+        return notice;
+    }
+
+    public void setNotice(String notice) {
+        this.notice = notice;
     }
 
     public String getAuditStatus() {

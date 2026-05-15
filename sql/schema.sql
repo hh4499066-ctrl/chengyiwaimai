@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS merchant (
   category VARCHAR(50),
   phone VARCHAR(20),
   address VARCHAR(255),
+  notice VARCHAR(500),
   audit_status VARCHAR(20) DEFAULT 'pending',
   business_status VARCHAR(20) DEFAULT 'open',
   rating DECIMAL(3,1) DEFAULT 5.0,
@@ -28,6 +29,60 @@ CREATE TABLE IF NOT EXISTS merchant (
   create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
   update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_merchant_user_id (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS merchant_application (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  merchant_name VARCHAR(80) NOT NULL,
+  contact_name VARCHAR(50) NOT NULL,
+  contact_phone VARCHAR(20) NOT NULL,
+  address VARCHAR(255) NOT NULL,
+  category VARCHAR(50),
+  license_url VARCHAR(500),
+  food_license_url VARCHAR(500),
+  audit_status VARCHAR(20) DEFAULT 'pending',
+  reject_reason VARCHAR(500),
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_merchant_application_user_status (user_id, audit_status),
+  KEY idx_merchant_application_audit_status (audit_status)
+);
+
+CREATE TABLE IF NOT EXISTS rider_certification (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  real_name VARCHAR(50) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  id_card VARCHAR(32) NOT NULL,
+  vehicle_type VARCHAR(30) NOT NULL,
+  id_card_front_url VARCHAR(500),
+  id_card_back_url VARCHAR(500),
+  audit_status VARCHAR(20) DEFAULT 'pending',
+  reject_reason VARCHAR(500),
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_rider_certification_user_status (user_id, audit_status),
+  KEY idx_rider_certification_audit_status (audit_status)
+);
+
+CREATE TABLE IF NOT EXISTS user_wallet (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  balance DECIMAL(10,2) DEFAULT 0.00,
+  frozen_amount DECIMAL(10,2) DEFAULT 0.00,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_wallet_user_id (user_id)
+);
+
+CREATE TABLE IF NOT EXISTS user_points (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  points INT DEFAULT 0,
+  create_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+  update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_points_user_id (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS dish (

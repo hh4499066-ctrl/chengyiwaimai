@@ -32,13 +32,15 @@ public class MerchantCenterController {
     }
 
     @PostMapping("/apply")
-    public ApiResponse<Map<String, Object>> apply(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("status", "pending", "demo", true, "message", "入驻申请已提交，当前为演示流程", "data", body));
+    public ApiResponse<Map<String, Object>> apply(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantApply(user, body));
     }
 
     @GetMapping("/audit-status")
-    public ApiResponse<Map<String, Object>> auditStatus() {
-        return ApiResponse.ok(Map.of("status", "approved", "demo", true, "message", "店铺审核演示状态：已通过"));
+    public ApiResponse<Map<String, Object>> auditStatus(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantAuditStatus(user));
     }
 
     @GetMapping("/workbench")
@@ -169,12 +171,14 @@ public class MerchantCenterController {
     }
 
     @GetMapping("/profile")
-    public ApiResponse<Map<String, Object>> profile() {
-        return ApiResponse.ok(Map.of("name", "老刘家招牌牛肉面", "phone", "020-88886666", "address", "学校东门美食街 12 号", "status", "营业中", "demo", true));
+    public ApiResponse<Map<String, Object>> profile(HttpServletRequest request) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.merchantProfile(user));
     }
 
     @PostMapping("/profile")
-    public ApiResponse<Map<String, Object>> saveProfile(@RequestBody Map<String, Object> body) {
-        return ApiResponse.ok(Map.of("saved", true, "demo", true, "profile", body));
+    public ApiResponse<Map<String, Object>> saveProfile(HttpServletRequest request, @RequestBody Map<String, Object> body) {
+        CurrentUser user = AuthContext.requireRole(request, "merchant");
+        return ApiResponse.ok(store.saveMerchantProfile(user, body));
     }
 }

@@ -6,10 +6,10 @@ const fallbackProfile: CustomerProfile = {
   userId: 0,
   nickname: '橙意用户',
   phone: '',
-  balance: 128.5,
-  points: 3450,
-  balanceLabel: '演示余额',
-  pointsLabel: '演示积分',
+  balance: 0,
+  points: 0,
+  balanceLabel: '账户余额',
+  pointsLabel: '账户积分',
 };
 
 function maskPhone(phone: string) {
@@ -102,7 +102,7 @@ export default function Profile({
 
         {/* Data Overview Bento Grid */}
         <section className="grid grid-cols-3 gap-sm stagger-children">
-          <button onClick={() => tip(`${profile.balanceLabel || '演示余额'}可用于模拟支付，演示环境不产生真实扣款。`)} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
+          <button onClick={() => tip('余额可用于余额支付/校园卡支付')} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
             <span className="font-headline-md text-headline-md text-primary font-bold">{balanceText}</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">账户余额(元)</span>
           </button>
@@ -111,7 +111,7 @@ export default function Profile({
             <span className="font-headline-md text-headline-md text-primary font-bold">5</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">优惠券(张)</span>
           </button>
-          <button onClick={() => tip(`${profile.pointsLabel || '演示积分'}：${pointsText}`)} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
+          <button onClick={() => tip(`积分由已完成消费累计获得：${pointsText}`)} className="liquid-card liquid-button p-md rounded-xl flex flex-col items-center justify-center text-center active:bg-surface-variant transition-colors cursor-pointer">
             <span className="font-headline-md text-headline-md text-primary font-bold">{pointsText}</span>
             <span className="font-label-md text-label-md text-on-surface-variant mt-xs">积分</span>
           </button>

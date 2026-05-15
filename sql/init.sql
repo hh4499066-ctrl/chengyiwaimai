@@ -27,6 +27,18 @@ ON DUPLICATE KEY UPDATE
   rating = VALUES(rating),
   deleted = 0;
 
+INSERT INTO user_wallet(user_id, balance, frozen_amount)
+SELECT id, 128.50, 0.00
+FROM sys_user
+WHERE phone = '13800000001'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO user_points(user_id, points)
+SELECT id, 3450
+FROM sys_user
+WHERE phone = '13800000001'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
 INSERT INTO dish(id, merchant_id, category_name, name, description, price, stock, status, deleted) VALUES
 (101, 1, '招牌推荐', '招牌红烧牛肉面', '慢炖牛腱肉，搭配手工拉面和秘制红油。', 28.50, 99, 'on_sale', 0),
 (102, 1, '热销单品', '番茄肥牛拌面', '酸甜番茄汤底，肥牛鲜嫩，适合晚餐。', 26.00, 99, 'on_sale', 0),

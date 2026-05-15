@@ -219,7 +219,10 @@ function AdminMerchantAuditLive() {
   const refresh = () => api.getAdminMerchants().then(setItems).catch(() => setItems([]));
   React.useEffect(() => { refresh(); }, []);
   const shown = items.filter((item) => !keyword || item.name.includes(keyword) || item.category.includes(keyword));
-  const audit = (item: AdminMerchant, status: string) => api.adminAudit('merchants', item.id, status).then(refresh);
+  const audit = (item: AdminMerchant, status: string) => {
+    const rejectReason = status === 'rejected' ? window.prompt('驳回原因', '资料不完整，请补充后重新提交') || '' : '';
+    return api.adminAudit('merchants', item.id, status, rejectReason).then(refresh);
+  };
   return (
     <div className="liquid-stage flex-1 overflow-y-auto p-lg bg-surface space-y-md relative">
       <header className="motion-enter"><h1 className="font-headline-md text-headline-md font-bold">商家入驻审核</h1><p className="text-on-surface-variant">真实读取商家列表，支持筛选、查看、通过和驳回。</p></header>
@@ -245,7 +248,10 @@ function AdminRiderAuditLive() {
   const refresh = () => api.getAdminRiders().then(setItems).catch(() => setItems([]));
   React.useEffect(() => { refresh(); }, []);
   const shown = items.filter((item) => !keyword || item.name.includes(keyword) || item.phone.includes(keyword));
-  const audit = (item: AdminUser, status: string) => api.adminAudit('riders', item.id, status).then(refresh);
+  const audit = (item: AdminUser, status: string) => {
+    const rejectReason = status === 'rejected' ? window.prompt('驳回原因', '认证资料不完整，请补充后重新提交') || '' : '';
+    return api.adminAudit('riders', item.id, status, rejectReason).then(refresh);
+  };
   return (
     <div className="liquid-stage flex-1 overflow-y-auto p-lg bg-surface space-y-md relative">
       <header className="motion-enter"><h1 className="font-headline-md text-headline-md font-bold">骑手审核</h1><p className="text-on-surface-variant">真实读取骑手账号，支持查询、查看原件、通过和标记违规。</p></header>
@@ -256,7 +262,7 @@ function AdminRiderAuditLive() {
       <div className="liquid-card motion-border-glow rounded-xl overflow-auto">
         <table className="w-full text-left min-w-[760px]">
           <thead><tr className="bg-surface-container-low text-on-surface-variant"><th className="p-md">骑手</th><th className="p-md">手机号</th><th className="p-md">角色</th><th className="p-md">状态</th><th className="p-md text-right">操作</th></tr></thead>
-          <tbody className="stagger-children">{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.role}</td><td className="p-md">{item.status}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看原件</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过审核</button><button onClick={() => audit(item, 'disabled')} className="text-error">标记违规</button></td></tr>)}</tbody>
+          <tbody className="stagger-children">{shown.map((item) => <tr key={item.id} className="border-t border-outline-variant/20 hover:bg-surface-variant/20 transition-colors"><td className="p-md">{item.name}</td><td className="p-md">{item.phone}</td><td className="p-md">{item.role}</td><td className="p-md">{item.status}</td><td className="p-md text-right"><button onClick={() => setModal(JSON.stringify(item, null, 2))} className="text-primary mr-sm">查看原件</button><button onClick={() => audit(item, 'approved')} className="text-tertiary mr-sm">通过审核</button><button onClick={() => audit(item, 'rejected')} className="text-error">驳回</button></td></tr>)}</tbody>
         </table>
       </div>
       {modal && <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-lg"><div className="liquid-glass modal-surface rounded-2xl p-lg max-w-lg w-full motion-enter"><pre className="whitespace-pre-wrap">{modal}</pre><button onClick={() => setModal(null)} className="liquid-button mt-md w-full bg-primary text-on-primary rounded-lg py-sm">关闭</button></div></div>}
